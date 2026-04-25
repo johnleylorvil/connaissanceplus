@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.env
+npm-debug.log
+hls_output
+uploads
+backend
+test
+*.sqlite

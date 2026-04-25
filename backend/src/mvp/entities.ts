@@ -1,0 +1,564 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Unique,
+  UpdateDateColumn,
+} from 'typeorm';
+
+export enum UserRole {
+  STUDENT = 'student',
+  ADMIN = 'admin',
+  MODERATOR = 'moderator',
+}
+
+export enum BroadcastTargetType {
+  ALL = 'all',
+  CLASS = 'class',
+  DEPARTMENT = 'department',
+  CITY = 'city',
+  SECTION = 'section',
+  FILTERED = 'filtered',
+}
+
+export enum Difficulty {
+  EASY = 'easy',
+  MEDIUM = 'medium',
+  HARD = 'hard',
+}
+
+export enum QuizStatus {
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+}
+
+export enum DuelStatus {
+  WAITING = 'waiting',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+}
+
+export enum DuelMode {
+  QCM = 'qcm',
+  ORAL_LIVE = 'oral_live',
+}
+
+export enum OptionChoice {
+  A = 'A',
+  B = 'B',
+  C = 'C',
+  D = 'D',
+}
+
+@Entity('levels')
+@Unique(['name'])
+export class AcademicClass {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  name: string;
+
+  @OneToMany(() => Subject, (subject) => subject.academicClass)
+  subjects: Subject[];
+
+  @OneToMany(() => User, (user) => user.academicClass)
+  students: User[];
+}
+
+@Entity('subjects')
+@Unique(['name', 'classId'])
+export class Subject {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  name: string;
+
+  @Column('uuid', { name: 'levelId' })
+  classId: string;
+
+  @ManyToOne(() => AcademicClass, (academicClass) => academicClass.subjects, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'levelId' })
+  academicClass: AcademicClass;
+
+  @OneToMany(() => Question, (question) => question.subject)
+  questions: Question[];
+}
+
+@Entity('users')
+@Unique(['email'])
+export class User {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  firstName: string;
+
+  @Column()
+  lastName: string;
+
+  @Column()
+  email: string;
+
+  @Column()
+  password: string;
+
+  @Column({ type: 'text', default: UserRole.STUDENT })
+  role: UserRole;
+
+  @Column('uuid', { name: 'levelId', nullable: true })
+  classId: string | null;
+
+  @ManyToOne(() => AcademicClass, (academicClass) => academicClass.students, { nullable: true })
+  @JoinColumn({ name: 'levelId' })
+  academicClass: AcademicClass | null;
+
+  @Column({ type: 'text', nullable: true })
+  school: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  city: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  department: string | null;
+
+  @Column({ name: 'className', type: 'text', nullable: true })
+  sectionName: string | null;
+
+  @Column({ default: false })
+  canBeContacted: boolean;
+
+  @Column({ type: 'boolean', nullable: true, default: null })
+  acceptedPrivacyPolicy: boolean | null;
+
+  @Column({ type: 'text', nullable: true })
+  googleId: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}
+
+@Entity('questions')
+export class Question {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid', { name: 'levelId' })
+  classId: string;
+
+  @Column('uuid')
+  subjectId: string;
+
+  @ManyToOne(() => AcademicClass, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'levelId' })
+  academicClass: AcademicClass;
+
+  @ManyToOne(() => Subject, (subject) => subject.questions, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'subjectId' })
+  subject: Subject;
+
+  @Column('text')
+  prompt: string;
+
+  @Column('text')
+  optionA: string;
+
+  @Column('text')
+  optionB: string;
+
+  @Column('text')
+  optionC: string;
+
+  @Column('text')
+  optionD: string;
+
+  @Column({ type: 'text' })
+  correctOption: OptionChoice;
+
+  @Column({ type: 'text', default: Difficulty.MEDIUM })
+  difficulty: Difficulty;
+
+  @Column('text', { nullable: true })
+  explanation: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}
+
+@Entity('quiz_sessions')
+export class QuizSession {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  userId: string;
+
+  @Column('uuid', { name: 'levelId' })
+  classId: string;
+
+  @Column('uuid')
+  subjectId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @ManyToOne(() => AcademicClass, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'levelId' })
+  academicClass: AcademicClass;
+
+  @ManyToOne(() => Subject, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'subjectId' })
+  subject: Subject;
+
+  @Column({ type: 'text', default: QuizStatus.IN_PROGRESS })
+  status: QuizStatus;
+
+  @Column({ type: 'int', default: 0 })
+  score: number;
+
+  @CreateDateColumn()
+  startedAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @OneToMany(() => QuizSessionQuestion, (sessionQuestion) => sessionQuestion.quizSession, {
+    cascade: true,
+  })
+  questions: QuizSessionQuestion[];
+}
+
+@Entity('quiz_session_questions')
+export class QuizSessionQuestion {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  quizSessionId: string;
+
+  @Column('uuid')
+  questionId: string;
+
+  @Column('int')
+  position: number;
+
+  @ManyToOne(() => QuizSession, (quizSession) => quizSession.questions, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'quizSessionId' })
+  quizSession: QuizSession;
+
+  @ManyToOne(() => Question, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'questionId' })
+  question: Question;
+
+  @OneToMany(() => Answer, (answer) => answer.sessionQuestion, { cascade: true })
+  answers: Answer[];
+}
+
+@Entity('answers')
+export class Answer {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  sessionQuestionId: string;
+
+  @ManyToOne(() => QuizSessionQuestion, (sessionQuestion) => sessionQuestion.answers, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'sessionQuestionId' })
+  sessionQuestion: QuizSessionQuestion;
+
+  @Column({ type: 'text' })
+  selectedOption: OptionChoice;
+
+  @Column({ default: false })
+  isCorrect: boolean;
+}
+
+@Entity('duel_matches')
+@Unique(['joinCode'])
+export class DuelMatch {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'text' })
+  joinCode: string;
+
+  @Column({ type: 'text' })
+  competitionId: string;
+
+  @Column({ type: 'text' })
+  competitionName: string;
+
+  @Column('uuid', { nullable: true })
+  subjectId: string | null;
+
+  @Column('uuid', { name: 'levelId', nullable: true })
+  classId: string | null;
+
+  @Column('uuid')
+  playerOneId: string;
+
+  @Column('uuid', { nullable: true })
+  playerTwoId: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'playerOneId' })
+  playerOne: User;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'playerTwoId' })
+  playerTwo: User | null;
+
+  @Column({ type: 'text', default: DuelStatus.WAITING })
+  status: DuelStatus;
+
+  @Column({ type: 'int', default: 10 })
+  questionCount: number;
+
+  @Column({ type: 'text', default: DuelMode.QCM })
+  mode: DuelMode;
+
+  @Column('uuid', { nullable: true })
+  moderatorUserId: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'moderatorUserId' })
+  moderator: User | null;
+
+  @Column({ type: 'text', nullable: true })
+  chimeMeetingId: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  chimeMediaRegion: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  liveStartedAt: Date | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  liveEndedAt: Date | null;
+
+  @Column('uuid', { nullable: true })
+  winnerUserId: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  startedAt: Date | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  completedAt: Date | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @OneToMany(() => DuelMatchQuestion, (question) => question.duelMatch, { cascade: true })
+  questions: DuelMatchQuestion[];
+
+  @OneToMany(() => DuelProgress, (progress) => progress.duelMatch, { cascade: true })
+  progresses: DuelProgress[];
+
+  @OneToMany(() => DuelScoreEvent, (event) => event.duelMatch, { cascade: true })
+  scoreEvents: DuelScoreEvent[];
+}
+
+@Entity('duel_match_questions')
+export class DuelMatchQuestion {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  duelMatchId: string;
+
+  @Column('uuid')
+  questionId: string;
+
+  @Column('int')
+  position: number;
+
+  @ManyToOne(() => DuelMatch, (duelMatch) => duelMatch.questions, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'duelMatchId' })
+  duelMatch: DuelMatch;
+
+  @ManyToOne(() => Question, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'questionId' })
+  question: Question;
+
+  @OneToMany(() => DuelAnswer, (answer) => answer.duelMatchQuestion, { cascade: true })
+  answers: DuelAnswer[];
+}
+
+@Entity('duel_progresses')
+@Unique(['duelMatchId', 'userId'])
+export class DuelProgress {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  duelMatchId: string;
+
+  @Column('uuid')
+  userId: string;
+
+  @ManyToOne(() => DuelMatch, (duelMatch) => duelMatch.progresses, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'duelMatchId' })
+  duelMatch: DuelMatch;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column({ type: 'int', default: 0 })
+  answeredCount: number;
+
+  @Column({ type: 'int', default: 0 })
+  score: number;
+
+  @Column({ type: 'datetime', nullable: true })
+  startedAt: Date | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  submittedAt: Date | null;
+
+  @Column({ type: 'int', nullable: true })
+  totalTimeSeconds: number | null;
+}
+
+@Entity('duel_answers')
+@Unique(['duelMatchQuestionId', 'userId'])
+export class DuelAnswer {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  duelMatchQuestionId: string;
+
+  @Column('uuid')
+  userId: string;
+
+  @ManyToOne(() => DuelMatchQuestion, (duelMatchQuestion) => duelMatchQuestion.answers, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'duelMatchQuestionId' })
+  duelMatchQuestion: DuelMatchQuestion;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column({ type: 'text', nullable: true })
+  selectedOption: OptionChoice | null;
+
+  @Column({ default: false })
+  isCorrect: boolean;
+
+  @CreateDateColumn()
+  answeredAt: Date;
+}
+
+@Entity('notifications')
+export class Notification {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  userId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column()
+  title: string;
+
+  @Column({ type: 'text' })
+  message: string;
+
+  @Column({ type: 'text', default: 'system' })
+  type: string;
+
+  @Column({ default: false })
+  isRead: boolean;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}
+
+@Entity('admin_broadcasts')
+export class AdminBroadcast {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  adminId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'adminId' })
+  admin: User;
+
+  @Column({ type: 'text' })
+  title: string;
+
+  @Column({ type: 'text' })
+  message: string;
+
+  @Column({ type: 'text', default: BroadcastTargetType.ALL })
+  targetType: BroadcastTargetType;
+
+  @Column({ type: 'text', nullable: true })
+  targetId: string | null;
+
+  @Column({ name: 'levelId', type: 'uuid', nullable: true })
+  classId: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  department: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  city: string | null;
+
+  @Column({ name: 'className', type: 'text', nullable: true })
+  sectionName: string | null;
+
+  @Column({ type: 'int', default: 0 })
+  recipientCount: number;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}
+
+@Entity('duel_score_events')
+export class DuelScoreEvent {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column('uuid')
+  duelMatchId: string;
+
+  @ManyToOne(() => DuelMatch, (duelMatch) => duelMatch.scoreEvents, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'duelMatchId' })
+  duelMatch: DuelMatch;
+
+  @Column('uuid', { nullable: true })
+  awardedToUserId: string | null;
+
+  @Column('uuid')
+  awardedByModeratorId: string;
+
+  @Column({ type: 'int', default: 1 })
+  points: number;
+
+  /** 'A' | 'B' | 'BOTH' | 'NONE' */
+  @Column({ type: 'text' })
+  awardTarget: string;
+
+  @Column({ type: 'text', nullable: true })
+  reason: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}

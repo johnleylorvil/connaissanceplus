@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: konesans_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-konesans_plus}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - konesans_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: konesans_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no
+    networks:
+      - konesans_network
+
+  # LiveKit SFU server (dev mode — single API key/secret pair)
+  # Credentials configurable via LIVEKIT_API_KEY / LIVEKIT_API_SECRET in .env
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: konesans_livekit
+    command: --dev --bind 0.0.0.0 --redis-host redis:6379
+    ports:
+      - "7880:7880"   # WebSocket / HTTP
+      - "7881:7881"   # TCP fallback
+      - "50100-50200:50100-50200/udp"  # ICE UDP range
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET:-devsecret}"
+    networks:
+      - konesans_network
+    depends_on:
+      - redis
+
+  # LiveKit Egress — generates HLS segments written to backend/hls_output
+  livekit-egress:
+    image: livekit/egress:latest
+    container_name: konesans_egress
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      EGRESS_CONFIG_FILE: /etc/livekit/egress.yaml
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret}
+      LIVEKIT_WS_URL: ws://livekit:7880
+    volumes:
+      - ./livekit-egress.yaml:/etc/livekit/egress.yaml:ro
+      - ./backend/hls_output:/output
+    networks:
+      - konesans_network
+    depends_on:
+      - livekit
+      - redis
+
+volumes:
+  postgres_data:
+
+networks:
+  konesans_network:

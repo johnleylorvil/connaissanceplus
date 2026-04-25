@@ -1,0 +1,10 @@
+redis:
+  address: redis:6379
+
+insecure: true
+
+logging:
+  level: info
+
+health_port: 7981
+template_port: 7980
