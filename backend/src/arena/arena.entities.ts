@@ -54,7 +54,7 @@ export class ArenaCompetition {
   @Column({ type: 'int', default: 30 })
   secondsPerQuestion: number;
 
-  @Column({ type: 'datetime' })
+  @Column()
   scheduledAt: Date;
 
   @Column('uuid')
@@ -75,13 +75,13 @@ export class ArenaCompetition {
   @Column({ type: 'int', default: 0 })
   currentRound: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   completedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   pausedAt: Date | null;
 
   // ── Broadcast (HLS Egress) ──────────────────────────────────────────
@@ -94,7 +94,7 @@ export class ArenaCompetition {
   @Column({ type: 'text', nullable: true })
   broadcastUrl: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   broadcastStartedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
@@ -129,7 +129,7 @@ export class ArenaParticipantRegistration {
   @Column({ type: 'text', default: ArenaParticipantRegistrationStatus.PENDING })
   status: ArenaParticipantRegistrationStatus;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   disqualifiedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
@@ -164,13 +164,13 @@ export class ArenaRound {
   @Column({ type: 'int' })
   position: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   endedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   endTime: Date | null;   // authoritative scheduled end (startedAt + secondsPerQuestion)
 
   @ManyToOne(() => ArenaCompetition, (c) => c.rounds, { onDelete: 'CASCADE' })
@@ -209,7 +209,7 @@ export class ArenaParticipantAnswer {
   @Column({ type: 'int', default: 0 })
   pointsAwarded: number;
 
-  @Column({ type: 'datetime' })
+  @Column()
   submittedAt: Date;
 
   @ManyToOne(() => ArenaRound, (r) => r.answers, { onDelete: 'CASCADE' })

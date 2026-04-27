@@ -338,19 +338,19 @@ export class DuelMatch {
   @Column({ type: 'text', nullable: true })
   chimeMediaRegion: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   liveStartedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   liveEndedAt: Date | null;
 
   @Column('uuid', { nullable: true })
   winnerUserId: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   completedAt: Date | null;
 
   @CreateDateColumn()
@@ -418,10 +418,10 @@ export class DuelProgress {
   @Column({ type: 'int', default: 0 })
   score: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   submittedAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
