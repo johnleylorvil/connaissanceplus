@@ -44,18 +44,25 @@ Related deployment artifacts:
 
 - `DB_TYPE=postgres`
 - `DB_HOST`
-- `DB_PORT=5432`
+- `DB_PORT`
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `DB_NAME`
 - `DB_SSL=true`
 - `DB_SSL_REJECT_UNAUTHORIZED=false`
+- `DB_SYNCHRONIZE=false`
 - `DB_MIGRATIONS_RUN=true`
+
+For ECS on IPv4-only egress, prefer the Supabase session pooler connection details instead of the direct database host. Use the exact host, port, database, and username shown by Supabase for the session pooler.
+
+If the target Postgres database is empty and you do not yet have an initial create-schema migration, do a one-time bootstrap with `DB_SYNCHRONIZE=true` and `DB_MIGRATIONS_RUN=false`. After the schema exists, switch back to `DB_SYNCHRONIZE=false`.
 
 ### Redis
 
 - `REDIS_HOST`
 - `REDIS_PORT=6379`
+
+If Redis is not deployed yet, omit `REDIS_HOST` from ECS instead of setting it to an empty string so the backend keeps its local fallback.
 
 ### Sponsor uploads
 
@@ -76,6 +83,8 @@ Related deployment artifacts:
 - `LIVEKIT_EGRESS_S3_SECRET_KEY`
 - `LIVEKIT_EGRESS_S3_ENDPOINT` (optional)
 - `LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE=false`
+
+If LiveKit or HLS egress is not ready yet, omit `LIVEKIT_URL`, `HLS_BASE_URL`, and any unused `LIVEKIT_EGRESS_S3_*` values instead of injecting empty strings.
 
 ### Google OAuth
 

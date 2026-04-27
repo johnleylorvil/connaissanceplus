@@ -99,15 +99,18 @@ export function createTypeOrmOptions(
       true,
       configService,
     );
+    const host = readString('DB_HOST', 'localhost', configService).trim();
+    const username = readString('DB_USERNAME', 'postgres', configService).trim();
+    const database = readString('DB_NAME', 'konesans_plus', configService).trim();
 
     return {
       ...baseOptions,
       type: 'postgres',
-      host: readString('DB_HOST', 'localhost', configService),
+      host,
       port: readNumber('DB_PORT', 5432, configService),
-      username: readString('DB_USERNAME', 'postgres', configService),
+      username,
       password: readString('DB_PASSWORD', 'postgres', configService),
-      database: readString('DB_NAME', 'konesans_plus', configService),
+      database,
       ssl: sslEnabled ? { rejectUnauthorized } : false,
     };
   }

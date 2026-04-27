@@ -18,6 +18,7 @@ DB_TYPE=postgres
 DB_HOST=db.your-supabase-host.supabase.co
 DB_PORT=5432
 DB_NAME=postgres
+DB_SYNCHRONIZE=false
 DB_SSL=true
 DB_SSL_REJECT_UNAUTHORIZED=false
 DB_MIGRATIONS_RUN=true
@@ -40,9 +41,17 @@ LIVEKIT_EGRESS_S3_ENDPOINT=
 LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE=false
 ```
 
+If Redis or LiveKit is not ready for the first deployment, leave the related GitHub variable unset and omit the ECS environment entry entirely. Do not inject empty strings for `REDIS_HOST`, `LIVEKIT_URL`, `HLS_BASE_URL`, or unused `LIVEKIT_EGRESS_S3_*` values.
+
+If the backend runs on ECS without IPv6 egress, use the Supabase session pooler connection settings here rather than the direct connection values.
+
+For a first deployment into an empty Supabase database, temporarily set `DB_SYNCHRONIZE=true` and `DB_MIGRATIONS_RUN=false` so TypeORM can create the schema. Once the schema exists, turn `DB_SYNCHRONIZE` back to `false`.
+
 ## Secret Environment Variables
 
 These should go in ECS `secrets`, backed by AWS Secrets Manager or SSM Parameter Store.
+
+When the ECS task definition references a secret with a bare `valueFrom` ARN, store that secret as a plain text value in Secrets Manager. Do not store `DB_USERNAME` or `DB_PASSWORD` as JSON key/value secrets unless you also update the ARN to target a specific JSON key.
 
 ### Minimum secrets for the first backend deployment
 

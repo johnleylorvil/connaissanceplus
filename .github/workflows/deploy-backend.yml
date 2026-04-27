@@ -26,7 +26,10 @@ jobs:
       FRONTEND_URL: ${{ vars.FRONTEND_URL }}
       CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
       DB_HOST: ${{ vars.DB_HOST }}
+      DB_PORT: ${{ vars.DB_PORT }}
       DB_NAME: ${{ vars.DB_NAME }}
+      DB_SYNCHRONIZE: ${{ vars.DB_SYNCHRONIZE }}
+      DB_MIGRATIONS_RUN: ${{ vars.DB_MIGRATIONS_RUN }}
       REDIS_HOST: ${{ vars.REDIS_HOST }}
       SPONSOR_UPLOADS_S3_BUCKET: ${{ vars.SPONSOR_UPLOADS_S3_BUCKET }}
       SPONSOR_UPLOADS_PUBLIC_BASE_URL: ${{ vars.SPONSOR_UPLOADS_PUBLIC_BASE_URL }}
@@ -61,29 +64,62 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Inject runtime variables into ECS task definition
+        shell: pwsh
         run: |
-          $content = Get-Content "${{ env.TASK_DEFINITION_PATH }}" -Raw
-          $replacements = @{
-            '__FRONTEND_URL__' = '${{ env.FRONTEND_URL }}'
-            '__CORS_ORIGINS__' = '${{ env.CORS_ORIGINS }}'
-            '__DB_HOST__' = '${{ env.DB_HOST }}'
-            '__DB_NAME__' = '${{ env.DB_NAME }}'
-            '__REDIS_HOST__' = '${{ env.REDIS_HOST }}'
-            '__SPONSOR_UPLOADS_S3_BUCKET__' = '${{ env.SPONSOR_UPLOADS_S3_BUCKET }}'
-            '__SPONSOR_UPLOADS_PUBLIC_BASE_URL__' = '${{ env.SPONSOR_UPLOADS_PUBLIC_BASE_URL }}'
-            '__LIVEKIT_URL__' = '${{ env.LIVEKIT_URL }}'
-            '__HLS_BASE_URL__' = '${{ env.HLS_BASE_URL }}'
-            '__LIVEKIT_EGRESS_S3_BUCKET__' = '${{ env.LIVEKIT_EGRESS_S3_BUCKET }}'
-            '__LIVEKIT_EGRESS_S3_REGION__' = '${{ env.LIVEKIT_EGRESS_S3_REGION }}'
-            '__LIVEKIT_EGRESS_S3_ENDPOINT__' = '${{ env.LIVEKIT_EGRESS_S3_ENDPOINT }}'
-            '__LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE__' = '${{ env.LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE }}'
+          $taskDefinitionPath = "${{ env.TASK_DEFINITION_PATH }}"
+          $taskDefinition = Get-Content $taskDefinitionPath -Raw | ConvertFrom-Json
+          $container = $taskDefinition.containerDefinitions | Where-Object { $_.name -eq 'backend' } | Select-Object -First 1
+
+          if (-not $container) {
+            throw 'Backend container definition not found in task definition template.'
           }
 
-          foreach ($entry in $replacements.GetEnumerator()) {
-            $content = $content.Replace($entry.Key, $entry.Value)
+          $requiredValues = @{
+            FRONTEND_URL = '${{ env.FRONTEND_URL }}'
+            CORS_ORIGINS = '${{ env.CORS_ORIGINS }}'
+            DB_HOST = '${{ env.DB_HOST }}'
+            DB_PORT = '${{ env.DB_PORT }}'
+            DB_NAME = '${{ env.DB_NAME }}'
+            DB_SYNCHRONIZE = '${{ env.DB_SYNCHRONIZE }}'
+            DB_MIGRATIONS_RUN = '${{ env.DB_MIGRATIONS_RUN }}'
+            SPONSOR_UPLOADS_S3_BUCKET = '${{ env.SPONSOR_UPLOADS_S3_BUCKET }}'
+            SPONSOR_UPLOADS_PUBLIC_BASE_URL = '${{ env.SPONSOR_UPLOADS_PUBLIC_BASE_URL }}'
           }
 
-          Set-Content -Path "${{ env.TASK_DEFINITION_PATH }}" -Value $content
+          $optionalValues = @{
+            REDIS_HOST = '${{ env.REDIS_HOST }}'
+            LIVEKIT_URL = '${{ env.LIVEKIT_URL }}'
+            HLS_BASE_URL = '${{ env.HLS_BASE_URL }}'
+            LIVEKIT_EGRESS_S3_BUCKET = '${{ env.LIVEKIT_EGRESS_S3_BUCKET }}'
+            LIVEKIT_EGRESS_S3_REGION = '${{ env.LIVEKIT_EGRESS_S3_REGION }}'
+            LIVEKIT_EGRESS_S3_ENDPOINT = '${{ env.LIVEKIT_EGRESS_S3_ENDPOINT }}'
+            LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE = '${{ env.LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE }}'
+          }
+
+          foreach ($environmentEntry in $container.environment) {
+            if ($requiredValues.ContainsKey($environmentEntry.name)) {
+              $environmentEntry.value = $requiredValues[$environmentEntry.name]
+            }
+          }
+
+          $container.environment = @(
+            foreach ($environmentEntry in $container.environment) {
+              if (-not $optionalValues.ContainsKey($environmentEntry.name)) {
+                $environmentEntry
+                continue
+              }
+
+              $value = $optionalValues[$environmentEntry.name]
+              if ([string]::IsNullOrWhiteSpace($value)) {
+                continue
+              }
+
+              $environmentEntry.value = $value
+              $environmentEntry
+            }
+          )
+
+          $taskDefinition | ConvertTo-Json -Depth 100 | Set-Content -Path $taskDefinitionPath
 
       - name: Render ECS task definition
         id: render-task
