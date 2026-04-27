@@ -4,12 +4,12 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "1024",
   "memory": "2048",
-  "executionRoleArn": "arn:aws:iam::123456789012:role/konesansEcsExecutionRole",
-  "taskRoleArn": "arn:aws:iam::123456789012:role/konesansBackendTaskRole",
+  "executionRoleArn": "arn:aws:iam::650251714602:role/konesansEcsExecutionRole",
+  "taskRoleArn": "arn:aws:iam::650251714602:role/konesansBackendTaskRole",
   "containerDefinitions": [
     {
       "name": "backend",
-      "image": "123456789012.dkr.ecr.us-east-1.amazonaws.com/konesans-backend:latest",
+      "image": "650251714602.dkr.ecr.us-east-1.amazonaws.com/konesans-backend:latest",
       "essential": true,
       "portMappings": [
         {
@@ -21,70 +21,46 @@
       "environment": [
         { "name": "NODE_ENV", "value": "production" },
         { "name": "PORT", "value": "3000" },
-        { "name": "FRONTEND_URL", "value": "https://app.example.com" },
-        { "name": "CORS_ORIGINS", "value": "https://app.example.com,https://admin.example.com" },
+        { "name": "FRONTEND_URL", "value": "__FRONTEND_URL__" },
+        { "name": "CORS_ORIGINS", "value": "__CORS_ORIGINS__" },
         { "name": "JWT_EXPIRES_IN", "value": "7d" },
         { "name": "DB_TYPE", "value": "postgres" },
-        { "name": "DB_HOST", "value": "db.your-supabase-host.supabase.co" },
+        { "name": "DB_HOST", "value": "__DB_HOST__" },
         { "name": "DB_PORT", "value": "5432" },
-        { "name": "DB_NAME", "value": "postgres" },
+        { "name": "DB_NAME", "value": "__DB_NAME__" },
         { "name": "DB_SSL", "value": "true" },
         { "name": "DB_SSL_REJECT_UNAUTHORIZED", "value": "false" },
         { "name": "DB_MIGRATIONS_RUN", "value": "true" },
-        { "name": "REDIS_HOST", "value": "your-elasticache-endpoint" },
+        { "name": "REDIS_HOST", "value": "__REDIS_HOST__" },
         { "name": "REDIS_PORT", "value": "6379" },
         { "name": "AWS_REGION", "value": "us-east-1" },
         { "name": "CHIME_MEDIA_REGION", "value": "us-east-1" },
-        { "name": "SPONSOR_UPLOADS_S3_BUCKET", "value": "konesans-assets-prod" },
-        { "name": "SPONSOR_UPLOADS_PUBLIC_BASE_URL", "value": "https://assets.example.com" },
-        { "name": "LIVEKIT_URL", "value": "wss://your-livekit-host" },
-        { "name": "HLS_BASE_URL", "value": "https://media.example.com" },
+        { "name": "SPONSOR_UPLOADS_S3_BUCKET", "value": "__SPONSOR_UPLOADS_S3_BUCKET__" },
+        { "name": "SPONSOR_UPLOADS_PUBLIC_BASE_URL", "value": "__SPONSOR_UPLOADS_PUBLIC_BASE_URL__" },
+        { "name": "LIVEKIT_URL", "value": "__LIVEKIT_URL__" },
+        { "name": "HLS_BASE_URL", "value": "__HLS_BASE_URL__" },
         { "name": "HLS_OUTPUT_DIR", "value": "/output" },
-        { "name": "LIVEKIT_EGRESS_S3_BUCKET", "value": "konesans-media-prod" },
-        { "name": "LIVEKIT_EGRESS_S3_REGION", "value": "us-east-1" },
-        { "name": "LIVEKIT_EGRESS_S3_ENDPOINT", "value": "" },
-        { "name": "LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE", "value": "false" }
+        { "name": "LIVEKIT_EGRESS_S3_BUCKET", "value": "__LIVEKIT_EGRESS_S3_BUCKET__" },
+        { "name": "LIVEKIT_EGRESS_S3_REGION", "value": "__LIVEKIT_EGRESS_S3_REGION__" },
+        { "name": "LIVEKIT_EGRESS_S3_ENDPOINT", "value": "__LIVEKIT_EGRESS_S3_ENDPOINT__" },
+        { "name": "LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE", "value": "__LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE__" }
       ],
       "secrets": [
         {
           "name": "JWT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/JWT_SECRET"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:650251714602:secret:/konesans/backend/JWT_SECRET"
         },
         {
           "name": "ADMIN_SETUP_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/ADMIN_SETUP_KEY"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:650251714602:secret:/konesans/backend/ADMIN_SETUP_KEY"
         },
         {
           "name": "DB_USERNAME",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/DB_USERNAME"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:650251714602:secret:/konesans/backend/DB_USERNAME"
         },
         {
           "name": "DB_PASSWORD",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/DB_PASSWORD"
-        },
-        {
-          "name": "GOOGLE_CLIENT_ID",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/GOOGLE_CLIENT_ID"
-        },
-        {
-          "name": "GOOGLE_CLIENT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/GOOGLE_CLIENT_SECRET"
-        },
-        {
-          "name": "LIVEKIT_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/LIVEKIT_API_KEY"
-        },
-        {
-          "name": "LIVEKIT_API_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/LIVEKIT_API_SECRET"
-        },
-        {
-          "name": "LIVEKIT_EGRESS_S3_ACCESS_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/LIVEKIT_EGRESS_S3_ACCESS_KEY"
-        },
-        {
-          "name": "LIVEKIT_EGRESS_S3_SECRET_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:/konesans/backend/LIVEKIT_EGRESS_S3_SECRET_KEY"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:650251714602:secret:/konesans/backend/DB_PASSWORD"
         }
       ],
       "healthCheck": {

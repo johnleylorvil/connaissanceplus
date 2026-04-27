@@ -27,8 +27,8 @@ The workflow in `.github/workflows/deploy-frontend.yml`:
 
 This deploys the same frontend build for both:
 
-- `app.example.com`
-- `admin.example.com`
+- `connaissanceplus.net`
+- `admin.connaissanceplus.net`
 
 The app decides which portal to show from the hostname.
 
@@ -62,11 +62,37 @@ This is the IAM role that GitHub Actions will assume through OIDC.
 - `FRONTEND_S3_BUCKET`
 - `CLOUDFRONT_DISTRIBUTION_ID`
 
+Recommended production values for this project:
+
+- `VITE_API_BASE_URL=https://api.connaissanceplus.net`
+- `VITE_PUBLIC_APP_ORIGIN=https://connaissanceplus.net`
+- `VITE_ADMIN_APP_ORIGIN=https://admin.connaissanceplus.net`
+
 ### Backend
 
 - `ECR_REPOSITORY`
 - `ECS_CLUSTER`
 - `ECS_SERVICE`
+- `FRONTEND_URL`
+- `CORS_ORIGINS`
+- `DB_HOST`
+- `DB_NAME`
+- `REDIS_HOST`
+- `SPONSOR_UPLOADS_S3_BUCKET`
+- `SPONSOR_UPLOADS_PUBLIC_BASE_URL`
+- `LIVEKIT_URL`
+- `HLS_BASE_URL`
+- `LIVEKIT_EGRESS_S3_BUCKET`
+- `LIVEKIT_EGRESS_S3_REGION`
+- `LIVEKIT_EGRESS_S3_ENDPOINT`
+- `LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE`
+
+Recommended production values for this project:
+
+- `FRONTEND_URL=https://connaissanceplus.net`
+- `CORS_ORIGINS=https://connaissanceplus.net,https://admin.connaissanceplus.net`
+- `SPONSOR_UPLOADS_PUBLIC_BASE_URL=https://assets.connaissanceplus.net`
+- `HLS_BASE_URL=https://media.connaissanceplus.net`
 
 ## Local Git Setup
 
