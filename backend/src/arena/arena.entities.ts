@@ -9,6 +9,8 @@ import {
   Unique,
 } from 'typeorm';
 
+const dateTimeColumnType = process.env.DB_TYPE === 'postgres' ? 'timestamp' : 'datetime';
+
 // ─────────────────────────────────────────────
 // Enums
 // ─────────────────────────────────────────────
@@ -54,7 +56,7 @@ export class ArenaCompetition {
   @Column({ type: 'int', default: 30 })
   secondsPerQuestion: number;
 
-  @Column({ type: Date })
+  @Column({ type: dateTimeColumnType })
   scheduledAt: Date;
 
   @Column('uuid')
@@ -75,13 +77,13 @@ export class ArenaCompetition {
   @Column({ type: 'int', default: 0 })
   currentRound: number;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   completedAt: Date | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   pausedAt: Date | null;
 
   // ── Broadcast (HLS Egress) ──────────────────────────────────────────
@@ -94,7 +96,7 @@ export class ArenaCompetition {
   @Column({ type: 'text', nullable: true })
   broadcastUrl: string | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   broadcastStartedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
@@ -129,7 +131,7 @@ export class ArenaParticipantRegistration {
   @Column({ type: 'text', default: ArenaParticipantRegistrationStatus.PENDING })
   status: ArenaParticipantRegistrationStatus;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   disqualifiedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
@@ -164,13 +166,13 @@ export class ArenaRound {
   @Column({ type: 'int' })
   position: number;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   endedAt: Date | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   endTime: Date | null;   // authoritative scheduled end (startedAt + secondsPerQuestion)
 
   @ManyToOne(() => ArenaCompetition, (c) => c.rounds, { onDelete: 'CASCADE' })
@@ -209,7 +211,7 @@ export class ArenaParticipantAnswer {
   @Column({ type: 'int', default: 0 })
   pointsAwarded: number;
 
-  @Column({ type: Date })
+  @Column({ type: dateTimeColumnType })
   submittedAt: Date;
 
   @ManyToOne(() => ArenaRound, (r) => r.answers, { onDelete: 'CASCADE' })

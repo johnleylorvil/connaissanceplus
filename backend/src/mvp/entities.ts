@@ -10,6 +10,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+const dateTimeColumnType = process.env.DB_TYPE === 'postgres' ? 'timestamp' : 'datetime';
+
 export enum UserRole {
   STUDENT = 'student',
   ADMIN = 'admin',
@@ -338,19 +340,19 @@ export class DuelMatch {
   @Column({ type: 'text', nullable: true })
   chimeMediaRegion: string | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   liveStartedAt: Date | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   liveEndedAt: Date | null;
 
   @Column('uuid', { nullable: true })
   winnerUserId: string | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   completedAt: Date | null;
 
   @CreateDateColumn()
@@ -418,10 +420,10 @@ export class DuelProgress {
   @Column({ type: 'int', default: 0 })
   score: number;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: Date, nullable: true })
+  @Column({ type: dateTimeColumnType, nullable: true })
   submittedAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
