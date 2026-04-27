@@ -33,9 +33,9 @@ import {
 import { MvpService } from './mvp.service';
 import { DuelOralService } from './duel-oral.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { GoogleAuthGuard } from './auth/google-auth.guard';
 import { Roles, RolesGuard } from './auth/roles.guard';
 import { UserRole } from './entities';
-import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 
 type AuthenticatedRequest = {
@@ -64,13 +64,13 @@ export class MvpController {
   }
 
   @Get('auth/google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   googleLogin() {
     // Initiates Google OAuth redirect — handled by Passport
   }
 
   @Get('auth/google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleCallback(
     @Req() req: { user: { accessToken: string } },
     @Res() res: Response,

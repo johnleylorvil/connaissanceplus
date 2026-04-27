@@ -24,6 +24,7 @@ import { MvpService } from './mvp.service';
 import { DuelOralService } from './duel-oral.service';
 import { ChimeService } from './chime.service';
 import { DuelGateway } from './duel.gateway';
+import { GoogleAuthGuard } from './auth/google-auth.guard';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { GoogleStrategy } from './auth/google.strategy';
 import { RolesGuard } from './auth/roles.guard';
@@ -56,6 +57,6 @@ import { RolesGuard } from './auth/roles.guard';
     ]),
   ],
   controllers: [MvpController],
-  providers: [MvpService, DuelOralService, ChimeService, DuelGateway, JwtStrategy, GoogleStrategy, RolesGuard],
+  providers: [MvpService, DuelOralService, ChimeService, DuelGateway, JwtStrategy, GoogleStrategy, GoogleAuthGuard, RolesGuard],
 })
 export class MvpModule {}
