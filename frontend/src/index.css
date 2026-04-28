@@ -403,11 +403,26 @@
   overflow-x: clip;
 }
 
+.landing-navbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 10px 4vw 0;
+}
+@media (min-width: 768px) {
+  .landing-navbar {
+    position: fixed;
+    padding: 14px 6vw 0;
+  }
+}
+
 .landing-nav-shell {
-  min-height: 64px;
-  padding: 10px 14px;
+  min-height: 0;
+  padding: 12px 14px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
@@ -418,20 +433,89 @@
     min-height: 0;
     padding: 0 18px 0 20px;
     flex-wrap: nowrap;
+    align-items: center;
   }
 }
 
 .landing-nav-actions {
   width: 100%;
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  flex-wrap: wrap;
 }
 @media (min-width: 768px) {
   .landing-nav-actions {
     width: auto;
+    display: flex;
+    justify-content: flex-end;
     flex-wrap: nowrap;
+  }
+}
+
+.landing-nav-button {
+  width: 100%;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .landing-nav-button {
+    width: auto;
+  }
+}
+
+.landing-hero {
+  min-height: calc(100vh - 96px);
+  padding: 36px 6vw 48px;
+}
+@media (min-width: 768px) {
+  .landing-hero {
+    min-height: 92vh;
+    padding: 80px 6vw 60px;
+  }
+}
+
+.landing-hero-title {
+  font-size: clamp(28px, 11vw, 62px);
+  line-height: 1.04;
+}
+
+.landing-hero-copy {
+  font-size: 15px;
+  line-height: 1.7;
+  margin-bottom: 28px;
+  max-width: 420px;
+}
+@media (min-width: 768px) {
+  .landing-hero-copy {
+    font-size: 16px;
+    line-height: 1.75;
+    margin-bottom: 36px;
+    max-width: 460px;
+  }
+}
+
+.landing-hero-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.landing-hero-cta > .btn,
+.landing-hero-cta > a {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .landing-hero-cta {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 44px;
+  }
+
+  .landing-hero-cta > .btn,
+  .landing-hero-cta > a {
+    width: auto;
   }
 }
 

@@ -33,11 +33,7 @@ export default function LandingPage() {
     <div id="top" className="landing-shell">
 
       {/* ── NAVBAR ── */}
-      <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-        padding: '14px 6vw 0',
-        transition: 'padding 0.35s',
-      }}>
+      <nav className="landing-navbar" style={{ transition: 'padding 0.35s' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{
             borderRadius: 20,
@@ -79,10 +75,10 @@ export default function LandingPage() {
               <>
                 <button
                   onClick={handleLogin}
-                  className="btn btn-sm"
+                  className="btn btn-sm landing-nav-button"
                   style={{ color: onDark ? 'rgba(255,255,255,0.86)' : 'var(--ink-2)', border: `1px solid ${onDark ? 'rgba(255,255,255,0.16)' : 'rgba(22,36,71,0.08)'}`, background: onDark ? 'rgba(255,255,255,0.04)' : '#fff', transition: 'all 0.35s', boxShadow: onDark ? 'none' : '0 10px 22px rgba(16,22,36,0.06)' }}
                 >Connexion</button>
-                <button onClick={handleStudentCta} className="btn btn-gold btn-sm" style={{ boxShadow: '0 12px 24px rgba(201,145,36,0.22)' }}>S'inscrire</button>
+                <button onClick={handleStudentCta} className="btn btn-gold btn-sm landing-nav-button" style={{ boxShadow: '0 12px 24px rgba(201,145,36,0.22)' }}>S'inscrire</button>
               </>
             )}
           </div>
@@ -91,21 +87,21 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ minHeight: '92vh', background: 'var(--cobalt)', color: '#fff', display: 'flex', alignItems: 'center', padding: '110px 6vw 60px' }}>
+      <section className="landing-hero" style={{ background: 'var(--cobalt)', color: '#fff', display: 'flex', alignItems: 'center' }}>
         <div className="responsive-split-panel" style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
 
           {/* LEFT: text */}
           <div>
             <p className="overline" style={{ marginBottom: 24 }}>Compétition scolaire nationale</p>
-            <h1 className="display" style={{ fontSize: 'clamp(36px,4.2vw,62px)', lineHeight: 1.08, letterSpacing: '-0.03em', marginBottom: 20, color: '#fff' }}>
+            <h1 className="display landing-hero-title" style={{ letterSpacing: '-0.03em', marginBottom: 18, color: '#fff' }}>
               Prouvez votre classe.<br />
               Montez au <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>classement</em>.<br />
               Gagnez.
             </h1>
-            <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.58)', lineHeight: 1.75, marginBottom: 36, maxWidth: 460 }}>
+            <p className="landing-hero-copy" style={{ color: 'rgba(255,255,255,0.58)' }}>
               Quiz, duels en direct, podium national, primes. De la 7e AF à la Philo.
             </p>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 56 }}>
+            <div className="landing-hero-cta">
               <button onClick={handleStudentCta} className="btn btn-gold btn-lg">Entrer dans l'arène</button>
               <a href="#about" className="btn btn-lg" style={{ color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', textDecoration: 'none' }}>Voir plus</a>
             </div>
