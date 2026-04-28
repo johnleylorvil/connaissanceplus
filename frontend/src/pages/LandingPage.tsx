@@ -30,7 +30,7 @@ export default function LandingPage() {
   const initiatorPhotoSrc = ''
 
   return (
-    <div id="top">
+    <div id="top" className="landing-shell">
 
       {/* ── NAVBAR ── */}
       <nav style={{
@@ -40,18 +40,13 @@ export default function LandingPage() {
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{
-            height: 64,
-            padding: '0 18px 0 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             borderRadius: 20,
             background: scrolled ? 'rgba(247,244,238,0.94)' : 'rgba(10,24,54,0.38)',
             backdropFilter: 'blur(14px)',
             border: `1px solid ${scrolled ? 'rgba(22,36,71,0.08)' : 'rgba(255,255,255,0.12)'}`,
             boxShadow: scrolled ? '0 14px 42px rgba(14,22,38,0.10)' : '0 18px 48px rgba(7,14,28,0.24)',
             transition: 'all 0.35s',
-          }}>
+          }} className="landing-nav-shell">
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
               <span className="brand" style={{ fontSize: 19, color: onDark ? '#fff' : 'var(--cobalt)', transition: 'color 0.35s' }}>Konesans</span>
@@ -69,7 +64,7 @@ export default function LandingPage() {
               </a>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div className="landing-nav-actions" style={{ alignItems: 'center' }}>
             {user ? (
               <>
                 <span style={{ fontSize: 13, color: onDark ? 'rgba(255,255,255,0.52)' : 'var(--ink-3)', transition: 'color 0.35s', maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.firstName}</span>
@@ -96,8 +91,8 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ minHeight: '92vh', background: 'var(--cobalt)', color: '#fff', display: 'flex', alignItems: 'center', padding: '80px 6vw 60px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 60, alignItems: 'center' }}>
+      <section style={{ minHeight: '92vh', background: 'var(--cobalt)', color: '#fff', display: 'flex', alignItems: 'center', padding: '110px 6vw 60px' }}>
+        <div className="responsive-split-panel" style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
 
           {/* LEFT: text */}
           <div>
@@ -134,7 +129,7 @@ export default function LandingPage() {
               <p style={{ fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 20 }}>
                 Jean R. 8 · 7 Marie C.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="responsive-card-grid" style={{ gap: 10 }}>
                 {[{ l: 'J1', v: 'Jean R.', active: true }, { l: 'J2', v: 'Marie C.', active: false }, { l: 'Live', v: '214', active: false }, { l: 'Prime', v: '500 HTG', active: false }].map(opt => (
                   <div key={opt.l} style={{ padding: '12px 16px', borderRadius: 6, background: opt.active ? 'var(--gold)' : 'rgba(255,255,255,0.06)', border: `1px solid ${opt.active ? 'var(--gold)' : 'rgba(255,255,255,0.08)'}`, fontSize: 14, color: opt.active ? '#fff' : 'rgba(255,255,255,0.7)', fontWeight: opt.active ? 600 : 400, display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: 12, opacity: 0.6 }}>{opt.l}</span>{opt.v}
@@ -170,7 +165,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── À PROPOS ── */}
-      <section id="about" style={{ padding: '96px 6vw', background: 'var(--paper)' }}>
+      <section id="about" className="landing-section" style={{ background: 'var(--paper)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 72 }}>
             <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', whiteSpace: 'nowrap' }}>01 — À propos</span>
@@ -202,7 +197,7 @@ export default function LandingPage() {
                 )}
               </div>
             </div>
-            <div style={{ borderLeft: '1px solid var(--rule)', paddingLeft: 48 }}>
+            <div className="about-side-panel">
               {[
                 { n: '01', t: 'Accessible', d: 'Gratuit et ouvert aux élèves haïtiens, partout dans le pays.' },
                 { n: '02', t: 'Compétitif', d: 'Classements clairs, duels live, top 3 visible chaque semaine.' },
@@ -224,7 +219,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FONCTIONNALITÉS ── */}
-      <section id="features" style={{ background: 'var(--stone)', padding: '96px 6vw' }}>
+      <section id="features" className="landing-section" style={{ background: 'var(--stone)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 64 }}>
             <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', whiteSpace: 'nowrap' }}>02 — Fonctionnalités</span>
@@ -250,7 +245,7 @@ export default function LandingPage() {
       <SponsorsSection />
 
       {/* ── COMMENT ÇA MARCHE ── */}
-      <section id="how" style={{ background: 'var(--cobalt)', color: '#fff', padding: '96px 6vw' }}>
+      <section id="how" className="landing-section" style={{ background: 'var(--cobalt)', color: '#fff' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 72 }}>
             <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', whiteSpace: 'nowrap' }}>03 — Processus</span>
@@ -273,7 +268,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ padding: '112px 6vw', background: 'var(--paper)', borderTop: '1px solid var(--rule)' }}>
+      <section className="landing-section" style={{ paddingTop: '112px', paddingBottom: '112px', background: 'var(--paper)', borderTop: '1px solid var(--rule)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{
             position: 'relative',
@@ -287,7 +282,7 @@ export default function LandingPage() {
             <div style={{ position: 'absolute', inset: 'auto -80px -120px auto', width: 260, height: 260, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', filter: 'blur(6px)' }} />
             <div style={{ position: 'absolute', inset: '-60px auto auto -50px', width: 180, height: 180, borderRadius: '50%', background: 'rgba(201,145,36,0.16)', filter: 'blur(10px)' }} />
 
-            <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(280px,0.9fr)', gap: 26, alignItems: 'stretch' }}>
+            <div className="responsive-split-panel" style={{ position: 'relative', gap: 26, alignItems: 'stretch' }}>
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.10)', marginBottom: 22, width: 'fit-content' }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--gold)', boxShadow: '0 0 0 4px rgba(201,145,36,0.18)' }} />
@@ -332,7 +327,7 @@ export default function LandingPage() {
                   </p>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="responsive-card-grid" style={{ gap: 14 }}>
                   {[
                     { value: 'Top 3', label: 'Visibilite hebdo' },
                     { value: 'Live', label: 'Defis en direct' },

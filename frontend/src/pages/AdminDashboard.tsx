@@ -407,7 +407,7 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="flex" style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+    <div className="dashboard-shell flex">
 
       {/* -- SIDEBAR -- */}
       <aside className="hidden md:flex flex-col" style={{ width: 216, background: '#fff', borderRight: '1px solid var(--rule)', minHeight: '100vh', position: 'fixed', top: 0, left: 0, zIndex: 40 }}>
@@ -451,7 +451,7 @@ export default function AdminDashboard() {
           <button onClick={logout} style={{ fontSize: 16, color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Quitter</button>
         </div>
 
-        <div className="md:ml-[216px]" style={{ padding: '28px 24px', maxWidth: 860, marginRight: 'auto' }}>
+        <div className="dashboard-main md:ml-[216px]" style={{ maxWidth: 860 }}>
 
           {/* -- OVERVIEW -- */}
           {tab === 'overview' && (
@@ -459,21 +459,21 @@ export default function AdminDashboard() {
               <p className="overline" style={{ marginBottom: 8 }}>Administration</p>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 24 }}>Vue d'ensemble</h1>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden', marginBottom: 24, background: 'var(--rule)' }}>
+              <div className="responsive-four-col" style={{ border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden', marginBottom: 24, background: 'var(--rule)' }}>
                 {[
                   { label: 'Étudiants', value: stats?.studentCount ?? '—' },
                   { label: 'Questions', value: stats?.questionCount ?? '—' },
                   { label: 'Matières', value: stats?.subjectCount ?? '—' },
                   { label: 'Quiz complétés', value: stats?.sessionCount ?? '—' },
                 ].map((s) => (
-                  <div key={s.label} style={{ background: '#fff', padding: '20px 16px' }}>
+                  <div key={s.label} className="mobile-stat-card" style={{ background: '#fff', padding: '20px 16px' }}>
                     <div className="display" style={{ fontSize: 28, color: 'var(--cobalt)' }}>{s.value}</div>
                     <div style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 4 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="responsive-two-col" style={{ gap: 16 }}>
                 <div className="card">
                   <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 14 }}>Actions rapides</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -515,7 +515,7 @@ export default function AdminDashboard() {
               <p className="overline" style={{ marginBottom: 8 }}>Contenu</p>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Classes</h1>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="responsive-two-col" style={{ gap: 16 }}>
                 <div className="card">
                   <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 14 }}>Créer une classe</p>
                   {classMsg && <div className={`alert ${classMsg.startsWith('✅') ? 'alert-ok' : 'alert-error'}`} style={{ marginBottom: 10 }}>{classMsg}</div>}
@@ -550,7 +550,7 @@ export default function AdminDashboard() {
               <p className="overline" style={{ marginBottom: 8 }}>Contenu</p>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Matières</h1>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="responsive-two-col" style={{ gap: 16 }}>
                 <div className="card">
                   <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 14 }}>Ajouter une matière</p>
                   {subjectMsg && <div className={`alert ${subjectMsg.startsWith('✅') ? 'alert-ok' : 'alert-error'}`} style={{ marginBottom: 10 }}>{subjectMsg}</div>}
@@ -593,7 +593,7 @@ export default function AdminDashboard() {
                   <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 14 }}>Ajouter une question</p>
                 {qMsg && <div className={`alert ${qMsg.startsWith('✅') ? 'alert-ok' : 'alert-error'}`} style={{ marginBottom: 12 }}>{qMsg}</div>}
                 <form onSubmit={createQuestion} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="responsive-two-col" style={{ gap: 10 }}>
                     <select required value={qForm.classId} onChange={(e) => setQForm({ ...qForm, classId: e.target.value, subjectId: '' })} className="field-input">
                       <option value="">Classe</option>
                       {classes.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>) }
@@ -606,7 +606,7 @@ export default function AdminDashboard() {
 
                   <textarea required value={qForm.prompt} onChange={(e) => setQForm({ ...qForm, prompt: e.target.value })} placeholder="Énoncé de la question" rows={2} className="field-input" style={{ resize: 'none' }} />
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div className="responsive-two-col" style={{ gap: 8 }}>
                     {(['A', 'B', 'C', 'D'] as const).map((opt) => (
                       <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0, background: qForm.correctOption === opt ? 'var(--ok)' : 'var(--stone)', color: qForm.correctOption === opt ? '#fff' : 'var(--ink-3)' }}>{opt}</span>
@@ -615,7 +615,7 @@ export default function AdminDashboard() {
                     ))}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="responsive-two-col" style={{ gap: 10 }}>
                     <div>
                       <label className="field-label">Bonne réponse</label>
                       <select value={qForm.correctOption} onChange={(e) => setQForm({ ...qForm, correctOption: e.target.value })} className="field-input">
@@ -659,7 +659,7 @@ export default function AdminDashboard() {
                   {questions.map((q, i, arr) => (
                     <div key={q.id} style={{ padding: '12px 14px', borderBottom: i < arr.length - 1 ? '1px solid var(--rule)' : 'none' }}>
                       <p style={{ fontSize: 16, fontWeight: 500, color: 'var(--ink)', marginBottom: 9 }}>{q.prompt}</p>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 9 }}>
+                      <div className="responsive-two-col" style={{ gap: 4, marginBottom: 9 }}>
                         {(['A', 'B', 'C', 'D'] as const).map((opt) => (
                           <span key={opt} style={{ fontSize: 14, padding: '4px 10px', borderRadius: 4, background: q.correctOption === opt ? 'var(--ok-bg)' : 'var(--stone)', color: q.correctOption === opt ? 'var(--ok)' : 'var(--ink-3)', fontWeight: q.correctOption === opt ? 600 : 400 }}>
                             {opt}: {q[`option${opt}` as keyof typeof q] as string}
@@ -850,7 +850,7 @@ export default function AdminDashboard() {
               <p className="overline" style={{ marginBottom: 8 }}>Administration</p>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Sponsors</h1>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+              <div className="responsive-two-col" style={{ gap: 16, marginBottom: 20 }}>
                 <div className="card">
                   <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 14 }}>
                     {editingSponsorId ? 'Modifier le sponsor' : 'Ajouter un sponsor'}
@@ -1062,7 +1062,7 @@ export default function AdminDashboard() {
                   {/* Create Competition */}
                   <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Nouvelle compétition</h2>
                   <div className="card" style={{ marginBottom: 24 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                    <div className="responsive-two-col" style={{ gap: 12, marginBottom: 12 }}>
                       <div>
                         <label className="field-label">Nom</label>
                         <input className="field-input" value={arenaCompForm.name} onChange={(e) => setArenaCompForm(f => ({ ...f, name: e.target.value }))} placeholder="Challenge Mathématiques S1" style={{ width: '100%' }} />
@@ -1549,7 +1549,7 @@ export default function AdminDashboard() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: '#fff', borderTop: '1px solid var(--rule)', display: 'flex' }}>
+      <nav className="md:hidden bottom-tab-nav">
         {navItems.map((item) => (
           <button
             key={item.key}

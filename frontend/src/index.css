@@ -277,6 +277,246 @@
     justify-content: space-between;
   }
 }
+
+.responsive-two-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .responsive-two-col {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+}
+
+.responsive-three-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+}
+@media (min-width: 640px) {
+  .responsive-three-col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.responsive-four-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+}
+@media (min-width: 640px) {
+  .responsive-four-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .responsive-four-col {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.responsive-split-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 1024px) {
+  .responsive-split-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 60px;
+    align-items: center;
+  }
+}
+
+.responsive-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .responsive-card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+}
+
+.dashboard-shell {
+  min-height: 100vh;
+  background: var(--paper);
+}
+
+.dashboard-main {
+  padding: 20px 16px 88px;
+  margin-right: auto;
+}
+@media (min-width: 768px) {
+  .dashboard-main {
+    padding: 28px 24px 80px;
+  }
+}
+
+.mobile-stat-card {
+  border-right: none !important;
+  border-bottom: 1px solid var(--rule);
+}
+.responsive-three-col > .mobile-stat-card:last-child,
+.responsive-four-col > .mobile-stat-card:last-child {
+  border-bottom: none;
+}
+@media (min-width: 640px) {
+  .mobile-stat-card {
+    border-bottom: none;
+    border-right: 1px solid var(--rule);
+  }
+  .responsive-three-col > .mobile-stat-card:last-child,
+  .responsive-four-col > .mobile-stat-card:last-child {
+    border-right: none;
+  }
+}
+
+.responsive-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .responsive-stack.row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.mobile-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-table > table {
+  min-width: 640px;
+}
+
+.landing-shell {
+  overflow-x: clip;
+}
+
+.landing-nav-shell {
+  min-height: 64px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+@media (min-width: 768px) {
+  .landing-nav-shell {
+    height: 64px;
+    min-height: 0;
+    padding: 0 18px 0 20px;
+    flex-wrap: nowrap;
+  }
+}
+
+.landing-nav-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media (min-width: 768px) {
+  .landing-nav-actions {
+    width: auto;
+    flex-wrap: nowrap;
+  }
+}
+
+.landing-section {
+  padding: 72px 6vw 56px;
+}
+@media (min-width: 768px) {
+  .landing-section {
+    padding: 96px 6vw;
+  }
+}
+
+.about-side-panel {
+  border-left: none;
+  padding-left: 0;
+}
+@media (min-width: 768px) {
+  .about-side-panel {
+    border-left: 1px solid var(--rule);
+    padding-left: 48px;
+  }
+}
+
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 20px 40px;
+  background: #fff;
+}
+@media (min-width: 768px) {
+  .auth-panel {
+    padding: 60px 10% 60px;
+  }
+}
+
+.auth-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .auth-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.content-page {
+  min-height: 100vh;
+  background: var(--paper);
+  padding: 48px 16px;
+}
+@media (min-width: 768px) {
+  .content-page {
+    padding: 72px 6vw;
+  }
+}
+
+.content-card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--rule);
+  padding: 28px 20px;
+}
+@media (min-width: 768px) {
+  .content-card {
+    padding: 40px clamp(24px, 4vw, 48px);
+  }
+}
+
+.bottom-tab-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(72px, 1fr);
+  overflow-x: auto;
+  background: #fff;
+  border-top: 1px solid var(--rule);
+}
 .data-table tbody tr:last-child { border-bottom: none; }
 .data-table tbody td { padding: 14px 18px; color: var(--ink-2); vertical-align: middle; }
 

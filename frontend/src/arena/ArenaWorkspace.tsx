@@ -65,7 +65,7 @@ export default function ArenaWorkspace({ embedded = false }: ArenaWorkspaceProps
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+    <div className="dashboard-shell">
       <div
         style={{
           background: '#fff',
@@ -137,7 +137,7 @@ export default function ArenaWorkspace({ embedded = false }: ArenaWorkspaceProps
           ))}
         </aside>
 
-        <div className="md:hidden" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid var(--rule)', zIndex: 30, overflowX: 'auto' }}>
+        <div className="md:hidden bottom-tab-nav" style={{ zIndex: 30 }}>
           <div style={{ display: 'flex', gap: 0 }}>
             {visibleItems.map((item) => (
               <button
@@ -163,7 +163,7 @@ export default function ArenaWorkspace({ embedded = false }: ArenaWorkspaceProps
           </div>
         </div>
 
-        <main style={{ flex: 1, padding: '28px 24px', maxWidth: 860, paddingBottom: 80 }}>
+        <main className="dashboard-main" style={{ flex: 1, maxWidth: 860 }}>
           {content}
         </main>
       </div>

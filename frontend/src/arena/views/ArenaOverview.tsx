@@ -89,13 +89,13 @@ export default function ArenaOverview({ onNavigate }: Props) {
       )}
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 28 }}>
+      <div className="responsive-three-col" style={{ border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 28 }}>
         {[
           { label: 'Compétitions à venir', value: upcoming.length },
           { label: 'Compétitions terminées', value: completed.length },
           { label: 'Live maintenant', value: liveComp ? 1 : 0 },
-        ].map((s, i, arr) => (
-          <div key={s.label} style={{ background: '#fff', padding: '18px 16px', borderRight: i < arr.length - 1 ? '1px solid var(--rule)' : 'none' }}>
+        ].map((s) => (
+          <div key={s.label} className="mobile-stat-card" style={{ background: '#fff', padding: '18px 16px' }}>
             <div className="display" style={{ fontSize: 30, color: 'var(--cobalt)' }}>{s.value}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{s.label}</div>
           </div>
@@ -153,7 +153,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
       )}
 
       {/* Quick actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="responsive-two-col" style={{ gap: 12 }}>
         <div className="card">
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Compétitions 1v1</p>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>

@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 
 export default function PrivacyPage() {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)', padding: '72px 6vw' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', background: '#fff', border: '1px solid var(--rule)', padding: '40px clamp(24px, 4vw, 48px)' }}>
+    <div className="content-page">
+      <div className="content-card">
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 1, textDecoration: 'none', marginBottom: 28 }}>
           <span className="brand" style={{ fontSize: 18, color: 'var(--cobalt)' }}>Konesans</span>
           <span className="brand" style={{ fontSize: 18, color: 'var(--gold)' }}>+</span>

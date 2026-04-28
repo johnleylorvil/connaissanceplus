@@ -261,7 +261,7 @@ export default function DuelPage() {
           {error && <div className="alert alert-error">{error}</div>}
 
           {/* Score scoreboard */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="responsive-two-col" style={{ gap: 12 }}>
             {oralParticipants.length > 0 ? oralParticipants.map((p) => (
               <div key={p.userId} className="card" style={{ border: p.userId === user?.id ? '1.5px solid var(--cobalt)' : '1px solid var(--rule)', textAlign: 'center' }}>
                 <p style={{ fontSize: 12, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
@@ -367,7 +367,7 @@ export default function DuelPage() {
         {error && <div className="alert alert-error">{error}</div>}
 
         {/* Participant scorecards */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="responsive-two-col" style={{ gap: 12 }}>
           {duelState.participants.map((participant) => (
             <div key={participant.userId} className="card" style={{ border: participant.userId === duelState.currentUserId ? '1.5px solid var(--cobalt)' : '1px solid var(--rule)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>

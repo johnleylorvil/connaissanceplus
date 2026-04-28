@@ -51,11 +51,13 @@ Related deployment artifacts:
 - `DB_SSL=true`
 - `DB_SSL_REJECT_UNAUTHORIZED=false`
 - `DB_SYNCHRONIZE=false`
-- `DB_MIGRATIONS_RUN=true`
+- `DB_MIGRATIONS_RUN=false`
 
 For ECS on IPv4-only egress, prefer the Supabase session pooler connection details instead of the direct database host. Use the exact host, port, database, and username shown by Supabase for the session pooler.
 
 If the target Postgres database is empty and you do not yet have an initial create-schema migration, do a one-time bootstrap with `DB_SYNCHRONIZE=true` and `DB_MIGRATIONS_RUN=false`. After the schema exists, switch back to `DB_SYNCHRONIZE=false`.
+
+For the current production backend on this project, the ECS task is intentionally running in that temporary bootstrap mode until public ALB access is rechecked end to end.
 
 ### Redis
 
@@ -129,3 +131,24 @@ Build locally from the backend directory, then push to ECR.
 - Confirm Redis resolves from ECS.
 - Confirm Google OAuth redirect URLs use production domains.
 - Confirm only one backend task is running initially.
+
+## Current Production Status
+
+- ECS service name: `konesans-backend-prod-service-7wkhn54p`
+- ECS task definition family: `konesans-backend-prod`
+- Backend task state: running and healthy
+- Target group `konesans-backend-tg`: healthy
+- Temporary schema bootstrap flags: `DB_SYNCHRONIZE=true`, `DB_MIGRATIONS_RUN=false`
+- Remaining blocker: public access through the ALB is not yet confirmed even though ECS and the target group are healthy internally
+
+## Final Stabilization Steps
+
+1. Verify the security group attached to `konesans-backend-alb`.
+2. If the ALB is using the default security group, replace it with `konesans-alb-sg`.
+3. Confirm the ALB security group allows `HTTP 80` and `HTTPS 443` from `0.0.0.0/0`.
+4. Confirm the ALB scheme is `internet-facing`.
+5. Re-test `https://konesans-backend-alb-59165716.us-east-1.elb.amazonaws.com/health`.
+6. Once `/health` is publicly reachable, set `DB_SYNCHRONIZE=false` and keep `DB_MIGRATIONS_RUN=false` in GitHub Actions variables.
+7. Confirm `ECS_SERVICE` is still `konesans-backend-prod-service-7wkhn54p`.
+8. Re-run the `Deploy Backend` workflow.
+9. Reconfirm the ECS service is stable, a task is running, the target group is healthy, and `/health` remains publicly reachable.

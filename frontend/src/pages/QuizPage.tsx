@@ -131,7 +131,7 @@ export default function QuizPage() {
           </div>
           <p className="display" style={{ fontSize: 34, color: pct >= 80 ? 'var(--ok)' : pct >= 50 ? 'var(--cobalt)' : 'var(--gold)', marginBottom: 28 }}>{pct}%</p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', background: 'var(--rule)', marginBottom: 20 }}>
+          <div className="responsive-two-col" style={{ gap: 1, border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', background: 'var(--rule)', marginBottom: 20 }}>
             <div style={{ background: '#fff', padding: '14px 10px' }}>
               <div className="display" style={{ fontSize: 30, color: 'var(--ok)' }}>{result.score}</div>
               <div style={{ fontSize: 14, color: 'var(--ink-3)' }}>Correctes</div>
@@ -212,7 +212,7 @@ export default function QuizPage() {
         </div>
 
         {/* Navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.65 }}>10 secondes par question · passage automatique</p>
           {current < questions.length - 1 ? (
             <button onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))} className="btn btn-primary btn-sm">Suivant →</button>

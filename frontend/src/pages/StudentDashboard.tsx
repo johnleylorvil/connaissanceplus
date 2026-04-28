@@ -300,7 +300,7 @@ export default function StudentDashboard() {
       : podiumRows
 
   return (
-    <div className="flex" style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+    <div className="dashboard-shell flex">
 
       {/* ── SIDEBAR (desktop) ── */}
       <aside className="hidden md:flex flex-col" style={{ width: 216, background: '#fff', borderRight: '1px solid var(--rule)', minHeight: '100vh', position: 'fixed', top: 0, left: 0, zIndex: 40 }}>
@@ -359,7 +359,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div className="md:ml-[216px]" style={{ padding: '28px 24px', maxWidth: tab === 'quiz' || tab === 'arena' ? 980 : 820, marginRight: 'auto' }}>
+        <div className="dashboard-main md:ml-[216px]" style={{ maxWidth: tab === 'quiz' || tab === 'arena' ? 980 : 820 }}>
 
 
           {/* ── HOME ── */}
@@ -369,20 +369,20 @@ export default function StudentDashboard() {
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Bonjour, {user?.firstName}.</h1>
               <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Prêt à dominer le classement aujourd'hui ?</p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 0, border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 }}>
+              <div className="responsive-three-col" style={{ border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 }}>
                 {[
                   { label: 'Quiz joués', value: history.length, accent: 'var(--cobalt)' },
                   { label: 'Meilleur score', value: bestScore, accent: 'var(--cobalt)' },
                   { label: 'Score moyen', value: avgScore, accent: 'var(--cobalt)' },
-                ].map((stat, i, arr) => (
-                  <div key={stat.label} style={{ background: '#fff', padding: '20px 18px', borderRight: i < arr.length - 1 ? '1px solid var(--rule)' : 'none' }}>
+                ].map((stat) => (
+                  <div key={stat.label} className="mobile-stat-card" style={{ background: '#fff', padding: '20px 18px' }}>
                     <div className="display" style={{ fontSize: 36, color: stat.accent, letterSpacing: '-0.03em', lineHeight: 1 }}>{stat.value}</div>
                     <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8, letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 600 }}>{stat.label}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
+              <div className="card responsive-stack row" style={{ marginBottom: 28 }}>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 5 }}>Prêt pour un quiz ?</p>
                   <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Lancez une session pour vous entraîner avant vos prochains duels.</p>
@@ -675,7 +675,7 @@ export default function StudentDashboard() {
                 {profileError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{profileError}</div>}
 
                 <form onSubmit={saveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="auth-form-grid">
                     <div>
                       <label className="field-label">Prénom</label>
                       <input type="text" required value={profileForm.firstName} onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })} className="field-input" />
@@ -706,7 +706,7 @@ export default function StudentDashboard() {
                     </select>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="auth-form-grid">
                     <div>
                       <label className="field-label">École</label>
                       <input type="text" value={profileForm.school} onChange={(e) => setProfileForm({ ...profileForm, school: e.target.value })} className="field-input" placeholder="Votre école" />
@@ -720,7 +720,7 @@ export default function StudentDashboard() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="auth-form-grid">
                     <div>
                       <label className="field-label">Département</label>
                       <select value={profileForm.department} onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value, city: '' })} className="field-input">
@@ -760,12 +760,12 @@ export default function StudentDashboard() {
       </main>
 
       {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="md:hidden" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: '#fff', borderTop: '1px solid var(--rule)', display: 'flex' }}>
+      <nav className="md:hidden bottom-tab-nav">
         {navItems.map((item) => (
           <button
             key={item.key}
             onClick={() => setTab(item.key)}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 4px', fontSize: 12, fontWeight: 500, color: tab === item.key ? 'var(--cobalt)' : 'var(--ink-3)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', position: 'relative' }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 6px', fontSize: 12, fontWeight: 500, color: tab === item.key ? 'var(--cobalt)' : 'var(--ink-3)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', position: 'relative' }}
           >
             {item.key === 'notifications' && unreadCount > 0 && (
               <span className="badge" style={{ position: 'absolute', top: 4, right: '28%', minWidth: 14, height: 14, fontSize: 9 }}>{unreadCount}</span>

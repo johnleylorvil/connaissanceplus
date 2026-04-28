@@ -81,7 +81,7 @@ export default function CompleteProfilePage() {
 
   return (
     <div className="auth-shell">
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px 10% 60px', minHeight: '100vh', background: '#fff' }}>
+      <div className="auth-panel">
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 1, textDecoration: 'none', marginBottom: 44 }}>
           <span className="brand" style={{ fontSize: 18, color: 'var(--cobalt)' }}>Konesans</span>
           <span className="brand" style={{ fontSize: 18, color: 'var(--gold)' }}>+</span>
@@ -90,7 +90,7 @@ export default function CompleteProfilePage() {
         <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>
           Profil requis
         </p>
-        <h1 className="display" style={{ fontSize: 36, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.03em' }}>
+        <h1 className="display" style={{ fontSize: 'clamp(30px, 7vw, 36px)', color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.03em' }}>
           Terminez votre inscription.
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28, lineHeight: 1.7 }}>
@@ -100,7 +100,7 @@ export default function CompleteProfilePage() {
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="auth-form-grid">
             <div>
               <label className="field-label">Prénom</label>
               <input
@@ -138,7 +138,7 @@ export default function CompleteProfilePage() {
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="auth-form-grid">
             <div>
               <label className="field-label">École</label>
               <input
@@ -165,7 +165,7 @@ export default function CompleteProfilePage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="auth-form-grid">
             <div>
               <label className="field-label">Département</label>
               <select

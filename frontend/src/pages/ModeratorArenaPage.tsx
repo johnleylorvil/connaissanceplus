@@ -79,7 +79,7 @@ export default function ModeratorArenaPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex' }}>
+    <div className="dashboard-shell" style={{ display: 'flex' }}>
       {/* Sidebar */}
       <aside
         className="hidden md:flex flex-col"
@@ -126,7 +126,7 @@ export default function ModeratorArenaPage() {
       </div>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-[216px]" style={{ padding: '28px 24px', paddingTop: 'calc(28px + 52px)', maxWidth: 860, marginRight: 'auto' }}>
+      <main className="dashboard-main flex-1 md:ml-[216px]" style={{ paddingTop: 'calc(20px + 52px)', maxWidth: 860 }}>
         <div style={{ paddingTop: 0 }} className="md:pt-0">
           <p className="overline" style={{ marginBottom: 8 }}>Portail Modérateur</p>
           <h1 className="display" style={{ fontSize: 28, color: 'var(--cobalt)', marginBottom: 4 }}>Mes matchs Arena</h1>

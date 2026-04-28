@@ -57,6 +57,7 @@ This is the IAM role that GitHub Actions will assume through OIDC.
 ### Frontend
 
 - `VITE_API_BASE_URL`
+- `VITE_ENABLE_GOOGLE_AUTH`
 - `VITE_PUBLIC_APP_ORIGIN`
 - `VITE_ADMIN_APP_ORIGIN`
 - `FRONTEND_S3_BUCKET`
@@ -65,8 +66,11 @@ This is the IAM role that GitHub Actions will assume through OIDC.
 Recommended production values for this project:
 
 - `VITE_API_BASE_URL=https://api.connaissanceplus.net`
+- `VITE_ENABLE_GOOGLE_AUTH=false`
 - `VITE_PUBLIC_APP_ORIGIN=https://connaissanceplus.net`
 - `VITE_ADMIN_APP_ORIGIN=https://admin.connaissanceplus.net`
+
+Keep `VITE_ENABLE_GOOGLE_AUTH=false` until the backend has valid `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` secrets in production. Once Google OAuth is configured end to end, switch it to `true` and redeploy the frontend.
 
 ### Backend
 

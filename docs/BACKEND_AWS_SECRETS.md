@@ -21,7 +21,7 @@ DB_NAME=postgres
 DB_SYNCHRONIZE=false
 DB_SSL=true
 DB_SSL_REJECT_UNAUTHORIZED=false
-DB_MIGRATIONS_RUN=true
+DB_MIGRATIONS_RUN=false
 
 REDIS_HOST=your-elasticache-endpoint
 REDIS_PORT=6379
@@ -46,6 +46,8 @@ If Redis or LiveKit is not ready for the first deployment, leave the related Git
 If the backend runs on ECS without IPv6 egress, use the Supabase session pooler connection settings here rather than the direct connection values.
 
 For a first deployment into an empty Supabase database, temporarily set `DB_SYNCHRONIZE=true` and `DB_MIGRATIONS_RUN=false` so TypeORM can create the schema. Once the schema exists, turn `DB_SYNCHRONIZE` back to `false`.
+
+For the current production backend on this project, keep that temporary bootstrap mode only until the public ALB check succeeds. After `https://konesans-backend-alb-59165716.us-east-1.elb.amazonaws.com/health` is reachable publicly, set `DB_SYNCHRONIZE=false` and keep `DB_MIGRATIONS_RUN=false` for the next deploy.
 
 ## Secret Environment Variables
 
@@ -77,14 +79,6 @@ LIVEKIT_API_SECRET
 
 LIVEKIT_EGRESS_S3_ACCESS_KEY
 LIVEKIT_EGRESS_S3_SECRET_KEY
-```
-
-```env
-JWT_SECRET
-ADMIN_SETUP_KEY
-
-DB_USERNAME
-DB_PASSWORD
 ```
 
 ## Recommended Secrets Manager Names
@@ -122,3 +116,5 @@ The ECS task role should have:
 - Use the production frontend domains in `FRONTEND_URL` and `CORS_ORIGINS`.
 - The backend can run without Redis, but arena viewer counts degrade when Redis is unavailable.
 - ACM DNS validation stays pending until the registrar nameservers fully delegate `connaissanceplus.net` to Route 53.
+- The current ECS service variable should stay `konesans-backend-prod-service-7wkhn54p`.
+- `DB_USERNAME` and `DB_PASSWORD` must remain plain text Secrets Manager values when ECS references them with a bare `valueFrom` ARN.

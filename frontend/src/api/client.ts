@@ -2,6 +2,14 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
 }
 
+function resolveGoogleAuthEnabled(): boolean {
+  if (import.meta.env.DEV) {
+    return true
+  }
+
+  return String(import.meta.env.VITE_ENABLE_GOOGLE_AUTH ?? '').toLowerCase() === 'true'
+}
+
 function resolveApiOrigin(): string {
   const configured =
     (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
@@ -15,6 +23,7 @@ function resolveApiOrigin(): string {
 export const API_ORIGIN = resolveApiOrigin()
 export const API_BASE = `${API_ORIGIN}/api`
 export const SOCKET_BASE = API_ORIGIN
+export const GOOGLE_AUTH_ENABLED = resolveGoogleAuthEnabled()
 export const GOOGLE_AUTH_URL = `${API_BASE}/auth/google`
 
 export class ApiError extends Error {
