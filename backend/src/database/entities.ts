@@ -1,5 +1,6 @@
 import {
   AcademicClass,
+  AccountVerificationCode,
   AdminBroadcast,
   Answer,
   DuelAnswer,
@@ -28,6 +29,7 @@ export const databaseEntities = [
   AcademicClass,
   Subject,
   User,
+  AccountVerificationCode,
   Question,
   QuizSession,
   QuizSessionQuestion,

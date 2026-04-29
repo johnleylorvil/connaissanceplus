@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,6 +13,7 @@ import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
 import {
   AcademicClass,
+  AccountVerificationCode,
   Answer,
   AdminBroadcast,
   BroadcastTargetType,
@@ -30,6 +32,7 @@ import {
   Subject,
   User,
   UserRole,
+  VerificationPurpose,
 } from './entities';
 import {
   BootstrapAdminDto,
@@ -40,6 +43,7 @@ import {
   DuelAnswerDto,
   JoinMatchmakingDto,
   LoginDto,
+  OtpVerificationDto,
   RegisterStudentDto,
   SendBroadcastDto,
   StartQuizDto,
@@ -49,17 +53,43 @@ import {
 import { Profile as GoogleProfile } from 'passport-google-oauth20';
 import * as crypto from 'crypto';
 import { HAITI_DEPARTMENTS } from './constants/haiti-geography';
+import { MailService } from './mail.service';
 
 const QUIZ_QUESTION_COUNT = 10;
 const DUEL_QUESTION_COUNT = 10;
+const ACCOUNT_OTP_TTL_MINUTES = 10;
+
+type StudentRegistrationPayload = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  passwordHash: string;
+  classId: string;
+  school: string | null;
+  city: string | null;
+  department: string | null;
+  sectionName: string | null;
+  canBeContacted: boolean;
+};
+
+type ModeratorRegistrationPayload = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  passwordHash: string;
+  temporaryPassword: string | null;
+};
 
 @Injectable()
 export class MvpService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(AccountVerificationCode)
+    private readonly verificationRepo: Repository<AccountVerificationCode>,
     @InjectRepository(AcademicClass)
     private readonly classRepo: Repository<AcademicClass>,
     @InjectRepository(Subject)
@@ -86,30 +116,89 @@ export class MvpService {
     private readonly adminBroadcastRepo: Repository<AdminBroadcast>,
   ) {}
 
-  async registerStudent(dto: RegisterStudentDto) {
+  async requestStudentRegistrationOtp(dto: RegisterStudentDto) {
     if (!dto.acceptedPrivacyPolicy) {
       throw new BadRequestException('You must accept the privacy policy to register');
     }
 
+    const email = this.normalizeEmail(dto.email);
     const academicClass = await this.classRepo.findOne({ where: { id: dto.classId } });
     if (!academicClass) {
       throw new NotFoundException('Class not found');
     }
 
-    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
+    const exists = await this.userRepo.findOne({ where: { email } });
     if (exists) {
       throw new BadRequestException('Email already used');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    const student = this.userRepo.create({
-      ...dto,
+    const payload: StudentRegistrationPayload = {
+      firstName: dto.firstName.trim(),
+      lastName: dto.lastName.trim(),
+      email,
+      passwordHash: hashedPassword,
+      classId: dto.classId,
       school: dto.school?.trim() || null,
       city: dto.city?.trim() || null,
       department: dto.department?.trim() || null,
       sectionName: this.normalizeSectionName(dto.sectionName),
-      password: hashedPassword,
+      canBeContacted: dto.canBeContacted,
+    };
+
+    const { verification, code } = await this.issueVerificationCode(email, VerificationPurpose.STUDENT_REGISTRATION, payload);
+
+    try {
+      await this.mailService.sendOtpEmail({
+        email,
+        firstName: payload.firstName,
+        code,
+        purpose: VerificationPurpose.STUDENT_REGISTRATION,
+        expiresInMinutes: ACCOUNT_OTP_TTL_MINUTES,
+      });
+    } catch (error) {
+      await this.verificationRepo.delete(verification.id);
+      throw error;
+    }
+
+    return {
+      status: 'otp_sent',
+      verificationId: verification.id,
+      email,
+      expiresInSeconds: ACCOUNT_OTP_TTL_MINUTES * 60,
+    };
+  }
+
+  async verifyStudentRegistrationOtp(dto: OtpVerificationDto) {
+    const verification = await this.consumeVerificationCode(
+      dto.verificationId,
+      VerificationPurpose.STUDENT_REGISTRATION,
+      dto.code,
+    );
+    const payload = this.parseVerificationPayload<StudentRegistrationPayload>(verification.payload);
+
+    const academicClass = await this.classRepo.findOne({ where: { id: payload.classId } });
+    if (!academicClass) {
+      throw new NotFoundException('Class not found');
+    }
+
+    const exists = await this.userRepo.findOne({ where: { email: payload.email } });
+    if (exists) {
+      throw new BadRequestException('Email already used');
+    }
+
+    const student = this.userRepo.create({
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      email: payload.email,
+      password: payload.passwordHash,
+      classId: payload.classId,
+      school: payload.school,
+      city: payload.city,
+      department: payload.department,
+      sectionName: payload.sectionName,
+      canBeContacted: payload.canBeContacted,
       role: UserRole.STUDENT,
       acceptedPrivacyPolicy: true,
     });
@@ -119,7 +208,11 @@ export class MvpService {
   }
 
   async bootstrapAdmin(dto: BootstrapAdminDto) {
-    const setupKey = this.configService.get<string>('ADMIN_SETUP_KEY', 'konesans-admin-key');
+    const setupKey = this.configService.get<string>('ADMIN_SETUP_KEY')?.trim();
+    if (!setupKey) {
+      throw new ServiceUnavailableException('Admin bootstrap is disabled');
+    }
+
     if (dto.setupKey !== setupKey) {
       throw new UnauthorizedException('Invalid setup key');
     }
@@ -129,7 +222,8 @@ export class MvpService {
       throw new BadRequestException('Admin already exists');
     }
 
-    const emailExists = await this.userRepo.findOne({ where: { email: dto.email } });
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    const emailExists = await this.userRepo.findOne({ where: { email: normalizedEmail } });
     if (emailExists) {
       throw new BadRequestException('Email already used');
     }
@@ -139,7 +233,7 @@ export class MvpService {
       this.userRepo.create({
         firstName: dto.firstName,
         lastName: dto.lastName,
-        email: dto.email,
+        email: normalizedEmail,
         password: hashedPassword,
         role: UserRole.ADMIN,
         canBeContacted: false,
@@ -150,7 +244,7 @@ export class MvpService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.userRepo.findOne({ where: { email: dto.email } });
+    const user = await this.userRepo.findOne({ where: { email: this.normalizeEmail(dto.email) } });
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -1131,14 +1225,24 @@ export class MvpService {
     return list;
   }
 
-  async createModerator(dto: CreateModeratorDto) {
-    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+  async requestModeratorCreationOtp(dto: CreateModeratorDto) {
+    const email = this.normalizeEmail(dto.email);
+    const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) {
+      if (existing.role === UserRole.ADMIN || existing.role === UserRole.MODERATOR) {
+        const { password: _pw, ...safeUser } = existing;
+        return {
+          status: 'already_eligible',
+          message: 'Cet utilisateur peut deja moderer les competitions.',
+          ...safeUser,
+        };
+      }
+
       throw new ConflictException('Email already in use');
     }
 
     let rawPassword: string;
-    let temporaryPassword: string | undefined;
+    let temporaryPassword: string | null = null;
 
     if (dto.generatePassword || !dto.password) {
       rawPassword = crypto.randomBytes(8).toString('hex');
@@ -1149,12 +1253,66 @@ export class MvpService {
 
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
+    const payload: ModeratorRegistrationPayload = {
+      firstName: dto.firstName.trim(),
+      lastName: dto.lastName.trim(),
+      email,
+      passwordHash: hashedPassword,
+      temporaryPassword,
+    };
+
+    const { verification, code } = await this.issueVerificationCode(email, VerificationPurpose.MODERATOR_REGISTRATION, payload);
+
+    try {
+      await this.mailService.sendOtpEmail({
+        email,
+        firstName: payload.firstName,
+        code,
+        purpose: VerificationPurpose.MODERATOR_REGISTRATION,
+        expiresInMinutes: ACCOUNT_OTP_TTL_MINUTES,
+        temporaryPassword,
+      });
+    } catch (error) {
+      await this.verificationRepo.delete(verification.id);
+      throw error;
+    }
+
+    return {
+      status: 'otp_sent',
+      verificationId: verification.id,
+      email,
+      expiresInSeconds: ACCOUNT_OTP_TTL_MINUTES * 60,
+    };
+  }
+
+  async verifyModeratorCreationOtp(dto: OtpVerificationDto) {
+    const verification = await this.consumeVerificationCode(
+      dto.verificationId,
+      VerificationPurpose.MODERATOR_REGISTRATION,
+      dto.code,
+    );
+    const payload = this.parseVerificationPayload<ModeratorRegistrationPayload>(verification.payload);
+
+    const existing = await this.userRepo.findOne({ where: { email: payload.email } });
+    if (existing) {
+      if (existing.role === UserRole.ADMIN || existing.role === UserRole.MODERATOR) {
+        const { password: _pw, ...safeUser } = existing;
+        return {
+          status: 'already_eligible',
+          message: 'Cet utilisateur peut deja moderer les competitions.',
+          ...safeUser,
+        };
+      }
+
+      throw new ConflictException('Email already in use');
+    }
+
     const moderator = await this.userRepo.save(
       this.userRepo.create({
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        email: dto.email,
-        password: hashedPassword,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        password: payload.passwordHash,
         role: UserRole.MODERATOR,
         canBeContacted: false,
       }),
@@ -1163,15 +1321,15 @@ export class MvpService {
     const { password: _pw, ...safeUser } = moderator;
 
     return {
+      status: 'created',
       ...safeUser,
-      ...(temporaryPassword !== undefined ? { temporaryPassword } : {}),
     };
   }
 
   listModerators() {
     return this.userRepo.find({
-      where: { role: UserRole.MODERATOR },
-      select: ['id', 'firstName', 'lastName', 'email', 'createdAt'],
+      where: [{ role: UserRole.MODERATOR }, { role: UserRole.ADMIN }],
+      select: ['id', 'firstName', 'lastName', 'email', 'createdAt', 'role'],
       order: { firstName: 'ASC', lastName: 'ASC' },
     });
   }
@@ -1212,6 +1370,70 @@ export class MvpService {
 
   private requiresStudentProfileCompletion(user: User) {
     return user.role === UserRole.STUDENT && (!user.classId || !this.hasAcceptedPrivacyPolicy(user));
+  }
+
+  private normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
+  }
+
+  private generateOtpCode() {
+    return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+  }
+
+  private hashOtpCode(code: string) {
+    return crypto.createHash('sha256').update(code).digest('hex');
+  }
+
+  private async issueVerificationCode<TPayload>(
+    email: string,
+    purpose: VerificationPurpose,
+    payload: TPayload,
+  ) {
+    await this.verificationRepo.delete({ email, purpose });
+
+    const code = this.generateOtpCode();
+    const verification = await this.verificationRepo.save(
+      this.verificationRepo.create({
+        email,
+        purpose,
+        codeHash: this.hashOtpCode(code),
+        payload: JSON.stringify(payload),
+        expiresAt: new Date(Date.now() + ACCOUNT_OTP_TTL_MINUTES * 60 * 1000),
+      }),
+    );
+
+    return { verification, code };
+  }
+
+  private async consumeVerificationCode(
+    verificationId: string,
+    purpose: VerificationPurpose,
+    code: string,
+  ) {
+    const verification = await this.verificationRepo.findOne({ where: { id: verificationId, purpose } });
+    if (!verification) {
+      throw new BadRequestException('Verification code not found');
+    }
+
+    if (verification.expiresAt.getTime() < Date.now()) {
+      await this.verificationRepo.delete(verification.id);
+      throw new BadRequestException('Verification code expired');
+    }
+
+    if (verification.codeHash !== this.hashOtpCode(code.trim())) {
+      throw new UnauthorizedException('Invalid verification code');
+    }
+
+    await this.verificationRepo.delete(verification.id);
+    return verification;
+  }
+
+  private parseVerificationPayload<TPayload>(payload: string): TPayload {
+    try {
+      return JSON.parse(payload) as TPayload;
+    } catch {
+      throw new BadRequestException('Verification payload is invalid');
+    }
   }
 
   private assertStudentProfileComplete(user: User) {

@@ -57,6 +57,7 @@ export class RegisterStudentDto {
   lastName: string;
 
   @IsEmail()
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 
   @IsString()
@@ -92,6 +93,7 @@ export class RegisterStudentDto {
 
 export class LoginDto {
   @IsEmail()
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 
   @IsString()
@@ -109,6 +111,7 @@ export class BootstrapAdminDto {
   lastName: string;
 
   @IsEmail()
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 
   @IsString()
@@ -118,6 +121,16 @@ export class BootstrapAdminDto {
   @IsString()
   @IsNotEmpty()
   setupKey: string;
+}
+
+export class OtpVerificationDto {
+  @IsUUID()
+  verificationId: string;
+
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  code: string;
 }
 
 export class CreateClassDto {

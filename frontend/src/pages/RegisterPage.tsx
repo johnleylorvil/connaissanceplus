@@ -8,6 +8,7 @@ import { HAITI_CITIES_BY_DEPARTMENT, HAITI_DEPARTMENTS } from '../constants/hait
 
 type SchoolClass = { id: string; name: string }
 type AuthResponse = { accessToken: string; user: AuthUser }
+type OtpRequestResponse = { status: 'otp_sent'; verificationId: string; email: string; expiresInSeconds: number }
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -28,7 +29,10 @@ export default function RegisterPage() {
   })
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [verificationId, setVerificationId] = useState<string | null>(null)
   const cityOptions = form.department ? HAITI_CITIES_BY_DEPARTMENT[form.department as keyof typeof HAITI_CITIES_BY_DEPARTMENT] ?? [] : []
 
   useEffect(() => {
@@ -42,16 +46,38 @@ export default function RegisterPage() {
       return
     }
     setError('')
+    setNotice('')
     setLoading(true)
     try {
-      const data = await apiCall<AuthResponse>('/students/register', {
+      const data = await apiCall<OtpRequestResponse>('/students/register/request-otp', {
         method: 'POST',
         body: JSON.stringify(form),
+      })
+      setVerificationId(data.verificationId)
+      setOtpCode('')
+      setNotice(`Un code OTP a ete envoye a ${data.email}. Saisissez-le pour finaliser votre inscription.`)
+    } catch (err) {
+      setError((err as { message: string }).message || "Erreur lors de l'inscription")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyOtp = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!verificationId) return
+    setError('')
+    setNotice('')
+    setLoading(true)
+    try {
+      const data = await apiCall<AuthResponse>('/students/register/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ verificationId, code: otpCode }),
       })
       login(data.accessToken, data.user)
       navigate(userHome(data.user), { replace: true })
     } catch (err) {
-      setError((err as { message: string }).message || "Erreur lors de l'inscription")
+      setError((err as { message: string }).message || 'Erreur lors de la verification OTP')
     } finally {
       setLoading(false)
     }
@@ -74,7 +100,34 @@ export default function RegisterPage() {
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
+        {notice && <div className="alert" style={{ marginBottom: 20, background: '#eff6ff', border: '1px solid #93c5fd', color: '#1d4ed8' }}>{notice}</div>}
 
+        {verificationId ? (
+          <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label className="field-label">Code OTP</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                required
+                minLength={6}
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="field-input"
+                placeholder="6 chiffres"
+              />
+            </div>
+
+            <button type="submit" disabled={loading || otpCode.length !== 6} className="btn btn-primary btn-full btn-lg" style={{ marginTop: 4 }}>
+              {loading ? 'Verification…' : 'Verifier mon email'}
+            </button>
+
+            <button type="button" className="btn btn-ghost btn-full" onClick={() => { setVerificationId(null); setOtpCode(''); setNotice('') }}>
+              Modifier mes informations
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="auth-form-grid">
             <div>
@@ -177,11 +230,12 @@ export default function RegisterPage() {
           </label>
 
           <button type="submit" disabled={loading || !form.acceptedPrivacyPolicy} className="btn btn-primary btn-full btn-lg" style={{ marginTop: 4 }}>
-            {loading ? 'Création en cours…' : 'Créer mon compte'}
+            {loading ? 'Envoi du code…' : 'Recevoir mon code OTP'}
           </button>
         </form>
+        )}
 
-        {GOOGLE_AUTH_ENABLED && (
+        {!verificationId && GOOGLE_AUTH_ENABLED && (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
               <div style={{ flex: 1, height: 1, background: 'var(--rule)' }} />

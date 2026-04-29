@@ -18,6 +18,11 @@ export enum UserRole {
   MODERATOR = 'moderator',
 }
 
+export enum VerificationPurpose {
+  STUDENT_REGISTRATION = 'student_registration',
+  MODERATOR_REGISTRATION = 'moderator_registration',
+}
+
 export enum BroadcastTargetType {
   ALL = 'all',
   CLASS = 'class',
@@ -143,6 +148,34 @@ export class User {
 
   @CreateDateColumn()
   createdAt: Date;
+}
+
+@Entity('account_verification_codes')
+@Unique(['email', 'purpose'])
+export class AccountVerificationCode {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  email: string;
+
+  @Column({ type: 'text' })
+  purpose: VerificationPurpose;
+
+  @Column({ type: 'text' })
+  codeHash: string;
+
+  @Column({ type: 'text' })
+  payload: string;
+
+  @Column({ type: dateTimeColumnType })
+  expiresAt: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
 
 @Entity('questions')

@@ -41,6 +41,7 @@ export type ModeratorUser = {
   firstName: string
   lastName: string
   email: string
+  role: 'admin' | 'moderator'
 }
 
 export type ArenaQuestion = {
@@ -190,12 +191,22 @@ export type ModeratorListItem = {
   lastName: string
   email: string
   createdAt: string
+  role: 'admin' | 'moderator'
 }
 
-export type CreateModeratorResponse = ModeratorListItem & {
-  role: string
-  temporaryPassword?: string
+export type ModeratorOtpRequestResponse = {
+  status: 'otp_sent'
+  verificationId: string
+  email: string
+  expiresInSeconds: number
 }
+
+export type VerifyModeratorOtpResponse = ModeratorListItem & {
+  status: 'created' | 'already_eligible'
+  message?: string
+}
+
+export type CreateModeratorResponse = ModeratorOtpRequestResponse | VerifyModeratorOtpResponse
 
 async function adminFetch<T>(path: string, init?: RequestInit, token?: string | null): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -215,6 +226,12 @@ export const adminApi = {
 
   createModerator: (payload: CreateModeratorPayload, token: string) =>
     adminFetch<CreateModeratorResponse>('/moderators', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token),
+
+  verifyModeratorOtp: (payload: { verificationId: string; code: string }, token: string) =>
+    adminFetch<VerifyModeratorOtpResponse>('/moderators/verify-otp', {
       method: 'POST',
       body: JSON.stringify(payload),
     }, token),

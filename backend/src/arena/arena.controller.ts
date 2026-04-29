@@ -351,7 +351,7 @@ export class ArenaController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.MODERATOR)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @Get('moderator/my-matches')
   getMyModeratorMatches(@Req() req: AuthenticatedRequest) {
     return this.arenaService.getMyModeratorMatches(req.user.id);

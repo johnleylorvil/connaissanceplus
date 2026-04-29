@@ -899,8 +899,8 @@ export class ArenaService {
 
   async getModeratorUsers() {
     return this.userRepo.find({
-      where: { role: UserRole.MODERATOR },
-      select: ['id', 'firstName', 'lastName', 'email'],
+      where: [{ role: UserRole.MODERATOR }, { role: UserRole.ADMIN }],
+      select: ['id', 'firstName', 'lastName', 'email', 'role'],
       order: { firstName: 'ASC' },
     });
   }

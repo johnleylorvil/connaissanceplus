@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
-import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type ModeratorListItem, type CreateModeratorResponse } from '../arena/arenaApi'
+import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type VerifyModeratorOtpResponse, type ModeratorOtpRequestResponse } from '../arena/arenaApi'
 import { HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
 
 type Tab = 'overview' | 'levels' | 'subjects' | 'questions' | 'students' | 'messages' | 'sponsors' | 'arena'
@@ -93,17 +93,23 @@ export default function AdminDashboard() {
   const [assigningId, setAssigningId] = useState<string | null>(null)
 
   // -- Create Moderator modal ----------------------------------------------
-  type ModalState = 'closed' | 'form' | 'success'
+  type ModalState = 'closed' | 'form' | 'otp' | 'success'
   const [createModModal, setCreateModModal] = useState<ModalState>('closed')
   const [createModForm, setCreateModForm] = useState({ firstName: '', lastName: '', email: '', password: '', generatePassword: true })
   const [createModError, setCreateModError] = useState('')
+  const [createModNotice, setCreateModNotice] = useState('')
   const [createModLoading, setCreateModLoading] = useState(false)
-  const [createModResult, setCreateModResult] = useState<CreateModeratorResponse | null>(null)
+  const [createModResult, setCreateModResult] = useState<VerifyModeratorOtpResponse | null>(null)
+  const [createModPending, setCreateModPending] = useState<ModeratorOtpRequestResponse | null>(null)
+  const [createModOtpCode, setCreateModOtpCode] = useState('')
 
   const openCreateModModal = () => {
     setCreateModForm({ firstName: '', lastName: '', email: '', password: '', generatePassword: true })
     setCreateModError('')
+    setCreateModNotice('')
     setCreateModResult(null)
+    setCreateModPending(null)
+    setCreateModOtpCode('')
     setCreateModModal('form')
   }
 
@@ -111,6 +117,7 @@ export default function AdminDashboard() {
     e.preventDefault()
     if (!accessToken) return
     setCreateModError('')
+    setCreateModNotice('')
     setCreateModLoading(true)
     try {
       const payload = {
@@ -122,11 +129,40 @@ export default function AdminDashboard() {
           : { password: createModForm.password }),
       }
       const result = await adminApi.createModerator(payload, accessToken)
+      if (result.status === 'otp_sent') {
+        setCreateModPending(result)
+        setCreateModOtpCode('')
+        setCreateModNotice(`Un code OTP a ete envoye a ${result.email}. Saisissez-le pour confirmer la creation.`)
+        setCreateModModal('otp')
+      } else {
+        setCreateModResult(result)
+        setCreateModNotice(result.message ?? '')
+        setCreateModModal('success')
+        const updated = await adminApi.listModerators(accessToken)
+        setModeratorUsers(updated)
+      }
+    } catch (err) {
+      setCreateModError((err as Error).message)
+    } finally {
+      setCreateModLoading(false)
+    }
+  }
+
+  const verifyCreateModeratorOtp = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!accessToken || !createModPending) return
+    setCreateModError('')
+    setCreateModNotice('')
+    setCreateModLoading(true)
+    try {
+      const result = await adminApi.verifyModeratorOtp({
+        verificationId: createModPending.verificationId,
+        code: createModOtpCode,
+      }, accessToken)
       setCreateModResult(result)
       setCreateModModal('success')
-      // Refresh moderator list immediately
       const updated = await adminApi.listModerators(accessToken)
-      setModeratorUsers(updated as ModeratorListItem[])
+      setModeratorUsers(updated)
     } catch (err) {
       setCreateModError((err as Error).message)
     } finally {
@@ -159,7 +195,7 @@ export default function AdminDashboard() {
     arenaApi.getCompetitions().then(setArenaCompetitions).catch(() => {})
     if (accessToken) {
       adminApi.listModerators(accessToken)
-        .then((list) => setModeratorUsers(list as ModeratorListItem[]))
+        .then((list) => setModeratorUsers(list))
         .catch(() => arenaApi.getModeratorUsers(accessToken).then(setModeratorUsers).catch(() => {}))
     }
   }, [accessToken])
@@ -1343,7 +1379,7 @@ export default function AdminDashboard() {
                                   <option value="">— Choisir un modérateur —</option>
                                   {moderatorUsers.map(m => (
                                     <option key={m.id} value={m.id}>
-                                      {m.firstName} {m.lastName} ({m.email})
+                                      {m.firstName} {m.lastName} ({m.email}) {m.role === 'admin' ? '• Admin' : '• Modérateur'}
                                     </option>
                                   ))}
                                 </select>
@@ -1410,6 +1446,9 @@ export default function AdminDashboard() {
                 {createModError && (
                   <div className="alert alert-error" style={{ marginBottom: 16 }}>{createModError}</div>
                 )}
+                {createModNotice && (
+                  <div className="alert" style={{ marginBottom: 16, background: '#eff6ff', border: '1px solid #93c5fd', color: '#1d4ed8' }}>{createModNotice}</div>
+                )}
                 <form onSubmit={submitCreateModerator} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>
@@ -1428,6 +1467,9 @@ export default function AdminDashboard() {
                     <input required type="email" className="field-input" value={createModForm.email}
                       onChange={(e) => setCreateModForm(f => ({ ...f, email: e.target.value }))} />
                   </div>
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: -6 }}>
+                    Si cet email appartient deja a un admin ou a un moderateur, aucun doublon ne sera cree et le compte existant sera reutilise.
+                  </p>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ink-2)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={createModForm.generatePassword}
                       onChange={(e) => setCreateModForm(f => ({ ...f, generatePassword: e.target.checked }))} />
@@ -1452,12 +1494,50 @@ export default function AdminDashboard() {
                   </div>
                 </form>
               </>
+            ) : createModModal === 'otp' ? (
+              <>
+                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Confirmer par OTP</p>
+                {createModError && (
+                  <div className="alert alert-error" style={{ marginBottom: 16 }}>{createModError}</div>
+                )}
+                {createModNotice && (
+                  <div className="alert" style={{ marginBottom: 16, background: '#eff6ff', border: '1px solid #93c5fd', color: '#1d4ed8' }}>{createModNotice}</div>
+                )}
+                <form onSubmit={verifyCreateModeratorOtp} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label className="field-label">Code OTP</label>
+                    <input
+                      required
+                      className="field-input"
+                      inputMode="numeric"
+                      minLength={6}
+                      maxLength={6}
+                      value={createModOtpCode}
+                      onChange={(e) => setCreateModOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="6 chiffres"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCreateModModal('form')} disabled={createModLoading}>
+                      Retour
+                    </button>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={createModLoading || createModOtpCode.length !== 6}>
+                      {createModLoading ? 'Verification…' : 'Verifier'}
+                    </button>
+                  </div>
+                </form>
+              </>
             ) : (
               <>
                 <div style={{ textAlign: 'center', marginBottom: 20 }}>
                   <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
-                  <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)' }}>Compte modérateur créé</p>
+                  <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)' }}>
+                    {createModResult?.status === 'already_eligible' ? 'Compte deja utilisable' : 'Compte modérateur créé'}
+                  </p>
                 </div>
+                {createModResult?.message && (
+                  <div className="alert" style={{ marginBottom: 16, background: '#eff6ff', border: '1px solid #93c5fd', color: '#1d4ed8' }}>{createModResult.message}</div>
+                )}
                 <div style={{ background: 'var(--stone)', borderRadius: 6, padding: '14px 16px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                     <span style={{ color: 'var(--ink-3)' }}>Nom</span>
@@ -1467,23 +1547,10 @@ export default function AdminDashboard() {
                     <span style={{ color: 'var(--ink-3)' }}>Email</span>
                     <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{createModResult?.email}</span>
                   </div>
-                  {createModResult?.temporaryPassword && (
-                    <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 8, marginTop: 4 }}>
-                      <p style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 4 }}>Mot de passe temporaire (à copier maintenant) :</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <code style={{ flex: 1, background: '#fff', border: '1px solid var(--rule)', borderRadius: 4, padding: '6px 10px', fontSize: 13, fontFamily: 'monospace', userSelect: 'all' }}>
-                          {createModResult.temporaryPassword}
-                        </code>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => navigator.clipboard.writeText(createModResult?.temporaryPassword ?? '')}
-                        >
-                          Copier
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                    <span style={{ color: 'var(--ink-3)' }}>Accès</span>
+                    <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{createModResult?.role === 'admin' ? 'Admin + Modération' : 'Modérateur'}</span>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button className="btn btn-primary btn-sm" onClick={() => setCreateModModal('closed')}>Terminer</button>

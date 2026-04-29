@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
   Answer,
   AcademicClass,
+  AccountVerificationCode,
   AdminBroadcast,
   DuelAnswer,
   DuelMatch,
@@ -28,6 +29,7 @@ import { GoogleAuthGuard } from './auth/google-auth.guard';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { GoogleStrategy } from './auth/google.strategy';
 import { RolesGuard } from './auth/roles.guard';
+import { MailService } from './mail.service';
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { RolesGuard } from './auth/roles.guard';
     }),
     TypeOrmModule.forFeature([
       User,
+      AccountVerificationCode,
       AcademicClass,
       Subject,
       Question,
@@ -57,6 +60,6 @@ import { RolesGuard } from './auth/roles.guard';
     ]),
   ],
   controllers: [MvpController],
-  providers: [MvpService, DuelOralService, ChimeService, DuelGateway, JwtStrategy, GoogleStrategy, GoogleAuthGuard, RolesGuard],
+  providers: [MvpService, MailService, DuelOralService, ChimeService, DuelGateway, JwtStrategy, GoogleStrategy, GoogleAuthGuard, RolesGuard],
 })
 export class MvpModule {}

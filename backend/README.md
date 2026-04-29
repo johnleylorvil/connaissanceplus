@@ -72,6 +72,80 @@ $ npm run migration:revert
 
 For this repo, PostgreSQL should run with migrations instead of schema synchronization. SQLite keeps `DB_SYNCHRONIZE=true` by default for lightweight local work, but the Arena 1v1 schema migration is also available through the TypeORM CLI when you want to realign an existing local database file.
 
+## First admin bootstrap
+
+The backend exposes a one-time bootstrap endpoint for the first administrator account.
+
+Rules:
+
+- Set `ADMIN_SETUP_KEY` explicitly in the backend environment before using the endpoint.
+- The endpoint works only while there is no existing user with role `ADMIN`.
+- After the first admin is created, the same endpoint returns `Admin already exists`.
+
+Endpoint:
+
+```http
+POST /api/auth/bootstrap-admin
+```
+
+Required JSON body:
+
+```json
+{
+  "firstName": "Admin",
+  "lastName": "Principal",
+  "email": "admin@connaissanceplus.net",
+  "password": "ChangeMe123!",
+  "setupKey": "your-strong-admin-setup-key"
+}
+```
+
+Example with PowerShell:
+
+```powershell
+$body = @{
+  firstName = 'Admin'
+  lastName = 'Principal'
+  email = 'admin@connaissanceplus.net'
+  password = 'ChangeMe123!'
+  setupKey = 'your-strong-admin-setup-key'
+} | ConvertTo-Json
+
+Invoke-RestMethod \
+  -Method Post \
+  -Uri 'https://api.connaissanceplus.net/api/auth/bootstrap-admin' \
+  -ContentType 'application/json' \
+  -Body $body
+```
+
+Recommended production flow:
+
+1. Add a strong `ADMIN_SETUP_KEY` secret to ECS.
+2. Deploy the backend.
+3. Call `POST /api/auth/bootstrap-admin` once.
+4. Log in on `https://admin.connaissanceplus.net/login` with that account.
+5. Rotate or remove `ADMIN_SETUP_KEY` after bootstrap.
+
+## Email OTP verification
+
+Student registration and moderator creation now use an email OTP confirmation step.
+
+Required backend environment variables:
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_FROM`
+- `SMTP_USER` and `SMTP_PASS` when your SMTP provider requires authentication
+
+Operational notes:
+
+1. Run the migration that creates `account_verification_codes` before enabling the flow in production.
+2. `POST /api/students/register/request-otp` sends the student OTP.
+3. `POST /api/students/register/verify-otp` verifies the student OTP and creates the account.
+4. `POST /api/admin/moderators` sends the moderator OTP or reuses an existing admin/moderator account.
+5. `POST /api/admin/moderators/verify-otp` verifies the moderator OTP and finalizes the account.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

@@ -23,6 +23,7 @@ import {
   DuelAnswerDto,
   JoinMatchmakingDto,
   LoginDto,
+  OtpVerificationDto,
   OralScoreDto,
   RegisterStudentDto,
   SendBroadcastDto,
@@ -162,12 +163,30 @@ export class MvpController {
   @Post('admin/moderators')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   createModerator(@Body() dto: CreateModeratorDto) {
-    return this.mvpService.createModerator(dto);
+    return this.mvpService.requestModeratorCreationOtp(dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/moderators/verify-otp')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  verifyModeratorCreationOtp(@Body() dto: OtpVerificationDto) {
+    return this.mvpService.verifyModeratorCreationOtp(dto);
   }
 
   @Post('students/register')
   registerStudent(@Body() dto: RegisterStudentDto) {
-    return this.mvpService.registerStudent(dto);
+    return this.mvpService.requestStudentRegistrationOtp(dto);
+  }
+
+  @Post('students/register/request-otp')
+  requestStudentRegistrationOtp(@Body() dto: RegisterStudentDto) {
+    return this.mvpService.requestStudentRegistrationOtp(dto);
+  }
+
+  @Post('students/register/verify-otp')
+  verifyStudentRegistrationOtp(@Body() dto: OtpVerificationDto) {
+    return this.mvpService.verifyStudentRegistrationOtp(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

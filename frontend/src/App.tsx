@@ -207,7 +207,7 @@ export default function App() {
       <Route
         path="/moderator"
         element={
-          <RequireRole allowedRoles={['moderator']}>
+          <RequireRole allowedRoles={['admin', 'moderator']}>
             <Navigate to="/moderator/arena" replace />
           </RequireRole>
         }
@@ -215,7 +215,7 @@ export default function App() {
       <Route
         path="/moderator/arena"
         element={
-          <RequireRole allowedRoles={['moderator']}>
+          <RequireRole allowedRoles={['admin', 'moderator']}>
             <ModeratorArenaPage />
           </RequireRole>
         }
