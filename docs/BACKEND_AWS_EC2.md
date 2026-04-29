@@ -30,8 +30,9 @@ Inside `/opt/konesans-backend`, create:
 - `.env` for backend runtime variables and secrets
 - `uploads/`
 - `hls_output/`
+- `livekit-egress.yaml` (uploaded automatically by the workflow)
 
-The workflow uploads `docker-compose.yml` into that same directory and rewrites `.deploy.env` on each deploy with the new image tag.
+The workflow uploads `docker-compose.yml` and `livekit-egress.yaml` into that same directory and rewrites `.deploy.env` on each deploy with the new image tag.
 
 ## GitHub Secrets
 
@@ -68,6 +69,72 @@ That file should include the same production values already validated during the
 - JWT and admin secrets
 - SMTP settings
 - optional Redis, S3, LiveKit, and Google OAuth settings when those features are enabled
+
+For a full Arena live test on EC2, also include:
+
+- `REDIS_HOST=redis`
+- `REDIS_PORT=6379`
+- `LIVEKIT_API_KEY=...`
+- `LIVEKIT_API_SECRET=...`
+- `LIVEKIT_URL=wss://live.connaissanceplus.net`
+- `ARENA_YOUTUBE_RTMP_URL=rtmp://a.rtmp.youtube.com/live2/<your-stream-key>`
+
+Recommended related values for Arena spectator support:
+
+- `HLS_BASE_URL=https://api.connaissanceplus.net/hls`
+- `HLS_OUTPUT_DIR=/output`
+
+Recommended runtime block for `/opt/konesans-backend/.env`:
+
+```env
+NODE_ENV=production
+PORT=3000
+DB_SYNCHRONIZE=false
+DB_MIGRATIONS_RUN=false
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+LIVEKIT_API_KEY=replace-me
+LIVEKIT_API_SECRET=replace-me
+LIVEKIT_URL=wss://live.connaissanceplus.net
+ARENA_YOUTUBE_RTMP_URL=rtmp://a.rtmp.youtube.com/live2/replace-with-your-stream-key
+
+HLS_BASE_URL=https://api.connaissanceplus.net/hls
+HLS_OUTPUT_DIR=/output
+```
+
+## Arena Live Ports And DNS
+
+For a complete Arena live test in production, the EC2 host also needs the LiveKit ports reachable from the internet.
+
+Recommended setup:
+
+1. create `live.connaissanceplus.net` in Route 53 pointing to the same EC2 public IP
+2. open these security group rules to the instance:
+	- `TCP 7880` for LiveKit signaling
+	- `TCP 7881` for fallback transport
+	- `UDP 50100-50200` for WebRTC media
+3. if you terminate TLS in front of LiveKit, ensure `LIVEKIT_URL` matches the public `wss://` URL seen by browsers
+
+If you do not expose these ports correctly, the moderator and competitors will fail before the YouTube spectator layer even starts.
+
+## Arena Live Deploy Verification
+
+After a deploy intended for full Arena testing, verify these services on EC2:
+
+1. `docker compose --env-file .deploy.env -f docker-compose.yml ps`
+2. `docker compose --env-file .deploy.env -f docker-compose.yml logs --tail=100 backend`
+3. `docker compose --env-file .deploy.env -f docker-compose.yml logs --tail=100 livekit`
+4. `docker compose --env-file .deploy.env -f docker-compose.yml logs --tail=100 livekit-egress`
+
+Then validate behavior in this order:
+
+1. moderator can open the Arena private scene
+2. two competitors can join the private scene
+3. admin can save a public YouTube link for the competition
+4. moderator can switch the public stream to `live`
+5. spectator page embeds YouTube and still shows score/timer/leaderboard from Konesans+
 
 Keep:
 

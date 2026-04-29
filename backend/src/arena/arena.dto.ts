@@ -11,7 +11,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { ArenaParticipantRegistrationStatus } from './arena.entities';
+import { ArenaParticipantRegistrationStatus, ArenaPublicStreamProvider } from './arena.entities';
 
 // ─── Competition (Admin) ──────────────────────
 
@@ -49,6 +49,27 @@ export class ReviewParticipantRegistrationDto {
 export class SetWinnerDto {
   @IsUUID()
   participantUserId: string;
+}
+
+export class UpdateArenaPublicStreamDto {
+  @IsEnum(ArenaPublicStreamProvider)
+  provider: ArenaPublicStreamProvider;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  streamUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  chatUrl?: string;
+}
+
+export class SetArenaPublicStreamStatusDto {
+  @IsString()
+  @IsNotEmpty()
+  status: 'idle' | 'live' | 'stopped';
 }
 
 

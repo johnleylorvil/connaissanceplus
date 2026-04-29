@@ -28,7 +28,9 @@ import {
   RegisterParticipantDto,
   ReviewParticipantRegistrationDto,
   ScoreRoundDto,
+  SetArenaPublicStreamStatusDto,
   SetWinnerDto,
+  UpdateArenaPublicStreamDto,
   ViewerPingDto,
 } from './arena.dto';
 
@@ -175,6 +177,9 @@ export class ArenaController {
       status: 'stopped',
       playbackUrl: null,
     });
+    if (competition.publicStreamProvider === 'youtube' && competition.publicStreamUrl) {
+      await this.arenaService.setPublicStreamStatus(req.user.id, id, { status: 'stopped' });
+    }
     this.arenaGateway.broadcastHlsUrl(id, '');
     const leaderboard = await this.arenaService.getLiveLeaderboard(id);
     this.arenaGateway.broadcastCompetitionEnd(id, {
@@ -189,6 +194,90 @@ export class ArenaController {
   @Get('competitions/:id/state')
   getLiveState(@Param('id') id: string) {
     return this.arenaService.getCompetitionLiveState(id);
+  }
+
+  @Get('competitions/:id/public-stream')
+  getPublicStream(@Param('id') id: string) {
+    return this.arenaService.getPublicStream(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Patch('competitions/:id/public-stream')
+  updatePublicStream(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateArenaPublicStreamDto,
+  ) {
+    return this.arenaService.configurePublicStream(req.user.id, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Patch('competitions/:id/public-stream/status')
+  async updatePublicStreamStatus(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: SetArenaPublicStreamStatusDto,
+  ) {
+    const competition = await this.arenaService.getCompetitionById(id);
+
+    if (dto.status === 'live') {
+      if (competition.status !== 'live' && competition.status !== 'paused') {
+        throw new ForbiddenException('Le match doit etre lance avant d\'ouvrir la diffusion publique.');
+      }
+      if (competition.publicStreamProvider === 'youtube' && competition.publicStreamUrl) {
+        let egressId = competition.broadcastEgressId;
+
+        if (egressId) {
+          const roomEgresses = await this.rtcService.listEgressForRoom(id);
+          const currentEgress = roomEgresses.find((item) => item.egressId === egressId);
+          const isActiveEgress = currentEgress
+            && [EgressStatus.EGRESS_ACTIVE, EgressStatus.EGRESS_STARTING].includes(currentEgress.status);
+
+          if (!isActiveEgress) {
+            egressId = null;
+            await this.arenaService.setBroadcastInfo(id, {
+              egressId: null,
+              status: 'idle',
+              playbackUrl: competition.publicStreamUrl ?? null,
+            });
+          }
+        }
+
+        if (!egressId) {
+          const result = await this.rtcService.startYoutubeBroadcast(id);
+          egressId = result.egressId;
+          await this.arenaService.setBroadcastInfo(id, {
+            egressId,
+            status: 'live',
+            playbackUrl: competition.publicStreamUrl ?? null,
+          });
+        }
+        await this.arenaService.syncPublicStreamStatus(id, 'live');
+      }
+    }
+
+    if (dto.status === 'stopped' && competition.broadcastEgressId) {
+      await this.rtcService.stopBroadcast(competition.broadcastEgressId);
+      await this.arenaService.setBroadcastInfo(id, {
+        egressId: null,
+        status: 'stopped',
+        playbackUrl: competition.publicStreamUrl ?? null,
+      });
+      await this.arenaService.syncPublicStreamStatus(id, 'stopped');
+    }
+
+    if (dto.status === 'idle') {
+      await this.arenaService.setBroadcastInfo(id, {
+        egressId: null,
+        status: 'idle',
+        playbackUrl: competition.publicStreamUrl ?? null,
+      });
+      await this.arenaService.syncPublicStreamStatus(id, 'idle');
+    }
+
+    return this.arenaService.setPublicStreamStatus(req.user.id, id, dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -469,8 +558,28 @@ export class ArenaController {
   @Get('competitions/:id/broadcast')
   async getBroadcast(@Param('id') matchId: string) {
     const competition = await this.arenaService.getCompetitionById(matchId);
+    if (competition.publicStreamProvider === 'youtube' && competition.publicStreamUrl) {
+      if (competition.broadcastEgressId) {
+        const roomEgresses = await this.rtcService.listEgressForRoom(matchId);
+        const currentEgress = roomEgresses.find((item) => item.egressId === competition.broadcastEgressId);
+        const isActiveEgress = currentEgress
+          && [EgressStatus.EGRESS_ACTIVE, EgressStatus.EGRESS_STARTING].includes(currentEgress.status);
+
+        if (!isActiveEgress) {
+          await this.arenaService.setBroadcastInfo(matchId, {
+            egressId: null,
+            status: 'stopped',
+            playbackUrl: competition.publicStreamUrl ?? null,
+          });
+          await this.arenaService.syncPublicStreamStatus(matchId, 'stopped');
+        }
+      }
+      return this.arenaService.getPublicStream(matchId);
+    }
+
     if (competition.status === 'completed' || competition.status === 'cancelled') {
       return {
+        provider: 'hls',
         status: 'stopped',
         playbackUrl: null,
         startedAt: competition.broadcastStartedAt ?? null,
@@ -490,6 +599,7 @@ export class ArenaController {
           playbackUrl: null,
         });
         return {
+          provider: 'hls',
           status: 'stopped',
           playbackUrl: null,
           startedAt: competition.broadcastStartedAt ?? null,
@@ -498,6 +608,7 @@ export class ArenaController {
     }
 
     return {
+      provider: 'hls',
       status: competition.broadcastStatus ?? 'idle',
       playbackUrl: competition.broadcastUrl ?? null,
       startedAt: competition.broadcastStartedAt ?? null,

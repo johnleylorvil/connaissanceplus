@@ -35,6 +35,11 @@ export enum ArenaRoundMode {
   QCM = 'qcm',
 }
 
+export enum ArenaPublicStreamProvider {
+  NONE = 'none',
+  YOUTUBE = 'youtube',
+}
+
 // ─────────────────────────────────────────────
 // Competition
 // ─────────────────────────────────────────────
@@ -98,6 +103,21 @@ export class ArenaCompetition {
 
   @Column({ type: dateTimeColumnType, nullable: true })
   broadcastStartedAt: Date | null;
+
+  @Column({ type: 'text', default: ArenaPublicStreamProvider.NONE })
+  publicStreamProvider: ArenaPublicStreamProvider;
+
+  @Column({ type: 'text', nullable: true })
+  publicStreamUrl: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  publicStreamChatUrl: string | null;
+
+  @Column({ type: 'text', default: 'idle' })
+  publicStreamStatus: 'idle' | 'live' | 'stopped';
+
+  @Column({ type: dateTimeColumnType, nullable: true })
+  publicStreamStartedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

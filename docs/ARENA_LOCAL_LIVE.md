@@ -120,6 +120,22 @@ npm run dev
 
 ## Dépannage rapide
 
+## Production hybride recommandée
+
+Pour la production, l'architecture la plus simple n'est plus de servir toute la vidéo spectateur en HLS depuis la plateforme.
+
+- La scène privée reste sur LiveKit RTC pour le modérateur et les deux compétiteurs.
+- La vidéo publique spectateur peut maintenant être configurée par compétition avec un lien YouTube Live dans l'admin Arena.
+- La page spectateur Konesans+ continue d'afficher le score, le round courant, le timer et le classement, mais la vidéo embarquée vient de YouTube.
+- Le modérateur peut ouvrir ou fermer la diffusion publique depuis la scène Arena une fois le live YouTube prêt.
+
+En pratique sur AWS :
+
+- garder le backend NestJS sur EC2 comme aujourd'hui
+- garder LiveKit pour la scène privée seulement
+- utiliser `ARENA_YOUTUBE_RTMP_URL` dans l'environnement backend pour pointer LiveKit Egress vers l'ingest YouTube de la chaîne
+- créer l'événement YouTube Live, récupérer l'URL de visionnage, la coller dans l'admin Arena, puis passer le stream public en `live`
+
 ### `docker compose` n'est pas reconnu
 
 Installer ou relancer Docker Desktop, puis rouvrir le terminal.

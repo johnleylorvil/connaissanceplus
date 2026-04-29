@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useArenaSocket } from '../useArenaSocket'
 import { useLiveKitStage, type StageParticipant } from '../hooks/useLiveKitStage'
-import { arenaApi, ARENA_API, type ArenaLeaderboardRow } from '../arenaApi'
+import { arenaApi, ARENA_API, type ArenaLeaderboardRow, type ArenaPublicStream } from '../arenaApi'
 
 type UserMode = 'competitor' | 'moderator' | 'spectator'
 type MatchParticipant = {
@@ -79,62 +79,95 @@ function getPhase(opts: {
   return 'live-waiting'
 }
 
-function BroadcastButton({ competitionId, accessToken }: { competitionId: string | undefined; accessToken: string | null }) {
-  const [status, setStatus] = useState<'idle' | 'starting' | 'live' | 'stopped'>('idle')
+function PublicStreamPanel({ competitionId, accessToken }: { competitionId: string | undefined; accessToken: string | null }) {
+  const [stream, setStream] = useState<ArenaPublicStream | null>(null)
+  const [statusRequest, setStatusRequest] = useState<'live' | 'stopped' | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (!competitionId) return
-    arenaApi.getBroadcast(competitionId)
-      .then((d: { status: string }) => {
-        setStatus(d.status as typeof status)
-        setErrorMessage(null)
-      })
-      .catch(() => {})
+    let cancelled = false
+
+    const load = () => {
+      arenaApi.getBroadcast(competitionId)
+        .then((data) => {
+          if (cancelled) return
+          setStream(data)
+          setErrorMessage(null)
+        })
+        .catch(() => {})
+    }
+
+    load()
+    const interval = window.setInterval(load, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
   }, [competitionId])
 
-  const start = async () => {
+  const updateStatus = async (status: 'live' | 'stopped') => {
     if (!competitionId || !accessToken) return
-    setStatus('starting')
+    if (stream?.provider !== 'youtube') return
+    setStatusRequest(status)
     setErrorMessage(null)
     try {
-      await arenaApi.startBroadcast(competitionId, accessToken)
-      setStatus('live')
+      const updatedCompetition = await arenaApi.setPublicStreamStatus(competitionId, status, accessToken)
+      setStream(updatedCompetition.publicStream ?? null)
     } catch (err: unknown) {
-      setStatus('idle')
-      setErrorMessage(err instanceof Error ? err.message : 'Demarrage de la diffusion impossible.')
+      setErrorMessage(err instanceof Error ? err.message : 'Mise a jour de la diffusion publique impossible.')
+    } finally {
+      setStatusRequest(null)
     }
   }
 
-  const stop = async () => {
-    if (!competitionId || !accessToken) return
-    setErrorMessage(null)
-    try {
-      await arenaApi.stopBroadcast(competitionId, accessToken)
-      setStatus('stopped')
-    } catch (err: unknown) {
-      setStatus('live')
-      setErrorMessage(err instanceof Error ? err.message : 'Arret de la diffusion impossible.')
-    }
-  }
+  const isYoutube = stream?.provider === 'youtube' && !!stream?.streamUrl
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {status === 'live' ? (
-        <button
-          style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: '1px solid rgba(248,113,113,0.4)', background: 'rgba(239,68,68,0.12)', color: '#f87171', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em' }}
-          onClick={stop}
-        >
-          ⏹ ARRÊTER DIFFUSION
-        </button>
-      ) : (
-        <button
-          style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.35)', background: 'rgba(34,197,94,0.1)', color: '#4ade80', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em', opacity: status === 'starting' ? 0.6 : 1 }}
-          disabled={status === 'starting'}
-          onClick={start}
-        >
-          {status === 'starting' ? 'DÉMARRAGE…' : '▶ DIFFUSION HLS'}
-        </button>
+      <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, padding: '10px 12px', background: 'rgba(255,255,255,0.03)' }}>
+        <p style={{ margin: 0, fontSize: 11, color: T.textMuted, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Diffusion publique</p>
+        {isYoutube ? (
+          <>
+            <p style={{ margin: '6px 0 0', fontSize: 13, fontWeight: 700, color: T.text }}>
+              YouTube Live {stream?.status === 'live' ? 'actif' : stream?.status === 'stopped' ? 'termine' : 'pret'}
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.45, color: T.textMuted }}>
+              Les spectateurs regardent la page publique Arena, qui embarque la video YouTube. La scene privee RTC reste ici pour les joueurs et le moderateur.
+            </p>
+          </>
+        ) : (
+          <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.45, color: T.textMuted }}>
+            Configurez d'abord le lien YouTube dans l'espace admin pour ouvrir la diffusion publique aux spectateurs.
+          </p>
+        )}
+      </div>
+
+      {isYoutube && (
+        <>
+          <button
+            style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.35)', background: 'rgba(34,197,94,0.1)', color: '#4ade80', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em', opacity: statusRequest === 'live' ? 0.6 : 1 }}
+            disabled={statusRequest !== null}
+            onClick={() => updateStatus('live')}
+          >
+            {statusRequest === 'live' ? 'MISE EN DIRECT…' : '▶ OUVRIR AU PUBLIC'}
+          </button>
+          <button
+            style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: '1px solid rgba(248,113,113,0.4)', background: 'rgba(239,68,68,0.12)', color: '#f87171', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em', opacity: statusRequest === 'stopped' ? 0.6 : 1 }}
+            disabled={statusRequest !== null}
+            onClick={() => updateStatus('stopped')}
+          >
+            {statusRequest === 'stopped' ? 'FERMETURE…' : '⏹ FERMER COTE PUBLIC'}
+          </button>
+          <a
+            href={`/arena/watch/${competitionId}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: `1px solid ${T.borderBright}`, background: 'transparent', color: T.text, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', textAlign: 'center', textDecoration: 'none' }}
+          >
+            PAGE SPECTATEURS
+          </a>
+        </>
       )}
       {errorMessage && (
         <p style={{ margin: 0, fontSize: 11, lineHeight: 1.45, color: '#fca5a5' }}>{errorMessage}</p>
@@ -824,7 +857,7 @@ export default function ArenaLive() {
           <div style={{ marginTop: 'auto', borderTop: `1px solid ${T.border}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 9, background: T.sidebarBg, overflowY: 'auto' }}>
             <p style={{ ...S.label, marginBottom: 2 }}>Contrôles modérateur</p>
 
-            <BroadcastButton competitionId={competitionId} accessToken={accessToken} />
+            <PublicStreamPanel competitionId={competitionId} accessToken={accessToken} />
 
             {(!isLive || phase === 'live-waiting') && (
               <button

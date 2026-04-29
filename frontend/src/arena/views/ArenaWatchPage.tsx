@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Hls from 'hls.js'
-import { arenaApi, type ArenaLeaderboardRow } from '../arenaApi'
+import { arenaApi, type ArenaLeaderboardRow, type ArenaPublicStream } from '../arenaApi'
 
 const VIEWER_ID_KEY = (matchId: string) => `arena_viewer_${matchId}`
 const CAN_PLAY_NATIVE_HLS =
@@ -28,7 +28,11 @@ export default function ArenaWatchPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [broadcastStatus, setBroadcastStatus] = useState<'idle' | 'starting' | 'live' | 'stopped'>('idle')
+  const [broadcastProvider, setBroadcastProvider] = useState<'none' | 'youtube' | 'hls'>('none')
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null)
+  const [streamUrl, setStreamUrl] = useState<string | null>(null)
+  const [embedUrl, setEmbedUrl] = useState<string | null>(null)
+  const [chatUrl, setChatUrl] = useState<string | null>(null)
   const [viewerCount, setViewerCount] = useState<number>(0)
   const [muted, setMuted] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -46,10 +50,14 @@ export default function ArenaWatchPage() {
 
     const poll = async () => {
       try {
-        const data = await arenaApi.getBroadcast(matchId) as { status: string; playbackUrl: string | null }
+        const data = await arenaApi.getBroadcast(matchId) as ArenaPublicStream
         if (stopped) return
+        setBroadcastProvider(data.provider)
         setBroadcastStatus(data.status as typeof broadcastStatus)
         setPlaybackUrl(data.playbackUrl ?? null)
+        setStreamUrl(data.streamUrl ?? null)
+        setEmbedUrl(data.embedUrl ?? null)
+        setChatUrl(data.chatUrl ?? null)
         if (data.status !== 'live') {
           setError(null)
         }
@@ -94,7 +102,7 @@ export default function ArenaWatchPage() {
   // Attach HLS player when playbackUrl is known
   useEffect(() => {
     const video = videoRef.current
-    if (!video || !playbackUrl || broadcastStatus !== 'live') return
+    if (!video || !playbackUrl || broadcastStatus !== 'live' || broadcastProvider !== 'hls') return
 
     setError(null)
 
@@ -147,7 +155,7 @@ export default function ArenaWatchPage() {
       hlsRef.current?.destroy()
       hlsRef.current = null
     }
-  }, [playbackUrl, broadcastStatus])
+  }, [playbackUrl, broadcastStatus, broadcastProvider])
 
   // Poll live state + leaderboard every 3s
   useEffect(() => {
@@ -191,7 +199,7 @@ export default function ArenaWatchPage() {
     return Math.max(0, Math.round((started + durationMs - clockTick) / 1000))
   }, [clockTick, currentRound, liveState?.secondsPerQuestion])
 
-  const playbackUnsupported = broadcastStatus === 'live' && !!playbackUrl && !Hls.isSupported() && !CAN_PLAY_NATIVE_HLS
+  const playbackUnsupported = broadcastProvider === 'hls' && broadcastStatus === 'live' && !!playbackUrl && !Hls.isSupported() && !CAN_PLAY_NATIVE_HLS
   const displayError = playbackUnsupported ? 'Votre navigateur ne supporte pas la lecture HLS.' : error
 
   if (!matchId) {
@@ -200,6 +208,7 @@ export default function ArenaWatchPage() {
 
   const isLive = liveState?.status === 'live' || liveState?.status === 'paused'
   const roundInProgress = !!liveState?.currentRound && !liveState.currentRound.endedAt
+  const hasYoutubeStream = broadcastProvider === 'youtube' && !!streamUrl
   const scoreByParticipantId = new Map(leaderboard.map((row) => [row.participantUserId, row.score]))
   const seededParticipants = (liveState?.participants ?? []).map((participant) => ({
     participantUserId: participant.userId,
@@ -330,9 +339,23 @@ export default function ArenaWatchPage() {
               {broadcastStatus === 'stopped'
                 ? "La diffusion est terminée. Consultez l'Arena pour les résultats."
                 : isLive
-                  ? 'Le match est en cours. La vidéo démarrera quand la diffusion HLS sera lancée et que le modérateur publiera sa caméra.'
-                  : 'La diffusion démarrera automatiquement quand le modérateur lancera le match.'}
+                  ? hasYoutubeStream
+                    ? 'Le match est en cours. La vidéo YouTube apparaîtra ici dès que le modérateur confirmera la mise en direct publique.'
+                    : 'Le match est en cours. La scène privée reste sur Konesans+ et la vidéo publique YouTube apparaîtra ici après configuration.'
+                  : 'La diffusion démarrera quand l’équipe aura configuré et activé le live public YouTube.'}
             </p>
+            {hasYoutubeStream && (
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 20 }}>
+                <a href={streamUrl!} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+                  Ouvrir sur YouTube
+                </a>
+                {chatUrl && (
+                  <a href={chatUrl} target="_blank" rel="noreferrer" className="btn btn-ghost" style={{ textDecoration: 'none' }}>
+                    Ouvrir le chat
+                  </a>
+                )}
+              </div>
+            )}
             {broadcastStatus === 'stopped' && (
               <button onClick={() => navigate('/arena/spectator')} className="btn btn-primary" style={{ marginTop: 20 }}>
                 Retour aux lives
@@ -343,23 +366,36 @@ export default function ArenaWatchPage() {
           <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Video */}
             <div style={{ position: 'relative', background: '#000', borderRadius: 10, overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}>
-              <video
-                ref={videoRef}
-                muted={muted}
-                playsInline
-                autoPlay
-                style={{ width: '100%', display: 'block', aspectRatio: '16/9', background: '#000' }}
-              />
-              {muted && (
-                <div
-                  style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '10px 22px', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', backdropFilter: 'blur(4px)' }}
-                  onClick={() => {
-                    setMuted(false)
-                    if (videoRef.current) videoRef.current.muted = false
-                  }}
-                >
-                  🔇 Activer le son
-                </div>
+              {broadcastProvider === 'youtube' && embedUrl ? (
+                <iframe
+                  src={embedUrl}
+                  title={liveState?.competitionName ?? 'YouTube Live Arena'}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  style={{ width: '100%', display: 'block', aspectRatio: '16/9', border: 'none', background: '#000' }}
+                />
+              ) : (
+                <>
+                  <video
+                    ref={videoRef}
+                    muted={muted}
+                    playsInline
+                    autoPlay
+                    style={{ width: '100%', display: 'block', aspectRatio: '16/9', background: '#000' }}
+                  />
+                  {muted && (
+                    <div
+                      style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '10px 22px', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', backdropFilter: 'blur(4px)' }}
+                      onClick={() => {
+                        setMuted(false)
+                        if (videoRef.current) videoRef.current.muted = false
+                      }}
+                    >
+                      🔇 Activer le son
+                    </div>
+                  )}
+                </>
               )}
               {/* Overlay: round info bottom-left */}
               {isLive && (
@@ -375,6 +411,29 @@ export default function ArenaWatchPage() {
                 </div>
               )}
             </div>
+
+            {broadcastProvider === 'youtube' && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#fff' }}>Diffusion publique YouTube</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                    La scène privée reste sur Konesans+, mais la vidéo spectateur est servie par YouTube Live pour réduire la latence d\'exploitation côté plateforme.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {streamUrl && (
+                    <a href={streamUrl} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+                      Ouvrir sur YouTube
+                    </a>
+                  )}
+                  {chatUrl && (
+                    <a href={chatUrl} target="_blank" rel="noreferrer" className="btn btn-ghost" style={{ textDecoration: 'none' }}>
+                      Chat YouTube
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Leaderboard below video */}
             {leaderboard.length > 0 && (
@@ -394,7 +453,9 @@ export default function ArenaWatchPage() {
               </div>
             )}
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', textAlign: 'center', margin: 0 }}>
-              Latence HLS standard (~10–20s) · Haute définition
+              {broadcastProvider === 'youtube'
+                ? 'Vidéo publique YouTube Live · Le score, les rounds et la modération restent synchronisés par Konesans+'
+                : 'Latence HLS standard (~10–20s) · Haute définition'}
             </p>
           </div>
         )}

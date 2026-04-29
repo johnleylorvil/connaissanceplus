@@ -10,6 +10,17 @@ export type ArenaLeaderboardRow = {
   score: number
 }
 
+export type ArenaPublicStream = {
+  provider: 'none' | 'youtube' | 'hls'
+  status: 'idle' | 'starting' | 'live' | 'stopped'
+  streamUrl: string | null
+  playbackUrl: string | null
+  chatUrl: string | null
+  embedUrl: string | null
+  videoId: string | null
+  startedAt: string | null
+}
+
 export type ArenaCompetition = {
   id: string
   name: string
@@ -26,6 +37,11 @@ export type ArenaCompetition = {
   moderatorUserId: string | null
   moderatorName?: string | null
   moderatorEmail?: string | null
+  publicStreamProvider: 'none' | 'youtube'
+  publicStreamUrl: string | null
+  publicStreamChatUrl: string | null
+  publicStreamStatus: 'idle' | 'live' | 'stopped'
+  publicStream?: ArenaPublicStream
   createdAt: string
 }
 
@@ -71,6 +87,12 @@ export type CreateArenaCompetitionPayload = {
   description?: string
 }
 
+export type UpdateArenaPublicStreamPayload = {
+  provider: 'none' | 'youtube'
+  streamUrl?: string
+  chatUrl?: string
+}
+
 async function arenaFetch<T>(path: string, init?: RequestInit, token?: string | null): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -98,6 +120,8 @@ export const arenaApi = {
     arenaFetch<ArenaRegistration[]>(`/competitions/${competitionId}/registrations`, {}, token),
   getLiveState: (competitionId: string) =>
     arenaFetch<unknown>(`/competitions/${competitionId}/state`),
+  getPublicStream: (competitionId: string) =>
+    arenaFetch<ArenaPublicStream>(`/competitions/${competitionId}/public-stream`),
   getLiveLeaderboard: (competitionId: string) =>
     arenaFetch<ArenaLeaderboardRow[]>(
       `/competitions/${competitionId}/leaderboard`,
@@ -157,8 +181,20 @@ export const arenaApi = {
       token,
     ),
   getBroadcast: (competitionId: string) =>
-    arenaFetch<{ status: string; playbackUrl: string | null; startedAt: string | null }>(
+    arenaFetch<ArenaPublicStream>(
       `/competitions/${competitionId}/broadcast`,
+    ),
+  updatePublicStream: (competitionId: string, payload: UpdateArenaPublicStreamPayload, token: string) =>
+    arenaFetch<ArenaCompetition>(
+      `/competitions/${competitionId}/public-stream`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token,
+    ),
+  setPublicStreamStatus: (competitionId: string, status: 'idle' | 'live' | 'stopped', token: string) =>
+    arenaFetch<ArenaCompetition>(
+      `/competitions/${competitionId}/public-stream/status`,
+      { method: 'PATCH', body: JSON.stringify({ status }) },
+      token,
     ),
 
   // ── Viewer Counter (Redis heartbeat) ─────────────────────────────────

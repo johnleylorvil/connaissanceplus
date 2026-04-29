@@ -95,6 +95,9 @@ export default function AdminDashboard() {
   const [winnerPickerSelectedId, setWinnerPickerSelectedId] = useState('')
   const [broadcastMsg, setBroadcastMsg] = useState('')
   const [broadcastLoading, setBroadcastLoading] = useState(false)
+  const [publicStreamDrafts, setPublicStreamDrafts] = useState<Record<string, { streamUrl: string; chatUrl: string }>>({})
+  const [savingPublicStreamId, setSavingPublicStreamId] = useState<string | null>(null)
+  const [updatingPublicStreamStatusId, setUpdatingPublicStreamStatusId] = useState<string | null>(null)
   // Arena internal tabs
   const [arenaTab, setArenaTab] = useState<'matches' | 'affectations'>('matches')
   const [moderatorUsers, setModeratorUsers] = useState<ModeratorUser[]>([])
@@ -129,6 +132,10 @@ export default function AdminDashboard() {
     setCreateModResendCountdown(0)
     setCreateModModal('form')
   }
+
+  const applyArenaCompetitionUpdate = useCallback((competition: ArenaCompetition) => {
+    setArenaCompetitions((prev) => prev.map((item) => item.id === competition.id ? competition : item))
+  }, [])
 
   const submitCreateModerator = async (e: FormEvent) => {
     e.preventDefault()
@@ -1200,6 +1207,11 @@ export default function AdminDashboard() {
                                   🎙️ {comp.moderatorName ?? comp.moderatorEmail ?? 'Modérateur assigné'}
                                 </p>
                               )}
+                              <p style={{ fontSize: 11, color: comp.publicStreamProvider === 'youtube' ? 'var(--ok)' : 'var(--ink-3)', marginTop: 2 }}>
+                                {comp.publicStreamProvider === 'youtube'
+                                  ? `Public YouTube · ${comp.publicStreamStatus === 'live' ? 'en direct' : comp.publicStreamStatus === 'stopped' ? 'terminé' : 'prêt à diffuser'}`
+                                  : 'Public YouTube non configuré'}
+                              </p>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                               {comp.status === 'pending' && (
@@ -1239,7 +1251,7 @@ export default function AdminDashboard() {
                                     className="btn btn-primary btn-sm"
                                     style={{ textDecoration: 'none' }}
                                   >
-                                    🔴 Voir en direct
+                                    🎙️ Scène privée
                                   </a>
                                   <button className="btn btn-primary btn-sm" onClick={async () => {
                                     setArenaError(''); setArenaMsg('')
@@ -1266,6 +1278,180 @@ export default function AdminDashboard() {
                                 const regs = await arenaApi.getRegistrations(comp.id, accessToken!).catch(() => [])
                                 setArenaRegistrations(regs)
                               }}>Inscriptions</button>
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 12, border: '1px solid var(--rule)', borderRadius: 8, padding: 12, background: '#fafcff' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                              <div>
+                                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Diffusion publique YouTube</p>
+                                <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ink-3)' }}>
+                                  Les joueurs et le modérateur gardent la scène privée sur Konesans+. Les spectateurs regardent la vidéo publique sur YouTube Live.
+                                </p>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <a
+                                  href={`/arena/watch/${comp.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ textDecoration: 'none' }}
+                                >
+                                  Page spectateurs
+                                </a>
+                                {comp.publicStreamUrl && (
+                                  <a
+                                    href={comp.publicStreamUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ textDecoration: 'none' }}
+                                  >
+                                    Ouvrir YouTube
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="responsive-two-col" style={{ gap: 12 }}>
+                              <div>
+                                <label className="field-label">Lien du live YouTube</label>
+                                <input
+                                  className="field-input"
+                                  value={publicStreamDrafts[comp.id]?.streamUrl ?? comp.publicStreamUrl ?? ''}
+                                  onChange={(e) => setPublicStreamDrafts((prev) => ({
+                                    ...prev,
+                                    [comp.id]: {
+                                      streamUrl: e.target.value,
+                                      chatUrl: prev[comp.id]?.chatUrl ?? comp.publicStreamChatUrl ?? '',
+                                    },
+                                  }))}
+                                  placeholder="https://www.youtube.com/watch?v=..."
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                              <div>
+                                <label className="field-label">Lien du chat YouTube (optionnel)</label>
+                                <input
+                                  className="field-input"
+                                  value={publicStreamDrafts[comp.id]?.chatUrl ?? comp.publicStreamChatUrl ?? ''}
+                                  onChange={(e) => setPublicStreamDrafts((prev) => ({
+                                    ...prev,
+                                    [comp.id]: {
+                                      streamUrl: prev[comp.id]?.streamUrl ?? comp.publicStreamUrl ?? '',
+                                      chatUrl: e.target.value,
+                                    },
+                                  }))}
+                                  placeholder="https://www.youtube.com/live_chat?v=..."
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+                              <button
+                                className="btn btn-primary btn-sm"
+                                disabled={savingPublicStreamId === comp.id}
+                                onClick={async () => {
+                                  setArenaError('')
+                                  setArenaMsg('')
+                                  setSavingPublicStreamId(comp.id)
+                                  try {
+                                    if (!accessToken) throw new Error('Session administrateur invalide.')
+                                    const updated = await arenaApi.updatePublicStream(comp.id, {
+                                      provider: 'youtube',
+                                      streamUrl: (publicStreamDrafts[comp.id]?.streamUrl ?? comp.publicStreamUrl ?? '').trim(),
+                                      chatUrl: (publicStreamDrafts[comp.id]?.chatUrl ?? comp.publicStreamChatUrl ?? '').trim() || undefined,
+                                    }, accessToken)
+                                    applyArenaCompetitionUpdate(updated)
+                                    setPublicStreamDrafts((prev) => ({
+                                      ...prev,
+                                      [comp.id]: {
+                                        streamUrl: updated.publicStreamUrl ?? '',
+                                        chatUrl: updated.publicStreamChatUrl ?? '',
+                                      },
+                                    }))
+                                    setArenaMsg('Lien YouTube public enregistré.')
+                                  } catch (err) {
+                                    setArenaError((err as Error).message)
+                                  } finally {
+                                    setSavingPublicStreamId(null)
+                                  }
+                                }}
+                              >
+                                {savingPublicStreamId === comp.id ? 'Enregistrement…' : 'Enregistrer YouTube'}
+                              </button>
+
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                style={{ color: 'var(--error)' }}
+                                disabled={savingPublicStreamId === comp.id}
+                                onClick={async () => {
+                                  setArenaError('')
+                                  setArenaMsg('')
+                                  setSavingPublicStreamId(comp.id)
+                                  try {
+                                    if (!accessToken) throw new Error('Session administrateur invalide.')
+                                    const updated = await arenaApi.updatePublicStream(comp.id, { provider: 'none' }, accessToken)
+                                    applyArenaCompetitionUpdate(updated)
+                                    setPublicStreamDrafts((prev) => ({
+                                      ...prev,
+                                      [comp.id]: { streamUrl: '', chatUrl: '' },
+                                    }))
+                                    setArenaMsg('Diffusion publique supprimée pour cette compétition.')
+                                  } catch (err) {
+                                    setArenaError((err as Error).message)
+                                  } finally {
+                                    setSavingPublicStreamId(null)
+                                  }
+                                }}
+                              >
+                                Retirer YouTube
+                              </button>
+
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                disabled={updatingPublicStreamStatusId === comp.id || comp.publicStreamProvider !== 'youtube'}
+                                onClick={async () => {
+                                  setArenaError('')
+                                  setArenaMsg('')
+                                  setUpdatingPublicStreamStatusId(comp.id)
+                                  try {
+                                    if (!accessToken) throw new Error('Session administrateur invalide.')
+                                    const updated = await arenaApi.setPublicStreamStatus(comp.id, 'live', accessToken)
+                                    applyArenaCompetitionUpdate(updated)
+                                    setArenaMsg('Les spectateurs peuvent maintenant suivre le direct YouTube.')
+                                  } catch (err) {
+                                    setArenaError((err as Error).message)
+                                  } finally {
+                                    setUpdatingPublicStreamStatusId(null)
+                                  }
+                                }}
+                              >
+                                Passer en direct
+                              </button>
+
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                disabled={updatingPublicStreamStatusId === comp.id || comp.publicStreamProvider !== 'youtube'}
+                                onClick={async () => {
+                                  setArenaError('')
+                                  setArenaMsg('')
+                                  setUpdatingPublicStreamStatusId(comp.id)
+                                  try {
+                                    if (!accessToken) throw new Error('Session administrateur invalide.')
+                                    const updated = await arenaApi.setPublicStreamStatus(comp.id, 'stopped', accessToken)
+                                    applyArenaCompetitionUpdate(updated)
+                                    setArenaMsg('Diffusion publique marquée comme terminée.')
+                                  } catch (err) {
+                                    setArenaError((err as Error).message)
+                                  } finally {
+                                    setUpdatingPublicStreamStatusId(null)
+                                  }
+                                }}
+                              >
+                                Clore côté public
+                              </button>
                             </div>
                           </div>
 

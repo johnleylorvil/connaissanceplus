@@ -14,6 +14,7 @@ import {
   ArenaParticipantRegistration,
   ArenaParticipantRegistrationStatus,
   ArenaParticipantScoreAdjustment,
+  ArenaPublicStreamProvider,
   ArenaRoundMode,
   ArenaRound,
 } from './arena.entities';
@@ -23,7 +24,9 @@ import {
   DisqualifyParticipantDto,
   RegisterParticipantDto,
   ReviewParticipantRegistrationDto,
+  SetArenaPublicStreamStatusDto,
   SetWinnerDto,
+  UpdateArenaPublicStreamDto,
 } from './arena.dto';
 import { Notification, Question, User, UserRole } from '../mvp/entities';
 
@@ -529,7 +532,97 @@ export class ArenaService {
       leaderboard,
       participants,
       matchParticipants,
+      publicStream: this.buildPublicStreamSnapshot(competition),
     };
+  }
+
+  async configurePublicStream(
+    callerId: string,
+    competitionId: string,
+    dto: UpdateArenaPublicStreamDto,
+  ) {
+    const competition = await this.competitionRepo.findOne({ where: { id: competitionId } });
+    if (!competition) throw new NotFoundException('Compétition introuvable.');
+    await this.ensurePublicStreamControl(callerId, competition);
+
+    if (dto.provider === ArenaPublicStreamProvider.NONE) {
+      competition.publicStreamProvider = ArenaPublicStreamProvider.NONE;
+      competition.publicStreamUrl = null;
+      competition.publicStreamChatUrl = null;
+      competition.publicStreamStatus = 'idle';
+      competition.publicStreamStartedAt = null;
+      await this.competitionRepo.save(competition);
+      return this.decorateCompetition(competition);
+    }
+
+    const videoId = this.extractYouTubeVideoId(dto.streamUrl ?? '');
+    if (!videoId) {
+      throw new BadRequestException('Entrez un lien YouTube valide pour le live public.');
+    }
+
+    competition.publicStreamProvider = ArenaPublicStreamProvider.YOUTUBE;
+    competition.publicStreamUrl = this.buildYouTubeWatchUrl(videoId);
+    competition.publicStreamChatUrl = dto.chatUrl?.trim() || this.buildYouTubeChatUrl(videoId);
+    if (competition.publicStreamStatus === 'stopped') {
+      competition.publicStreamStatus = 'idle';
+    }
+
+    await this.competitionRepo.save(competition);
+    return this.decorateCompetition(competition);
+  }
+
+  async setPublicStreamStatus(
+    callerId: string,
+    competitionId: string,
+    dto: SetArenaPublicStreamStatusDto,
+  ) {
+    if (!['idle', 'live', 'stopped'].includes(dto.status)) {
+      throw new BadRequestException('Statut de diffusion publique invalide.');
+    }
+
+    const competition = await this.competitionRepo.findOne({ where: { id: competitionId } });
+    if (!competition) throw new NotFoundException('Compétition introuvable.');
+    await this.ensurePublicStreamControl(callerId, competition);
+
+    if (competition.publicStreamProvider !== ArenaPublicStreamProvider.YOUTUBE || !competition.publicStreamUrl) {
+      throw new BadRequestException('Configurez d\'abord un lien YouTube pour la diffusion publique.');
+    }
+
+    competition.publicStreamStatus = dto.status;
+    if (dto.status === 'live') {
+      competition.publicStreamStartedAt = new Date();
+    }
+    if (dto.status === 'idle') {
+      competition.publicStreamStartedAt = null;
+    }
+
+    await this.competitionRepo.save(competition);
+    return this.decorateCompetition(competition);
+  }
+
+  async getPublicStream(competitionId: string) {
+    const competition = await this.competitionRepo.findOne({ where: { id: competitionId } });
+    if (!competition) throw new NotFoundException('Compétition introuvable.');
+    return this.buildPublicStreamSnapshot(competition);
+  }
+
+  async syncPublicStreamStatus(
+    competitionId: string,
+    status: 'idle' | 'live' | 'stopped',
+  ) {
+    const competition = await this.competitionRepo.findOne({ where: { id: competitionId } });
+    if (!competition) return null;
+
+    competition.publicStreamStatus = status;
+    if (status === 'live') {
+      competition.publicStreamStartedAt = new Date();
+    }
+    if (status === 'idle') {
+      competition.publicStreamStartedAt = null;
+    }
+
+    await this.competitionRepo.save(competition);
+    return this.decorateCompetition(competition);
   }
 
   async canJoinRoom(userId: string, competitionId: string, participantId: string): Promise<boolean> {
@@ -781,6 +874,7 @@ export class ArenaService {
 
     return {
       ...competition,
+      publicStream: this.buildPublicStreamSnapshot(competition),
       winnerParticipantUserId: competition.winnerParticipantUserId,
       winnerParticipantName: winnerParticipant
         ? `${winnerParticipant.firstName} ${winnerParticipant.lastName}`.trim()
@@ -800,6 +894,7 @@ export class ArenaService {
 
     return competitions.map((competition) => ({
       ...competition,
+      publicStream: this.buildPublicStreamSnapshot(competition),
       winnerParticipantUserId: competition.winnerParticipantUserId,
       winnerParticipantName: competition.winnerParticipantUserId
         ? (winnerMap.get(competition.winnerParticipantUserId) ?? null)
@@ -926,6 +1021,78 @@ export class ArenaService {
       competition.broadcastStartedAt = new Date();
     }
     await this.competitionRepo.save(competition);
+  }
+
+  private buildPublicStreamSnapshot(competition: ArenaCompetition) {
+    const videoId = competition.publicStreamProvider === ArenaPublicStreamProvider.YOUTUBE
+      ? this.extractYouTubeVideoId(competition.publicStreamUrl ?? '')
+      : null;
+
+    return {
+      provider: competition.publicStreamProvider ?? ArenaPublicStreamProvider.NONE,
+      status: competition.publicStreamStatus ?? 'idle',
+      streamUrl: competition.publicStreamUrl ?? null,
+      playbackUrl: competition.publicStreamUrl ?? null,
+      chatUrl: competition.publicStreamChatUrl ?? (videoId ? this.buildYouTubeChatUrl(videoId) : null),
+      embedUrl: videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : null,
+      videoId,
+      startedAt: competition.publicStreamStartedAt ?? null,
+    };
+  }
+
+  private extractYouTubeVideoId(rawUrl: string) {
+    const input = rawUrl.trim();
+    if (!input) return null;
+
+    const directMatch = input.match(/^[A-Za-z0-9_-]{11}$/);
+    if (directMatch) return directMatch[0];
+
+    try {
+      const url = new URL(input);
+      const host = url.hostname.toLowerCase();
+
+      if (host === 'youtu.be') {
+        const candidate = url.pathname.replace(/^\//, '').split('/')[0];
+        return /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+      }
+
+      if (host.endsWith('youtube.com')) {
+        const watchId = url.searchParams.get('v');
+        if (watchId && /^[A-Za-z0-9_-]{11}$/.test(watchId)) {
+          return watchId;
+        }
+
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        const candidate = pathParts[pathParts.length - 1] ?? '';
+        return /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
+  private buildYouTubeWatchUrl(videoId: string) {
+    return `https://www.youtube.com/watch?v=${videoId}`;
+  }
+
+  private buildYouTubeChatUrl(videoId: string) {
+    return `https://www.youtube.com/live_chat?v=${videoId}`;
+  }
+
+  private async ensurePublicStreamControl(callerId: string, competition: ArenaCompetition) {
+    const caller = await this.userRepo.findOne({ where: { id: callerId } });
+
+    if (caller?.role === UserRole.ADMIN) {
+      return;
+    }
+
+    if (caller?.role === UserRole.MODERATOR && competition.moderatorUserId === callerId) {
+      return;
+    }
+
+    throw new ForbiddenException('Action réservée à l\'administrateur ou au modérateur assigné.');
   }
 
   private async ensureModeratorControl(callerId: string, competition: ArenaCompetition) {

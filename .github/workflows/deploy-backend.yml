@@ -61,13 +61,13 @@ jobs:
             mkdir -p "${{ env.EC2_DEPLOY_DIR }}/uploads"
             mkdir -p "${{ env.EC2_DEPLOY_DIR }}/hls_output"
 
-      - name: Upload EC2 Docker Compose file
+      - name: Upload EC2 runtime files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_SSH_USER }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          source: deploy/ec2/docker-compose.yml
+          source: deploy/ec2/docker-compose.yml,deploy/ec2/livekit-egress.yaml
           target: ${{ env.EC2_DEPLOY_DIR }}
           strip_components: 2
 
@@ -89,6 +89,8 @@ jobs:
             cat > .deploy.env <<EOF
             BACKEND_IMAGE=$IMAGE_URI
             EOF
+
+            grep -E '^(LIVEKIT_API_KEY|LIVEKIT_API_SECRET)=' .env >> .deploy.env
 
             aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
             docker compose --env-file .deploy.env -f docker-compose.yml pull

@@ -1,4 +1,46 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: konesans-redis
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: konesans-livekit
+    restart: unless-stopped
+    command: --dev --bind 0.0.0.0 --redis-host redis:6379
+    env_file:
+      - .env
+    environment:
+      LIVEKIT_KEYS: ${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50100-50200:50100-50200/udp"
+    depends_on:
+      - redis
+
+  livekit-egress:
+    image: livekit/egress:latest
+    container_name: konesans-livekit-egress
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+    environment:
+      EGRESS_CONFIG_FILE: /etc/livekit/egress.yaml
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_WS_URL: ws://livekit:7880
+    volumes:
+      - ./livekit-egress.yaml:/etc/livekit/egress.yaml:ro
+      - ./hls_output:/output
+    depends_on:
+      - redis
+      - livekit
+
   backend:
     image: ${BACKEND_IMAGE}
     container_name: konesans-backend
@@ -10,3 +52,6 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./hls_output:/app/hls_output
+    depends_on:
+      - redis
+      - livekit

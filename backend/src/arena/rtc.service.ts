@@ -12,6 +12,8 @@ import {
   SegmentedFileOutput,
   SegmentedFileProtocol,
   S3Upload,
+  StreamOutput,
+  StreamProtocol,
 } from 'livekit-server-sdk';
 import Redis from 'ioredis';
 import { randomUUID } from 'crypto';
@@ -52,6 +54,7 @@ export class RtcService {
   private readonly hlsS3SecretKey: string | null;
   private readonly hlsS3Endpoint: string | null;
   private readonly hlsS3ForcePathStyle: boolean;
+  private readonly youtubeRtmpUrl: string | null;
   /**
    * ZADD score = expiry epoch ms — viewers are counted by
    * ZCOUNT key nowMs +inf (only entries with score > now are active).
@@ -87,6 +90,7 @@ export class RtcService {
         .trim()
         .toLowerCase(),
     );
+    this.youtubeRtmpUrl = configService.get<string>('ARENA_YOUTUBE_RTMP_URL')?.trim() || null;
 
     this.redis = new Redis({
       host: configService.get<string>('REDIS_HOST', 'localhost'),
@@ -218,6 +222,32 @@ export class RtcService {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'unknown egress stop failure';
       this.logger.warn(`Ignoring egress stop failure for ${egressId}: ${message}`);
+    }
+  }
+
+  async startYoutubeBroadcast(matchId: string): Promise<{ egressId: string }> {
+    const roomName = `arena-${matchId}`;
+
+    if (!this.youtubeRtmpUrl) {
+      throw new ServiceUnavailableException(
+        'Diffusion YouTube indisponible. Configurez ARENA_YOUTUBE_RTMP_URL dans le backend.',
+      );
+    }
+
+    const output = new StreamOutput({
+      protocol: StreamProtocol.RTMP,
+      urls: [this.youtubeRtmpUrl],
+    });
+
+    try {
+      const info = await this.egressClient.startRoomCompositeEgress(roomName, output, { layout: 'grid' });
+      return { egressId: info.egressId };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Egress indisponible';
+      this.logger.error(`Unable to start YouTube broadcast for ${roomName}: ${message}`);
+      throw new ServiceUnavailableException(
+        'Diffusion YouTube indisponible. Vérifiez que LiveKit Egress est démarré et que ARENA_YOUTUBE_RTMP_URL est valide.',
+      );
     }
   }
 
