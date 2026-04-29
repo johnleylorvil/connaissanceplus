@@ -90,7 +90,9 @@ jobs:
             BACKEND_IMAGE=$IMAGE_URI
             EOF
 
-            grep -E '^(LIVEKIT_API_KEY|LIVEKIT_API_SECRET)=' .env >> .deploy.env
+            if ! grep -E '^(LIVEKIT_API_KEY|LIVEKIT_API_SECRET)=' .env >> .deploy.env; then
+              echo "LIVEKIT_API_KEY / LIVEKIT_API_SECRET not found in .env; continuing without LiveKit interpolation overrides."
+            fi
 
             aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
             docker compose --env-file .deploy.env -f docker-compose.yml pull
