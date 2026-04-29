@@ -168,6 +168,18 @@ export class AccountVerificationCode {
   @Column({ type: 'text' })
   payload: string;
 
+  @Column({ default: 0 })
+  verifyAttempts: number;
+
+  @Column({ default: 1 })
+  sendCount: number;
+
+  @Column({ type: dateTimeColumnType })
+  lastSentAt: Date;
+
+  @Column({ type: dateTimeColumnType, nullable: true })
+  blockedUntil: Date | null;
+
   @Column({ type: dateTimeColumnType })
   expiresAt: Date;
 

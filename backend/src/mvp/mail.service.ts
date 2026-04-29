@@ -24,7 +24,7 @@ export class MailService {
     const from = this.configService.get<string>('SMTP_FROM')?.trim();
 
     if (!host || !from) {
-      throw new ServiceUnavailableException('Email delivery is not configured');
+      throw new ServiceUnavailableException("L'envoi des emails OTP n'est pas configure.");
     }
 
     const transporter = nodemailer.createTransport({

@@ -1,13 +1,15 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
@@ -43,6 +45,7 @@ import {
   DuelAnswerDto,
   JoinMatchmakingDto,
   LoginDto,
+  OtpResendDto,
   OtpVerificationDto,
   RegisterStudentDto,
   SendBroadcastDto,
@@ -58,6 +61,10 @@ import { MailService } from './mail.service';
 const QUIZ_QUESTION_COUNT = 10;
 const DUEL_QUESTION_COUNT = 10;
 const ACCOUNT_OTP_TTL_MINUTES = 10;
+const ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS = 60;
+const ACCOUNT_OTP_MAX_SENDS = 5;
+const ACCOUNT_OTP_MAX_VERIFY_ATTEMPTS = 5;
+const ACCOUNT_OTP_BLOCK_MINUTES = 15;
 
 type StudentRegistrationPayload = {
   firstName: string;
@@ -118,18 +125,18 @@ export class MvpService {
 
   async requestStudentRegistrationOtp(dto: RegisterStudentDto) {
     if (!dto.acceptedPrivacyPolicy) {
-      throw new BadRequestException('You must accept the privacy policy to register');
+      throw new BadRequestException("Vous devez accepter la politique de confidentialite pour vous inscrire.");
     }
 
     const email = this.normalizeEmail(dto.email);
     const academicClass = await this.classRepo.findOne({ where: { id: dto.classId } });
     if (!academicClass) {
-      throw new NotFoundException('Class not found');
+      throw new NotFoundException('Classe introuvable.');
     }
 
     const exists = await this.userRepo.findOne({ where: { email } });
     if (exists) {
-      throw new BadRequestException('Email already used');
+      throw new BadRequestException('Cette adresse email est deja utilisee.');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -167,6 +174,30 @@ export class MvpService {
       verificationId: verification.id,
       email,
       expiresInSeconds: ACCOUNT_OTP_TTL_MINUTES * 60,
+      resendAvailableInSeconds: ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS,
+    };
+  }
+
+  async resendStudentRegistrationOtp(dto: OtpResendDto) {
+    const { verification, code, payload } = await this.resendVerificationCode<StudentRegistrationPayload>(
+      dto.verificationId,
+      VerificationPurpose.STUDENT_REGISTRATION,
+    );
+
+    await this.mailService.sendOtpEmail({
+      email: verification.email,
+      firstName: payload.firstName,
+      code,
+      purpose: VerificationPurpose.STUDENT_REGISTRATION,
+      expiresInMinutes: ACCOUNT_OTP_TTL_MINUTES,
+    });
+
+    return {
+      status: 'otp_sent',
+      verificationId: verification.id,
+      email: verification.email,
+      expiresInSeconds: ACCOUNT_OTP_TTL_MINUTES * 60,
+      resendAvailableInSeconds: ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS,
     };
   }
 
@@ -180,12 +211,12 @@ export class MvpService {
 
     const academicClass = await this.classRepo.findOne({ where: { id: payload.classId } });
     if (!academicClass) {
-      throw new NotFoundException('Class not found');
+      throw new NotFoundException('Classe introuvable.');
     }
 
     const exists = await this.userRepo.findOne({ where: { email: payload.email } });
     if (exists) {
-      throw new BadRequestException('Email already used');
+      throw new BadRequestException('Cette adresse email est deja utilisee.');
     }
 
     const student = this.userRepo.create({
@@ -1282,6 +1313,31 @@ export class MvpService {
       verificationId: verification.id,
       email,
       expiresInSeconds: ACCOUNT_OTP_TTL_MINUTES * 60,
+      resendAvailableInSeconds: ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS,
+    };
+  }
+
+  async resendModeratorCreationOtp(dto: OtpResendDto) {
+    const { verification, code, payload } = await this.resendVerificationCode<ModeratorRegistrationPayload>(
+      dto.verificationId,
+      VerificationPurpose.MODERATOR_REGISTRATION,
+    );
+
+    await this.mailService.sendOtpEmail({
+      email: verification.email,
+      firstName: payload.firstName,
+      code,
+      purpose: VerificationPurpose.MODERATOR_REGISTRATION,
+      expiresInMinutes: ACCOUNT_OTP_TTL_MINUTES,
+      temporaryPassword: payload.temporaryPassword,
+    });
+
+    return {
+      status: 'otp_sent',
+      verificationId: verification.id,
+      email: verification.email,
+      expiresInSeconds: ACCOUNT_OTP_TTL_MINUTES * 60,
+      resendAvailableInSeconds: ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS,
     };
   }
 
@@ -1384,25 +1440,102 @@ export class MvpService {
     return crypto.createHash('sha256').update(code).digest('hex');
   }
 
+  private async cleanupExpiredVerificationCodes() {
+    await this.verificationRepo.delete({ expiresAt: LessThan(new Date()) });
+  }
+
+  private getOtpBlockedUntil() {
+    return new Date(Date.now() + ACCOUNT_OTP_BLOCK_MINUTES * 60 * 1000);
+  }
+
+  private formatOtpWaitSeconds(seconds: number) {
+    return Math.max(1, Math.ceil(seconds));
+  }
+
+  private formatOtpBlockMinutes(until: Date) {
+    return Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60000));
+  }
+
+  private otpRateLimitException(message: string) {
+    return new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
+  }
+
   private async issueVerificationCode<TPayload>(
     email: string,
     purpose: VerificationPurpose,
     payload: TPayload,
   ) {
-    await this.verificationRepo.delete({ email, purpose });
+    await this.cleanupExpiredVerificationCodes();
+
+    const now = new Date();
+    const existing = await this.verificationRepo.findOne({ where: { email, purpose } });
+
+    if (existing?.blockedUntil && existing.blockedUntil.getTime() > now.getTime()) {
+      throw this.otpRateLimitException(
+        `Trop de demandes OTP. Reessayez dans ${this.formatOtpBlockMinutes(existing.blockedUntil)} minute(s).`,
+      );
+    }
+
+    if (existing) {
+      const resendAvailableAt = existing.lastSentAt.getTime() + ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS * 1000;
+      if (resendAvailableAt > now.getTime()) {
+        throw this.otpRateLimitException(
+          `Veuillez attendre ${this.formatOtpWaitSeconds((resendAvailableAt - now.getTime()) / 1000)} seconde(s) avant de demander un nouveau code.`,
+        );
+      }
+
+      if (existing.sendCount >= ACCOUNT_OTP_MAX_SENDS) {
+        const blockedUntil = this.getOtpBlockedUntil();
+        await this.verificationRepo.update(existing.id, { blockedUntil });
+        throw this.otpRateLimitException(
+          `Trop de demandes OTP. Reessayez dans ${this.formatOtpBlockMinutes(blockedUntil)} minute(s).`,
+        );
+      }
+    }
 
     const code = this.generateOtpCode();
+
     const verification = await this.verificationRepo.save(
-      this.verificationRepo.create({
-        email,
-        purpose,
-        codeHash: this.hashOtpCode(code),
-        payload: JSON.stringify(payload),
-        expiresAt: new Date(Date.now() + ACCOUNT_OTP_TTL_MINUTES * 60 * 1000),
-      }),
+      existing
+        ? this.verificationRepo.merge(existing, {
+            codeHash: this.hashOtpCode(code),
+            payload: JSON.stringify(payload),
+            expiresAt: new Date(now.getTime() + ACCOUNT_OTP_TTL_MINUTES * 60 * 1000),
+            verifyAttempts: 0,
+            sendCount: existing.sendCount + 1,
+            lastSentAt: now,
+            blockedUntil: null,
+          })
+        : this.verificationRepo.create({
+            email,
+            purpose,
+            codeHash: this.hashOtpCode(code),
+            payload: JSON.stringify(payload),
+            verifyAttempts: 0,
+            sendCount: 1,
+            lastSentAt: now,
+            blockedUntil: null,
+            expiresAt: new Date(now.getTime() + ACCOUNT_OTP_TTL_MINUTES * 60 * 1000),
+          }),
     );
 
     return { verification, code };
+  }
+
+  private async resendVerificationCode<TPayload>(
+    verificationId: string,
+    purpose: VerificationPurpose,
+  ) {
+    await this.cleanupExpiredVerificationCodes();
+
+    const verification = await this.verificationRepo.findOne({ where: { id: verificationId, purpose } });
+    if (!verification) {
+      throw new BadRequestException('Cette demande OTP est introuvable. Recommencez.');
+    }
+
+    const payload = this.parseVerificationPayload<TPayload>(verification.payload);
+    const refreshed = await this.issueVerificationCode(verification.email, purpose, payload);
+    return { ...refreshed, payload };
   }
 
   private async consumeVerificationCode(
@@ -1410,18 +1543,43 @@ export class MvpService {
     purpose: VerificationPurpose,
     code: string,
   ) {
+    await this.cleanupExpiredVerificationCodes();
+
     const verification = await this.verificationRepo.findOne({ where: { id: verificationId, purpose } });
     if (!verification) {
-      throw new BadRequestException('Verification code not found');
+      throw new BadRequestException('Ce code OTP est introuvable. Demandez-en un nouveau.');
+    }
+
+    if (verification.blockedUntil && verification.blockedUntil.getTime() > Date.now()) {
+      throw this.otpRateLimitException(
+        `Trop de tentatives. Demandez un nouveau code dans ${this.formatOtpBlockMinutes(verification.blockedUntil)} minute(s).`,
+      );
     }
 
     if (verification.expiresAt.getTime() < Date.now()) {
       await this.verificationRepo.delete(verification.id);
-      throw new BadRequestException('Verification code expired');
+      throw new BadRequestException('Ce code OTP a expire. Demandez-en un nouveau.');
     }
 
     if (verification.codeHash !== this.hashOtpCode(code.trim())) {
-      throw new UnauthorizedException('Invalid verification code');
+      const nextAttempts = verification.verifyAttempts + 1;
+      if (nextAttempts >= ACCOUNT_OTP_MAX_VERIFY_ATTEMPTS) {
+        const blockedUntil = this.getOtpBlockedUntil();
+        await this.verificationRepo.update(verification.id, {
+          verifyAttempts: nextAttempts,
+          blockedUntil,
+        });
+        throw this.otpRateLimitException(
+          `Trop de tentatives. Demandez un nouveau code dans ${this.formatOtpBlockMinutes(blockedUntil)} minute(s).`,
+        );
+      }
+
+      await this.verificationRepo.update(verification.id, {
+        verifyAttempts: nextAttempts,
+      });
+      throw new UnauthorizedException(
+        `Code OTP invalide. Il vous reste ${ACCOUNT_OTP_MAX_VERIFY_ATTEMPTS - nextAttempts} tentative(s).`,
+      );
     }
 
     await this.verificationRepo.delete(verification.id);
@@ -1432,7 +1590,7 @@ export class MvpService {
     try {
       return JSON.parse(payload) as TPayload;
     } catch {
-      throw new BadRequestException('Verification payload is invalid');
+      throw new BadRequestException('Cette demande OTP est invalide. Recommencez.');
     }
   }
 

@@ -32,6 +32,10 @@
         { "name": "DB_SSL_REJECT_UNAUTHORIZED", "value": "false" },
         { "name": "DB_SYNCHRONIZE", "value": "__DB_SYNCHRONIZE__" },
         { "name": "DB_MIGRATIONS_RUN", "value": "__DB_MIGRATIONS_RUN__" },
+        { "name": "SMTP_HOST", "value": "__SMTP_HOST__" },
+        { "name": "SMTP_PORT", "value": "__SMTP_PORT__" },
+        { "name": "SMTP_SECURE", "value": "__SMTP_SECURE__" },
+        { "name": "SMTP_FROM", "value": "__SMTP_FROM__" },
         { "name": "REDIS_HOST", "value": "__REDIS_HOST__" },
         { "name": "REDIS_PORT", "value": "6379" },
         { "name": "AWS_REGION", "value": "us-east-1" },
@@ -62,6 +66,14 @@
         {
           "name": "DB_PASSWORD",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:650251714602:secret:/konesans/backend/DB_PASSWORD"
+        },
+        {
+          "name": "SMTP_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:650251714602:secret:/konesans/backend/SMTP_USER"
+        },
+        {
+          "name": "SMTP_PASS",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:650251714602:secret:/konesans/backend/SMTP_PASS"
         }
       ],
       "healthCheck": {

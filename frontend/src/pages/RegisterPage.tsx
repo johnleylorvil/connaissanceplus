@@ -8,7 +8,16 @@ import { HAITI_CITIES_BY_DEPARTMENT, HAITI_DEPARTMENTS } from '../constants/hait
 
 type SchoolClass = { id: string; name: string }
 type AuthResponse = { accessToken: string; user: AuthUser }
-type OtpRequestResponse = { status: 'otp_sent'; verificationId: string; email: string; expiresInSeconds: number }
+type OtpRequestResponse = { status: 'otp_sent'; verificationId: string; email: string; expiresInSeconds: number; resendAvailableInSeconds: number }
+
+function getOtpErrorMessage(error: unknown, fallback: string) {
+  const message = (error as { message?: string })?.message?.trim()
+  if (!message) return fallback
+  if (message === 'Failed to fetch') {
+    return "Impossible de contacter le serveur pour l'instant. Reessayez dans quelques instants."
+  }
+  return message
+}
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -33,11 +42,19 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [verificationId, setVerificationId] = useState<string | null>(null)
+  const [otpEmail, setOtpEmail] = useState('')
+  const [resendCountdown, setResendCountdown] = useState(0)
   const cityOptions = form.department ? HAITI_CITIES_BY_DEPARTMENT[form.department as keyof typeof HAITI_CITIES_BY_DEPARTMENT] ?? [] : []
 
   useEffect(() => {
     apiCall<SchoolClass[]>('/classes').then(setClasses).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return
+    const timeout = window.setTimeout(() => setResendCountdown((current) => Math.max(0, current - 1)), 1000)
+    return () => window.clearTimeout(timeout)
+  }, [resendCountdown])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -54,10 +71,33 @@ export default function RegisterPage() {
         body: JSON.stringify(form),
       })
       setVerificationId(data.verificationId)
+      setOtpEmail(data.email)
       setOtpCode('')
+      setResendCountdown(data.resendAvailableInSeconds)
       setNotice(`Un code OTP a ete envoye a ${data.email}. Saisissez-le pour finaliser votre inscription.`)
     } catch (err) {
-      setError((err as { message: string }).message || "Erreur lors de l'inscription")
+      setError(getOtpErrorMessage(err, "Erreur lors de l'inscription"))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (!verificationId || resendCountdown > 0) return
+    setError('')
+    setNotice('')
+    setLoading(true)
+    try {
+      const data = await apiCall<OtpRequestResponse>('/students/register/resend-otp', {
+        method: 'POST',
+        body: JSON.stringify({ verificationId }),
+      })
+      setOtpEmail(data.email)
+      setResendCountdown(data.resendAvailableInSeconds)
+      setOtpCode('')
+      setNotice(`Un nouveau code OTP a ete envoye a ${data.email}.`)
+    } catch (err) {
+      setError(getOtpErrorMessage(err, "Impossible de renvoyer le code OTP."))
     } finally {
       setLoading(false)
     }
@@ -77,7 +117,7 @@ export default function RegisterPage() {
       login(data.accessToken, data.user)
       navigate(userHome(data.user), { replace: true })
     } catch (err) {
-      setError((err as { message: string }).message || 'Erreur lors de la verification OTP')
+      setError(getOtpErrorMessage(err, 'Erreur lors de la verification OTP'))
     } finally {
       setLoading(false)
     }
@@ -104,6 +144,9 @@ export default function RegisterPage() {
 
         {verificationId ? (
           <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, marginTop: -2 }}>
+              Entrez le code recu par email{otpEmail ? ` a ${otpEmail}` : ''}. Le code expire au bout de 10 minutes.
+            </p>
             <div>
               <label className="field-label">Code OTP</label>
               <input
@@ -123,7 +166,11 @@ export default function RegisterPage() {
               {loading ? 'Verification…' : 'Verifier mon email'}
             </button>
 
-            <button type="button" className="btn btn-ghost btn-full" onClick={() => { setVerificationId(null); setOtpCode(''); setNotice('') }}>
+            <button type="button" className="btn btn-ghost btn-full" onClick={handleResendOtp} disabled={loading || resendCountdown > 0}>
+              {resendCountdown > 0 ? `Renvoyer le code dans ${resendCountdown}s` : 'Renvoyer le code OTP'}
+            </button>
+
+            <button type="button" className="btn btn-ghost btn-full" onClick={() => { setVerificationId(null); setOtpCode(''); setOtpEmail(''); setNotice(''); setResendCountdown(0) }}>
               Modifier mes informations
             </button>
           </form>

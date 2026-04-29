@@ -4,6 +4,15 @@ import { apiCall } from '../api/client'
 import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type VerifyModeratorOtpResponse, type ModeratorOtpRequestResponse } from '../arena/arenaApi'
 import { HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
 
+function getOtpErrorMessage(error: unknown, fallback: string) {
+  const message = (error as { message?: string })?.message?.trim()
+  if (!message) return fallback
+  if (message === 'Failed to fetch') {
+    return "Impossible de contacter le serveur pour l'instant. Reessayez dans quelques instants."
+  }
+  return message
+}
+
 type Tab = 'overview' | 'levels' | 'subjects' | 'questions' | 'students' | 'messages' | 'sponsors' | 'arena'
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
@@ -102,6 +111,13 @@ export default function AdminDashboard() {
   const [createModResult, setCreateModResult] = useState<VerifyModeratorOtpResponse | null>(null)
   const [createModPending, setCreateModPending] = useState<ModeratorOtpRequestResponse | null>(null)
   const [createModOtpCode, setCreateModOtpCode] = useState('')
+  const [createModResendCountdown, setCreateModResendCountdown] = useState(0)
+
+  useEffect(() => {
+    if (createModResendCountdown <= 0) return
+    const timeout = window.setTimeout(() => setCreateModResendCountdown((current) => Math.max(0, current - 1)), 1000)
+    return () => window.clearTimeout(timeout)
+  }, [createModResendCountdown])
 
   const openCreateModModal = () => {
     setCreateModForm({ firstName: '', lastName: '', email: '', password: '', generatePassword: true })
@@ -110,6 +126,7 @@ export default function AdminDashboard() {
     setCreateModResult(null)
     setCreateModPending(null)
     setCreateModOtpCode('')
+    setCreateModResendCountdown(0)
     setCreateModModal('form')
   }
 
@@ -132,6 +149,7 @@ export default function AdminDashboard() {
       if (result.status === 'otp_sent') {
         setCreateModPending(result)
         setCreateModOtpCode('')
+        setCreateModResendCountdown(result.resendAvailableInSeconds)
         setCreateModNotice(`Un code OTP a ete envoye a ${result.email}. Saisissez-le pour confirmer la creation.`)
         setCreateModModal('otp')
       } else {
@@ -142,7 +160,25 @@ export default function AdminDashboard() {
         setModeratorUsers(updated)
       }
     } catch (err) {
-      setCreateModError((err as Error).message)
+      setCreateModError(getOtpErrorMessage(err, 'Impossible de creer ce compte moderateur.'))
+    } finally {
+      setCreateModLoading(false)
+    }
+  }
+
+  const resendCreateModeratorOtp = async () => {
+    if (!accessToken || !createModPending || createModResendCountdown > 0) return
+    setCreateModError('')
+    setCreateModNotice('')
+    setCreateModLoading(true)
+    try {
+      const result = await adminApi.resendModeratorOtp({ verificationId: createModPending.verificationId }, accessToken)
+      setCreateModPending(result)
+      setCreateModOtpCode('')
+      setCreateModResendCountdown(result.resendAvailableInSeconds)
+      setCreateModNotice(`Un nouveau code OTP a ete envoye a ${result.email}.`)
+    } catch (err) {
+      setCreateModError(getOtpErrorMessage(err, "Impossible de renvoyer le code OTP."))
     } finally {
       setCreateModLoading(false)
     }
@@ -164,7 +200,7 @@ export default function AdminDashboard() {
       const updated = await adminApi.listModerators(accessToken)
       setModeratorUsers(updated)
     } catch (err) {
-      setCreateModError((err as Error).message)
+      setCreateModError(getOtpErrorMessage(err, 'Erreur lors de la verification OTP.'))
     } finally {
       setCreateModLoading(false)
     }
@@ -1503,6 +1539,9 @@ export default function AdminDashboard() {
                 {createModNotice && (
                   <div className="alert" style={{ marginBottom: 16, background: '#eff6ff', border: '1px solid #93c5fd', color: '#1d4ed8' }}>{createModNotice}</div>
                 )}
+                <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, marginBottom: 4 }}>
+                  Entrez le code recu par email{createModPending ? ` a ${createModPending.email}` : ''}. Le code expire au bout de 10 minutes.
+                </p>
                 <form onSubmit={verifyCreateModeratorOtp} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
                     <label className="field-label">Code OTP</label>
@@ -1518,6 +1557,9 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={resendCreateModeratorOtp} disabled={createModLoading || createModResendCountdown > 0}>
+                      {createModResendCountdown > 0 ? `Renvoyer dans ${createModResendCountdown}s` : 'Renvoyer le code'}
+                    </button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCreateModModal('form')} disabled={createModLoading}>
                       Retour
                     </button>

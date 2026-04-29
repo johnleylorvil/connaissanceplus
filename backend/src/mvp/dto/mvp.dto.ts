@@ -133,6 +133,11 @@ export class OtpVerificationDto {
   code: string;
 }
 
+export class OtpResendDto {
+  @IsUUID()
+  verificationId: string;
+}
+
 export class CreateClassDto {
   @IsString()
   @IsNotEmpty()

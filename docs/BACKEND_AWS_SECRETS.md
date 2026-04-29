@@ -22,6 +22,10 @@ DB_SYNCHRONIZE=false
 DB_SSL=true
 DB_SSL_REJECT_UNAUTHORIZED=false
 DB_MIGRATIONS_RUN=false
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_FROM=no-reply@connaissanceplus.net
 
 REDIS_HOST=your-elasticache-endpoint
 REDIS_PORT=6379
@@ -64,6 +68,8 @@ JWT_SECRET
 ADMIN_SETUP_KEY
 DB_USERNAME
 DB_PASSWORD
+SMTP_USER
+SMTP_PASS
 ```
 
 ### Optional secrets to add after the first deployment
@@ -90,6 +96,8 @@ Use one path family so the service stays readable.
 /konesans/backend/ADMIN_SETUP_KEY
 /konesans/backend/DB_USERNAME
 /konesans/backend/DB_PASSWORD
+/konesans/backend/SMTP_USER
+/konesans/backend/SMTP_PASS
 /konesans/backend/GOOGLE_CLIENT_ID
 /konesans/backend/GOOGLE_CLIENT_SECRET
 /konesans/backend/LIVEKIT_API_KEY

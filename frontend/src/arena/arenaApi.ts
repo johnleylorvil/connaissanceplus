@@ -199,6 +199,7 @@ export type ModeratorOtpRequestResponse = {
   verificationId: string
   email: string
   expiresInSeconds: number
+  resendAvailableInSeconds: number
 }
 
 export type VerifyModeratorOtpResponse = ModeratorListItem & {
@@ -232,6 +233,12 @@ export const adminApi = {
 
   verifyModeratorOtp: (payload: { verificationId: string; code: string }, token: string) =>
     adminFetch<VerifyModeratorOtpResponse>('/moderators/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token),
+
+  resendModeratorOtp: (payload: { verificationId: string }, token: string) =>
+    adminFetch<ModeratorOtpRequestResponse>('/moderators/resend-otp', {
       method: 'POST',
       body: JSON.stringify(payload),
     }, token),

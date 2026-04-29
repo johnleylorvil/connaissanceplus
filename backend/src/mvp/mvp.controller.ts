@@ -23,6 +23,7 @@ import {
   DuelAnswerDto,
   JoinMatchmakingDto,
   LoginDto,
+  OtpResendDto,
   OtpVerificationDto,
   OralScoreDto,
   RegisterStudentDto,
@@ -174,6 +175,14 @@ export class MvpController {
     return this.mvpService.verifyModeratorCreationOtp(dto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/moderators/resend-otp')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  resendModeratorCreationOtp(@Body() dto: OtpResendDto) {
+    return this.mvpService.resendModeratorCreationOtp(dto);
+  }
+
   @Post('students/register')
   registerStudent(@Body() dto: RegisterStudentDto) {
     return this.mvpService.requestStudentRegistrationOtp(dto);
@@ -187,6 +196,12 @@ export class MvpController {
   @Post('students/register/verify-otp')
   verifyStudentRegistrationOtp(@Body() dto: OtpVerificationDto) {
     return this.mvpService.verifyStudentRegistrationOtp(dto);
+  }
+
+  @Post('students/register/resend-otp')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  resendStudentRegistrationOtp(@Body() dto: OtpResendDto) {
+    return this.mvpService.resendStudentRegistrationOtp(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
