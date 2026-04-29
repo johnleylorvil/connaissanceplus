@@ -1,0 +1,12 @@
+services:
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: konesans-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./hls_output:/app/hls_output

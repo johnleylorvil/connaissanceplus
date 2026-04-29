@@ -1,5 +1,7 @@
 # Backend AWS ECS Deployment
 
+Legacy note: this file documents the previous ECS Fargate deployment path. The current production deployment path uses EC2. For the active workflow and host layout, use `docs/BACKEND_AWS_EC2.md`.
+
 This backend is prepared to run on AWS ECS Fargate behind an Application Load Balancer.
 
 Related deployment artifacts:

@@ -39,14 +39,21 @@ The workflow in `.github/workflows/deploy-backend.yml`:
 - runs when files inside `backend/` change on `main`
 - builds the backend Docker image
 - pushes the image to ECR
-- updates the ECS task definition
-- deploys the ECS service
+- uploads the production Docker Compose file to the EC2 host
+- connects to the EC2 host through SSH
+- logs Docker into ECR from the EC2 host
+- pulls the new image and restarts the backend container with Docker Compose
 
 ## GitHub Secrets To Create
 
 - `AWS_DEPLOY_ROLE_ARN`
+- `EC2_HOST`
+- `EC2_SSH_USER`
+- `EC2_SSH_PRIVATE_KEY`
 
-This is the IAM role that GitHub Actions will assume through OIDC.
+`AWS_DEPLOY_ROLE_ARN` is the IAM role that GitHub Actions will assume through OIDC.
+
+`EC2_SSH_PRIVATE_KEY` should be the private key matching the public key trusted by the production EC2 instance.
 
 ## GitHub Repository Variables To Create
 
@@ -75,28 +82,22 @@ Keep `VITE_ENABLE_GOOGLE_AUTH=false` until the backend has valid `GOOGLE_CLIENT_
 ### Backend
 
 - `ECR_REPOSITORY`
-- `ECS_CLUSTER`
-- `ECS_SERVICE`
-- `FRONTEND_URL`
-- `CORS_ORIGINS`
-- `DB_HOST`
-- `DB_NAME`
-- `REDIS_HOST`
-- `SPONSOR_UPLOADS_S3_BUCKET`
-- `SPONSOR_UPLOADS_PUBLIC_BASE_URL`
-- `LIVEKIT_URL`
-- `HLS_BASE_URL`
-- `LIVEKIT_EGRESS_S3_BUCKET`
-- `LIVEKIT_EGRESS_S3_REGION`
-- `LIVEKIT_EGRESS_S3_ENDPOINT`
-- `LIVEKIT_EGRESS_S3_FORCE_PATH_STYLE`
+- `EC2_DEPLOY_DIR`
 
 Recommended production values for this project:
 
-- `FRONTEND_URL=https://connaissanceplus.net`
-- `CORS_ORIGINS=https://connaissanceplus.net,https://admin.connaissanceplus.net`
-- `SPONSOR_UPLOADS_PUBLIC_BASE_URL=https://assets.connaissanceplus.net`
-- `HLS_BASE_URL=https://media.connaissanceplus.net`
+- `EC2_DEPLOY_DIR=/opt/konesans-backend`
+
+The backend runtime variables are no longer injected by GitHub Actions. Keep the production backend `.env` file directly on the EC2 host inside `EC2_DEPLOY_DIR`, for example `/opt/konesans-backend/.env`.
+
+The production EC2 host must already have:
+
+- Docker installed
+- Docker Compose installed
+- AWS CLI installed
+- an IAM role or other AWS credentials that allow `ecr:GetAuthorizationToken` and image pull access to the backend ECR repository
+- the backend runtime `.env` file at `/opt/konesans-backend/.env`
+- Caddy or Nginx already proxying `api.connaissanceplus.net` to `127.0.0.1:3000`
 
 ## Local Git Setup
 
@@ -115,6 +116,8 @@ If this local folder is not yet connected to GitHub:
 4. Create AWS resources used by the workflows.
 5. Push backend changes to deploy the API.
 6. Push frontend changes to deploy the website.
+
+For the EC2 backend path, the first deployment is still manual: prepare the EC2 instance, create `/opt/konesans-backend/.env`, and confirm Docker Compose can start the backend once. After that, pushes to `main` can reuse the GitHub Actions workflow for updates.
 
 ## Important Practical Rule
 
