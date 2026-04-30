@@ -119,6 +119,22 @@ Recommended setup:
 
 If you do not expose these ports correctly, the moderator and competitors will fail before the YouTube spectator layer even starts.
 
+## Arena Egress CPU Requirement
+
+LiveKit Egress can start and still log a CPU capability warning. For the public YouTube push path, pay attention to this message in the `livekit-egress` logs.
+
+If you see a log similar to `not enough cpu for some egress types` with `minimumCpu: 4`, interpret it as follows:
+
+1. the container is running
+2. Redis connectivity is probably fine
+3. but room-composite egress for spectator/public streaming may fail later under load or when starting the YouTube output
+
+Recommended guidance for a reliable Arena public-stream test:
+
+1. use an EC2 instance with at least 4 vCPU available to the Docker host
+2. re-check `docker compose ... logs --tail=100 livekit-egress`
+3. only then test the public YouTube opening flow from the moderator page
+
 ## Arena Live Deploy Verification
 
 After a deploy intended for full Arena testing, verify these services on EC2:
