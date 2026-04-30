@@ -79,6 +79,12 @@ Recommended production values for this project:
 
 Keep `VITE_ENABLE_GOOGLE_AUTH=false` until the backend has valid `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` secrets in production. Once Google OAuth is configured end to end, switch it to `true` and redeploy the frontend.
 
+When enabling Google sign-in in production, also ensure the backend runtime `.env` contains:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_CALLBACK_URL=https://api.connaissanceplus.net/api/auth/google/callback`
+
 ### Backend
 
 - `ECR_REPOSITORY`

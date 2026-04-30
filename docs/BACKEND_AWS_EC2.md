@@ -79,6 +79,12 @@ For a full Arena live test on EC2, also include:
 - `LIVEKIT_URL=wss://live.connaissanceplus.net`
 - `ARENA_YOUTUBE_RTMP_URL=rtmp://a.rtmp.youtube.com/live2/<your-stream-key>`
 
+For Google sign-in, also include:
+
+- `GOOGLE_CLIENT_ID=...`
+- `GOOGLE_CLIENT_SECRET=...`
+- `GOOGLE_CALLBACK_URL=https://api.connaissanceplus.net/api/auth/google/callback`
+
 Recommended related values for Arena spectator support:
 
 - `HLS_BASE_URL=https://api.connaissanceplus.net/hls`
@@ -100,9 +106,48 @@ LIVEKIT_API_SECRET=replace-me
 LIVEKIT_URL=wss://live.connaissanceplus.net
 ARENA_YOUTUBE_RTMP_URL=rtmp://a.rtmp.youtube.com/live2/replace-with-your-stream-key
 
+GOOGLE_CLIENT_ID=replace-me
+GOOGLE_CLIENT_SECRET=replace-me
+GOOGLE_CALLBACK_URL=https://api.connaissanceplus.net/api/auth/google/callback
+
 HLS_BASE_URL=https://api.connaissanceplus.net/hls
 HLS_OUTPUT_DIR=/output
 ```
+
+## Google Sign-In Setup
+
+To enable Google sign-in in production, configure Google Cloud before enabling the frontend button.
+
+1. Open Google Cloud Console.
+2. Create or select a project for Konesans+.
+3. Go to `APIs & Services` > `OAuth consent screen`.
+4. Configure the app as `External` unless you intentionally restrict login to a Workspace.
+5. Fill the app name, support email, and developer contact email.
+6. Add the scopes `email`, `profile`, and `openid` if Google asks for them.
+7. Add these authorized domains:
+   - `connaissanceplus.net`
+8. Go to `Credentials` > `Create Credentials` > `OAuth client ID`.
+9. Choose `Web application`.
+10. Add these Authorized JavaScript origins:
+	- `https://connaissanceplus.net`
+	- `https://admin.connaissanceplus.net` only if you later expose Google login there
+11. Add this Authorized redirect URI:
+	- `https://api.connaissanceplus.net/api/auth/google/callback`
+12. Save the client and copy the generated Client ID and Client Secret into `/opt/konesans-backend/.env`.
+
+After the backend `.env` is updated:
+
+1. redeploy the backend
+2. set the frontend build variable `VITE_ENABLE_GOOGLE_AUTH=true`
+3. redeploy the frontend
+
+Expected production flow:
+
+1. user clicks `Se connecter avec Google` or `S'inscrire avec Google`
+2. frontend sends the browser to `https://api.connaissanceplus.net/api/auth/google`
+3. Google redirects back to `https://api.connaissanceplus.net/api/auth/google/callback`
+4. backend creates or links the user and redirects to `/oauth/callback?token=...` on the frontend
+5. frontend stores the token and, if needed, sends the student to complete profile
 
 ## Arena Live Ports And DNS
 
