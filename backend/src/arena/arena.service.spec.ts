@@ -10,6 +10,7 @@ import {
   ArenaParticipantRegistration,
   ArenaParticipantScoreAdjustment,
   ArenaParticipantAnswer,
+  ArenaRoundMode,
   ArenaRound,
 } from './arena.entities';
 import { Notification, Question, User, UserRole } from '../mvp/entities';
@@ -93,24 +94,35 @@ describe('ArenaService — moderator permission tests', () => {
 
   let competitionRepo: MockRepo;
   let registrationRepo: MockRepo;
+  let roundRepo: MockRepo;
+  let answerRepo: MockRepo;
+  let adjustmentRepo: MockRepo;
   let notificationRepo: MockRepo;
   let userRepo: MockRepo;
 
   beforeEach(async () => {
     competitionRepo = mockRepo();
     registrationRepo = mockRepo();
+    roundRepo = mockRepo();
+    answerRepo = mockRepo();
+    adjustmentRepo = mockRepo();
     notificationRepo = mockRepo();
     userRepo = mockRepo();
+
+    competitionRepo.create?.mockImplementation((entity: unknown) => entity);
+    registrationRepo.create?.mockImplementation((entity: unknown) => entity);
+    answerRepo.create?.mockImplementation((entity: unknown) => entity);
+    notificationRepo.create?.mockImplementation((entity: unknown) => entity);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ArenaService,
         { provide: getRepositoryToken(ArenaCompetition), useValue: competitionRepo },
         { provide: getRepositoryToken(ArenaParticipantRegistration), useValue: registrationRepo },
-        { provide: getRepositoryToken(ArenaRound), useValue: mockRepo() },
-        { provide: getRepositoryToken(ArenaParticipantAnswer), useValue: mockRepo() },
+        { provide: getRepositoryToken(ArenaRound), useValue: roundRepo },
+        { provide: getRepositoryToken(ArenaParticipantAnswer), useValue: answerRepo },
         { provide: getRepositoryToken(ArenaParticipantMessage), useValue: mockRepo() },
-        { provide: getRepositoryToken(ArenaParticipantScoreAdjustment), useValue: mockRepo() },
+        { provide: getRepositoryToken(ArenaParticipantScoreAdjustment), useValue: adjustmentRepo },
         { provide: getRepositoryToken(Question), useValue: mockRepo() },
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: getRepositoryToken(Notification), useValue: notificationRepo },
@@ -260,9 +272,12 @@ describe('ArenaService — moderator permission tests', () => {
   });
 
   describe('participant contracts', () => {
-    it('notifies all students when a competition is created', async () => {
+    it('creates an assigned match and notifies the designated participants', async () => {
       const dto = {
         name: 'Arena Hebdo',
+        competitorAUserId: 'student-1',
+        competitorBUserId: 'student-2',
+        moderatorUserId: 'mod-1',
         questionCount: 12,
         secondsPerQuestion: 20,
         scheduledAt: '2026-04-25T14:00:00.000Z',
@@ -271,41 +286,69 @@ describe('ArenaService — moderator permission tests', () => {
       const createdCompetition = makeCompetition({
         id: 'arena-1',
         name: dto.name,
+        competitorAUserId: dto.competitorAUserId,
+        competitorBUserId: dto.competitorBUserId,
+        moderatorUserId: dto.moderatorUserId,
         questionCount: dto.questionCount,
         secondsPerQuestion: dto.secondsPerQuestion,
         scheduledAt: new Date(dto.scheduledAt),
         description: dto.description,
       });
-      const studentOne = makeUser({ id: 'student-1', role: UserRole.STUDENT });
-      const studentTwo = makeUser({ id: 'student-2', role: UserRole.STUDENT });
+      const studentOne = makeUser({ id: 'student-1', firstName: 'Ada', lastName: 'Lovelace', role: UserRole.STUDENT });
+      const studentTwo = makeUser({ id: 'student-2', firstName: 'Grace', lastName: 'Hopper', role: UserRole.STUDENT });
+      const moderator = makeUser({ id: 'mod-1', firstName: 'Jean', lastName: 'Moderateur', role: UserRole.MODERATOR, email: 'mod@example.com' });
 
       competitionRepo.create.mockReturnValue(createdCompetition);
       competitionRepo.save.mockResolvedValue(createdCompetition);
-      userRepo.find.mockResolvedValue([studentOne, studentTwo]);
+      registrationRepo.save.mockResolvedValue([]);
+      userRepo.find
+        .mockResolvedValueOnce([studentOne, studentTwo])
+        .mockResolvedValueOnce([studentOne, studentTwo, moderator]);
+      userRepo.findOne.mockResolvedValue(moderator);
       notificationRepo.create.mockImplementation((value: unknown) => value);
       notificationRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
 
       const result = await service.createCompetition('admin-1', dto);
 
-      expect(userRepo.find).toHaveBeenCalledWith({
-        where: { role: UserRole.STUDENT },
-        select: { id: true },
-      });
+      expect(registrationRepo.save).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            competitionId: createdCompetition.id,
+            participantUserId: 'student-1',
+            status: 'approved',
+          }),
+          expect.objectContaining({
+            competitionId: createdCompetition.id,
+            participantUserId: 'student-2',
+            status: 'approved',
+          }),
+        ]),
+      );
       expect(notificationRepo.save).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
             userId: 'student-1',
-            title: 'Nouveau challenge Arena',
+            title: 'Match Arena programmé',
             type: 'arena_competition',
           }),
           expect.objectContaining({
             userId: 'student-2',
-            title: 'Nouveau challenge Arena',
+            title: 'Match Arena programmé',
+            type: 'arena_competition',
+          }),
+          expect.objectContaining({
+            userId: 'mod-1',
+            title: 'Match Arena programmé',
             type: 'arena_competition',
           }),
         ]),
       );
-      expect(result).toBe(createdCompetition);
+      expect(result).toMatchObject({
+        id: createdCompetition.id,
+        competitorAName: 'Ada Lovelace',
+        competitorBName: 'Grace Hopper',
+        moderatorName: 'Jean Moderateur',
+      });
     });
 
     it('registers a participant using participantUserId storage', async () => {
@@ -328,6 +371,63 @@ describe('ArenaService — moderator permission tests', () => {
       );
     });
 
+    it('rejects a public registration when the duel is already assigned', async () => {
+      const comp = makeCompetition({
+        id: 'comp-assigned',
+        status: ArenaCompetitionStatus.PENDING,
+        competitorAUserId: 'student-1',
+        competitorBUserId: 'student-2',
+      });
+
+      competitionRepo.findOne.mockResolvedValue(comp);
+
+      await expect(service.registerParticipant('student-3', comp.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('awards one point to the scheduled competitor when the moderator marks a correct answer', async () => {
+      const admin = makeUser({ id: 'admin-1', role: UserRole.ADMIN });
+      const comp = makeCompetition({
+        id: 'comp-live',
+        status: ArenaCompetitionStatus.LIVE,
+        competitorAUserId: 'student-1',
+        competitorBUserId: 'student-2',
+        moderatorUserId: 'admin-1',
+      });
+      const round = {
+        id: 'round-1',
+        competitionId: comp.id,
+        questionId: null,
+        roundMode: ArenaRoundMode.ORAL,
+        position: 1,
+        startedAt: new Date('2026-04-25T14:00:00.000Z'),
+        endedAt: new Date('2026-04-25T14:00:20.000Z'),
+        endTime: new Date('2026-04-25T14:00:20.000Z'),
+        competition: comp,
+        answers: [],
+      } as ArenaRound;
+
+      roundRepo.findOne.mockResolvedValue(round);
+      competitionRepo.findOne.mockResolvedValue(comp);
+      userRepo.findOne.mockResolvedValue(admin);
+      answerRepo.find.mockResolvedValue([]);
+      jest.spyOn(service, 'getLiveLeaderboard').mockResolvedValue([
+        { rank: 1, participantUserId: 'student-1', displayName: 'Ada Lovelace', score: 1 },
+        { rank: 2, participantUserId: 'student-2', displayName: 'Grace Hopper', score: 0 },
+      ]);
+
+      await service.scoreRound(admin.id, round.id, { verdict: 'correct' });
+
+      expect(answerRepo.save).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            participantUserId: 'student-1',
+            isCorrect: true,
+            pointsAwarded: 1,
+          }),
+        ]),
+      );
+    });
+
     it('completes a competition with winnerParticipantUserId in the returned payload', async () => {
       const admin = makeUser({ id: 'admin-1', role: UserRole.ADMIN });
       const winner = makeUser({ id: 'student-1', firstName: 'Ada', lastName: 'Lovelace' });
@@ -340,6 +440,9 @@ describe('ArenaService — moderator permission tests', () => {
       competitionRepo.findOne.mockResolvedValue(comp);
       userRepo.findOne.mockResolvedValue(admin);
       userRepo.find.mockResolvedValue([winner]);
+      jest.spyOn(service, 'getLiveLeaderboard').mockResolvedValue([
+        { rank: 1, participantUserId: winner.id, displayName: 'Ada Lovelace', score: 3 },
+      ]);
 
       const result = await service.completeCompetition('admin-1', comp.id, {
         participantUserId: winner.id,
@@ -438,7 +541,12 @@ describe('ArenaService — moderator permission tests', () => {
       const results = await service.getModeratorUsers();
 
       expect(userRepo.find).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { role: UserRole.MODERATOR } }),
+        expect.objectContaining({
+          where: [
+            { role: UserRole.MODERATOR },
+            { role: UserRole.ADMIN },
+          ],
+        }),
       );
       expect(results).toHaveLength(2);
     });

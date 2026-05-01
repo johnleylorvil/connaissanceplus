@@ -5,7 +5,7 @@ import { arenaApi, type ArenaCompetition } from '../arenaApi'
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'À venir',
-  approved: 'Inscriptions ouvertes',
+  approved: 'Match confirmé',
   live: 'En direct',
   paused: 'En pause',
   completed: 'Terminé',
@@ -58,7 +58,8 @@ export default function ArenaCompetitionsList() {
 
   const groups = {
     live: competitions.filter((c) => c.status === 'live' || c.status === 'paused'),
-    open: competitions.filter((c) => c.status === 'approved'),
+    ready: competitions.filter((c) => c.status === 'approved' && Boolean(c.competitorAUserId && c.competitorBUserId)),
+    open: competitions.filter((c) => c.status === 'approved' && !Boolean(c.competitorAUserId && c.competitorBUserId)),
     upcoming: competitions.filter((c) => c.status === 'pending'),
     past: competitions.filter((c) => c.status === 'completed' || c.status === 'cancelled'),
   }
@@ -80,6 +81,7 @@ export default function ArenaCompetitionsList() {
         if (items.length === 0) return null
         const labels: Record<string, string> = {
           live: '🔴 En direct',
+          ready: 'Matchs confirmés',
           open: 'Inscriptions ouvertes',
           upcoming: 'À venir',
           past: 'Terminées',
@@ -101,6 +103,15 @@ export default function ArenaCompetitionsList() {
 
             <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden' }}>
               {items.map((comp, i, arr) => (
+                (() => {
+                  const isAssignedMatch = Boolean(comp.competitorAUserId && comp.competitorBUserId)
+                  const duelLabel = comp.competitorAName && comp.competitorBName
+                    ? `${comp.competitorAName} vs ${comp.competitorBName}`
+                    : null
+                  const isAssignedCompetitor = Boolean(user?.id && [comp.competitorAUserId, comp.competitorBUserId].includes(user.id))
+                  const canOpenAssignedStage = isAssignedMatch && (isAssignedCompetitor || isAdmin || user?.role === 'moderator')
+
+                  return (
                 <div
                   key={comp.id}
                   style={{
@@ -118,11 +129,15 @@ export default function ArenaCompetitionsList() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                       <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{comp.name}</p>
                     </div>
+                    {duelLabel && (
+                      <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>{duelLabel}</p>
+                    )}
                     <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)' }}>
                       <span style={{ color: STATUS_COLOR[comp.status] ?? 'var(--ink-3)', fontWeight: 600 }}>
                         {STATUS_LABELS[comp.status] ?? comp.status}
                       </span>
-                      <span>{comp.questionCount} rounds</span>
+                      <span>{comp.questionCount} question{comp.questionCount > 1 ? 's' : ''}</span>
+                      <span>{comp.secondsPerQuestion}s / réponse</span>
                       {comp.startedAt && (
                         <span>{new Date(comp.startedAt).toLocaleDateString('fr-HT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                       )}
@@ -139,10 +154,21 @@ export default function ArenaCompetitionsList() {
                         {isAdmin || user?.role === 'moderator' ? 'Gérer en direct' : 'Rejoindre'}
                       </button>
                     )}
-                    {comp.status === 'approved' && isAdmin && (
+                    {comp.status !== 'live' && comp.status !== 'paused' && canOpenAssignedStage && (
+                      <button
+                        onClick={() => navigate(`/arena/live/${comp.id}`)}
+                        className="btn btn-ghost btn-sm"
+                      >
+                        Préparer la scène
+                      </button>
+                    )}
+                    {comp.status === 'approved' && isAdmin && isAssignedMatch && (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ok)' }}>Prêt pour le direct</span>
+                    )}
+                    {comp.status === 'approved' && isAdmin && !isAssignedMatch && (
                       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ok)' }}>Inscriptions ouvertes</span>
                     )}
-                    {comp.status === 'approved' && !isAdmin && (
+                    {comp.status === 'approved' && !isAdmin && !isAssignedMatch && (
                       <button
                         onClick={() => register(comp.id)}
                         disabled={registeringId === comp.id}
@@ -151,8 +177,14 @@ export default function ArenaCompetitionsList() {
                         {registeringId === comp.id ? 'Envoi…' : 'S\'inscrire'}
                       </button>
                     )}
+                    {comp.status === 'approved' && !isAdmin && isAssignedMatch && !canOpenAssignedStage && (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>Duel annoncé</span>
+                    )}
                     {comp.status === 'pending' && isAdmin && (
                       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>Brouillon</span>
+                    )}
+                    {comp.status === 'pending' && !isAdmin && isAssignedMatch && !canOpenAssignedStage && (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>Annonce du match</span>
                     )}
                     {comp.status === 'completed' && (
                       <button
@@ -164,6 +196,8 @@ export default function ArenaCompetitionsList() {
                     )}
                   </div>
                 </div>
+                  )
+                })()
               ))}
             </div>
           </div>

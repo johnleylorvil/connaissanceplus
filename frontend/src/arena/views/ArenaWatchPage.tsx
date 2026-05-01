@@ -13,10 +13,13 @@ type LiveState = {
   competitionName: string
   status: string
   currentRoundNumber: number
+  currentQuestionNumber?: number
   totalRounds: number
+  totalQuestions?: number
   secondsPerQuestion: number
   currentRound: { startedAt: string | null; endedAt: string | null; endTime: string | null } | null
   participants?: Array<{ userId: string; displayName: string; slot: 'A' | 'B' }>
+  currentQuestionTarget?: { participantUserId: string; displayName: string | null; slot: 'A' | 'B' } | null
 }
 
 export default function ArenaWatchPage() {
@@ -253,7 +256,7 @@ export default function ArenaWatchPage() {
             </p>
             {isLive && (
               <p style={{ fontSize: 11, margin: 0, color: 'rgba(255,255,255,0.5)' }}>
-                Round {liveState?.currentRoundNumber ?? 0} / {liveState?.totalRounds ?? '—'} · Mode spectateur
+                Question {liveState?.currentQuestionNumber ?? liveState?.currentRoundNumber ?? 0} / {liveState?.totalQuestions ?? liveState?.totalRounds ?? '—'} · Mode spectateur
               </p>
             )}
           </div>
@@ -401,8 +404,13 @@ export default function ArenaWatchPage() {
               {isLive && (
                 <div style={{ position: 'absolute', bottom: 12, left: 12, display: 'flex', gap: 6 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: 'rgba(0,0,0,0.65)', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.05em' }}>
-                    ROUND {liveState?.currentRoundNumber ?? 0}/{liveState?.totalRounds ?? '—'}
+                    QUESTION {liveState?.currentQuestionNumber ?? liveState?.currentRoundNumber ?? 0}/{liveState?.totalQuestions ?? liveState?.totalRounds ?? '—'}
                   </span>
+                  {liveState?.currentQuestionTarget && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: 'rgba(0,0,0,0.65)', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.05em' }}>
+                      POUR {liveState.currentQuestionTarget.displayName ?? `Compétiteur ${liveState.currentQuestionTarget.slot}`}
+                    </span>
+                  )}
                   {roundInProgress && timeLeft !== null && (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: timeLeft <= 5 ? 'rgba(239,68,68,0.7)' : 'rgba(0,0,0,0.65)', color: '#fff', letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
                       {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}

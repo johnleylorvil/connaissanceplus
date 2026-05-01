@@ -22,6 +22,12 @@ type LiveQuestion = {
   endTime: string | null
 }
 
+type QuestionTarget = {
+  participantUserId: string
+  displayName: string | null
+  slot: 'A' | 'B'
+}
+
 type LiveStateSnapshot = {
   competitionId: string
   competitionName: string
@@ -37,6 +43,7 @@ type LiveStateSnapshot = {
   leaderboard: ArenaLeaderboardRow[]
   participants?: Array<{ userId: string; displayName: string; slot: 'A' | 'B' }>
   matchParticipants?: Array<{ userId: string; displayName: string; role: 'competitorA' | 'competitorB' | 'moderator' }>
+  currentQuestionTarget?: QuestionTarget | null
 }
 
 type PhaseTone = 'neutral' | 'live' | 'alert' | 'success'
@@ -386,6 +393,20 @@ export default function ArenaLive() {
     return seeded
   }, [liveLeaderboard, liveState?.participants])
 
+  const currentQuestionTarget = useMemo<QuestionTarget | null>(() => {
+    if (liveState?.currentQuestionTarget) return liveState.currentQuestionTarget
+    if (!currentQuestion) return null
+    const slot = currentQuestion.position % 2 === 1 ? 'A' as const : 'B' as const
+    const participant = participants.find((entry) => entry.slot === slot)
+    return participant
+      ? {
+          participantUserId: participant.participantUserId,
+          displayName: participant.displayName,
+          slot,
+        }
+      : null
+  }, [currentQuestion, liveState?.currentQuestionTarget, participants])
+
   const userMode: UserMode = useMemo(() => {
     if (isModerator) return 'moderator'
     if (isRegisteredCompetitor && user?.id && participants.some((p) => p.participantUserId === user.id)) return 'competitor'
@@ -425,7 +446,7 @@ export default function ArenaLive() {
 
   useEffect(() => {
     if (!roundEnded) return
-    setEventLog((prev) => ['Question clôturée - attribution des points disponible', ...prev].slice(0, 5))
+    setEventLog((prev) => ['Question clôturée - décision du modérateur en attente', ...prev].slice(0, 5))
   }, [roundEnded])
 
   useEffect(() => {
@@ -503,14 +524,22 @@ export default function ArenaLive() {
   const currentTone = toneColor(currentPhaseMeta.tone)
   const isOralQuestion = currentQuestion?.questionId == null
   const mySubmission = user?.id ? submissionStatuses[user.id] ?? null : null
+  const isCurrentUserTargeted = Boolean(user?.id && currentQuestionTarget?.participantUserId === user.id)
   const canSignalAnswer =
     userMode === 'competitor' &&
     Boolean(currentQuestion) &&
     isOralQuestion &&
     phase === 'live-question' &&
     !questionIsClosed &&
+    isCurrentUserTargeted &&
     !mySubmission?.submitted
-  const signalButtonLabel = mySubmission?.submitted ? 'Prise de parole signalée' : 'Je prends la parole'
+  const signalButtonLabel = mySubmission?.submitted
+    ? 'Prise de parole signalée'
+    : isCurrentUserTargeted
+      ? 'Je réponds à cette question'
+      : currentQuestionTarget
+        ? `Question pour ${currentQuestionTarget.displayName ?? `Compétiteur ${currentQuestionTarget.slot}`}`
+        : 'En attente de la prochaine question'
 
   if (phase === 'loading') {
     return (
@@ -568,8 +597,8 @@ export default function ArenaLive() {
     if (phase === 'waiting') return 'En attente du modérateur pour lancer le match.'
     if (phase === 'live-waiting') return 'En direct · En attente de la prochaine question.'
     if (phase === 'paused') return 'Le modérateur a mis le match en pause.'
-    if (phase === 'live-question') return 'Question en cours · Répondez oralement.'
-    if (phase === 'live-between') return 'Question terminée · Le modérateur attribue le point.'
+    if (phase === 'live-question') return `Question en cours · Réponse attendue de ${currentQuestionTarget?.displayName ?? `Compétiteur ${currentQuestionTarget?.slot ?? 'désigné'}`}.`
+    if (phase === 'live-between') return 'Question terminée · Le modérateur rend sa décision.'
     return 'Match en cours.'
   }
 
@@ -740,8 +769,20 @@ export default function ArenaLive() {
       ? (stageParticipants.find((p) => p.isLocal) ?? null)
       : (stageParticipants.find((p) => p.identity === moderatorUserId) ?? null)
 
-    const submissionLabelA = submissionStatuses[competitorA.participantUserId]?.submitted ? 'Prêt à répondre' : null
-    const submissionLabelB = submissionStatuses[competitorB.participantUserId]?.submitted ? 'Prêt à répondre' : null
+    const submissionLabelA = submissionStatuses[competitorA.participantUserId]?.submitted
+      ? 'Signal reçu'
+      : phase === 'live-question' && currentQuestionTarget?.slot === 'A'
+        ? 'Question pour lui'
+        : phase === 'live-question'
+          ? 'En attente'
+          : null
+    const submissionLabelB = submissionStatuses[competitorB.participantUserId]?.submitted
+      ? 'Signal reçu'
+      : phase === 'live-question' && currentQuestionTarget?.slot === 'B'
+        ? 'Question pour lui'
+        : phase === 'live-question'
+          ? 'En attente'
+          : null
     const moderatorLabel = phase === 'live-question' ? 'Pilote la question' : phase === 'paused' ? 'Session en pause' : null
 
     return (
@@ -759,6 +800,11 @@ export default function ArenaLive() {
               <div style={{ padding: '10px 14px', borderRadius: 16, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.03)' }}>
                 <p style={{ ...S.label, marginBottom: 6 }}>Question active</p>
                 <p style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text, lineHeight: 1 }}>{questionNumber || 0}<span style={{ color: T.textSubtle }}>/{totalQuestions || 0}</span></p>
+                {currentQuestionTarget && (
+                  <p style={{ margin: '6px 0 0', fontSize: 11, color: T.textMuted, fontWeight: 700 }}>
+                    Pour {currentQuestionTarget.displayName ?? `Compétiteur ${currentQuestionTarget.slot}`}
+                  </p>
+                )}
               </div>
               <div style={timeLeft !== null && timeLeft <= 5 ? S.timerCritical : S.timerNormal}>{formatTimer(timeLeft)}</div>
             </div>
@@ -809,6 +855,11 @@ export default function ArenaLive() {
             <p style={{ margin: 0, fontSize: 15, color: T.text, lineHeight: 1.5, fontWeight: 700 }}>{getQuestionStatusText()}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {currentQuestionTarget && (
+              <span style={{ fontSize: 12, fontWeight: 800, color: T.text, padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`, letterSpacing: '0.04em' }}>
+                TOUR {currentQuestionTarget.slot} · {currentQuestionTarget.displayName ?? `Compétiteur ${currentQuestionTarget.slot}`}
+              </span>
+            )}
             <span style={{ fontSize: 12, fontWeight: 800, color: currentTone, padding: '8px 12px', borderRadius: 999, background: `${currentTone}20`, border: `1px solid ${currentTone}40`, letterSpacing: '0.08em' }}>{currentPhaseMeta.label}</span>
             <span style={{ fontSize: 12, color: T.textMuted }}>Chrono {formatTimer(timeLeft)}</span>
           </div>
@@ -817,7 +868,7 @@ export default function ArenaLive() {
           {phase === 'live-between' && questionIsClosed && (
             <div style={{ marginTop: 16, padding: '12px 16px', border: '1px solid rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.07)', borderRadius: 18 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#6ee7b7', letterSpacing: '0.04em' }}>
-                Question clôturée. Le modérateur peut maintenant attribuer le point.
+                Question clôturée. Le modérateur peut maintenant valider la bonne réponse, signaler une mauvaise réponse ou annuler la question.
               </p>
             </div>
           )}
@@ -912,11 +963,12 @@ export default function ArenaLive() {
       { label: 'Progression', value: `${questionNumber}/${totalQuestions || '–'}` },
       { label: 'Chrono', value: formatTimer(timeLeft) },
       { label: 'Statut', value: currentPhaseMeta.label },
+      { label: 'Tour', value: currentQuestionTarget ? `${currentQuestionTarget.slot} · ${currentQuestionTarget.displayName ?? `Compétiteur ${currentQuestionTarget.slot}`}` : '—' },
     ]
 
     return (
       <section style={{ ...S.card, padding: 18 }}>
-        <div className="grid grid-cols-2 xl:grid-cols-5" style={{ gap: 12 }}>
+        <div className="grid grid-cols-2 xl:grid-cols-6" style={{ gap: 12 }}>
           {chips.map((chip) => (
             <div key={chip.label} style={{ padding: '14px 16px', borderRadius: 18, background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}` }}>
               <p style={{ ...S.label, marginBottom: 8 }}>{chip.label}</p>
@@ -958,6 +1010,11 @@ export default function ArenaLive() {
               <p style={{ ...S.label, marginBottom: 8 }}>Question</p>
               <p style={{ margin: 0, fontSize: 30, fontWeight: 900, color: currentTone, lineHeight: 1 }}>{questionNumber || 0}<span style={{ color: T.textSubtle }}>/ {totalQuestions || 0}</span></p>
             </div>
+            <div style={{ minWidth: 180 }}>
+              <p style={{ ...S.label, marginBottom: 8 }}>Question pour</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: T.text }}>{currentQuestionTarget?.displayName ?? 'À déterminer'}</p>
+              <p style={{ margin: '6px 0 0', fontSize: 11, color: T.textMuted }}>{currentQuestionTarget ? `Compétiteur ${currentQuestionTarget.slot}` : 'Le modérateur ouvre la prochaine question.'}</p>
+            </div>
           </div>
 
           <div style={{ marginTop: 18 }}>
@@ -978,15 +1035,16 @@ export default function ArenaLive() {
               const submission = submissionStatuses[participant.participantUserId] ?? null
               const isSubmitted = Boolean(submission?.submitted)
               const accent = participant.slot === 'A' ? T.accentA : T.accentB
+              const isTargeted = currentQuestionTarget?.participantUserId === participant.participantUserId
               return (
-                <div key={participant.participantUserId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: `1px solid ${isSubmitted ? accent + '55' : T.border}` }}>
+                <div key={participant.participantUserId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 16, background: isTargeted ? `${accent}10` : 'rgba(255,255,255,0.03)', border: `1px solid ${isSubmitted ? accent + '55' : isTargeted ? accent + '35' : T.border}` }}>
                   <div>
                     <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: T.textSubtle, letterSpacing: '0.08em' }}>COMPÉTITEUR {participant.slot}</p>
                     <p style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 800, color: T.text }}>{participant.displayName}</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: isSubmitted ? accent : T.textMuted }}>
-                      {isSubmitted ? 'Signal reçu' : 'En attente'}
+                      {isSubmitted ? 'Signal reçu' : isTargeted && phase === 'live-question' ? 'Question pour lui' : phase === 'live-question' ? 'Hors tour' : 'En attente'}
                     </p>
                     <p style={{ margin: '4px 0 0', fontSize: 10, color: T.textSubtle }}>
                       {isSubmitted && submission?.at ? new Date(submission.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Aucune prise de parole'}
@@ -1030,30 +1088,35 @@ export default function ArenaLive() {
               )}
 
               {canScoreQuestion && currentQuestion && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+                  {currentQuestionTarget && (
+                    <div style={{ padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}` }}>
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: T.textSubtle, letterSpacing: '0.08em' }}>DÉCISION ATTENDUE</p>
+                      <p style={{ margin: '6px 0 0', fontSize: 14, fontWeight: 800, color: T.text }}>
+                        {currentQuestionTarget.displayName ?? `Compétiteur ${currentQuestionTarget.slot}`}
+                      </p>
+                      <p style={{ margin: '6px 0 0', fontSize: 12, color: T.textMuted, lineHeight: 1.5 }}>
+                        Une bonne réponse vaut 1 point. Le modérateur tranche après la réponse orale.
+                      </p>
+                    </div>
+                  )}
                   <button
-                    style={{ padding: '12px 10px', borderRadius: 14, background: `${T.accentA}1c`, color: T.accentA, border: `1px solid ${T.accentA}55`, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
-                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'A' })}
+                    style={{ padding: '12px 10px', borderRadius: 14, background: `${currentQuestionTarget?.slot === 'B' ? T.accentB : T.accentA}1c`, color: currentQuestionTarget?.slot === 'B' ? T.accentB : T.accentA, border: `1px solid ${currentQuestionTarget?.slot === 'B' ? T.accentB : T.accentA}55`, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'correct' })}
                   >
-                    POINT A
+                    {currentQuestionTarget ? `BONNE RÉPONSE ${currentQuestionTarget.slot}` : 'BONNE RÉPONSE'}
                   </button>
                   <button
-                    style={{ padding: '12px 10px', borderRadius: 14, background: `${T.accentB}1c`, color: T.accentB, border: `1px solid ${T.accentB}55`, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
-                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'B' })}
+                    style={{ padding: '12px 10px', borderRadius: 14, background: 'rgba(251,113,133,0.14)', color: '#fecdd3', border: '1px solid rgba(251,113,133,0.32)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'incorrect' })}
                   >
-                    POINT B
-                  </button>
-                  <button
-                    style={{ padding: '12px 10px', borderRadius: 14, background: 'rgba(248,184,78,0.15)', color: '#fde68a', border: '1px solid rgba(248,184,78,0.36)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
-                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'BOTH' })}
-                  >
-                    POINT AUX DEUX
+                    MAUVAISE RÉPONSE
                   </button>
                   <button
                     style={{ padding: '12px 10px', borderRadius: 14, background: 'rgba(255,255,255,0.04)', color: T.textMuted, border: `1px solid ${T.border}`, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
-                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'NONE' })}
+                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'cancelled' })}
                   >
-                    AUCUN POINT
+                    QUESTION ANNULÉE
                   </button>
                 </div>
               )}
@@ -1099,9 +1162,12 @@ export default function ArenaLive() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
           <div>
             <p style={S.label}>Tableau de match</p>
-            <h2 style={{ margin: '8px 0 0', fontSize: 24, color: T.text, lineHeight: 1.05, letterSpacing: '-0.03em' }}>Scores en direct</h2>
+            <h2 style={{ margin: '8px 0 0', fontSize: 24, color: T.text, lineHeight: 1.05, letterSpacing: '-0.03em' }}>Score en bonnes réponses</h2>
           </div>
-          <span style={{ padding: '7px 11px', borderRadius: 999, border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 11, fontWeight: 800 }}>{viewerCount} vue(s)</span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <span style={{ padding: '7px 11px', borderRadius: 999, border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 11, fontWeight: 800 }}>1 bonne réponse = 1 point</span>
+            <span style={{ padding: '7px 11px', borderRadius: 999, border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 11, fontWeight: 800 }}>{viewerCount} vue(s)</span>
+          </div>
         </div>
 
         <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1139,7 +1205,7 @@ export default function ArenaLive() {
           <p style={{ ...S.label, marginBottom: 8 }}>Lecture du match</p>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: T.textMuted }}>
             {uniqueWinner
-              ? `${uniqueWinner.displayName} mène actuellement la rencontre.`
+              ? `${uniqueWinner.displayName} mène actuellement la rencontre avec ${uniqueWinner.score} bonne${uniqueWinner.score > 1 ? 's' : ''} réponse${uniqueWinner.score > 1 ? 's' : ''}.`
               : 'Les deux compétiteurs sont au coude-à-coude. Le prochain point peut faire la différence.'}
           </p>
         </div>

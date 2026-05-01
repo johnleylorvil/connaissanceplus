@@ -20,6 +20,16 @@ export class CreateArenaCompetitionDto {
   @IsNotEmpty()
   name: string;
 
+  @IsUUID()
+  competitorAUserId: string;
+
+  @IsUUID()
+  competitorBUserId: string;
+
+  @IsUUID()
+  @IsOptional()
+  moderatorUserId?: string;
+
   @IsInt()
   @Min(1)
   @Max(30)
@@ -82,8 +92,12 @@ export class RegisterParticipantDto {
 
 export class ScoreRoundDto {
   @IsString()
-  @IsNotEmpty()
-  result: 'A' | 'B' | 'BOTH' | 'NONE';
+  @IsOptional()
+  result?: 'A' | 'B' | 'BOTH' | 'NONE';
+
+  @IsString()
+  @IsOptional()
+  verdict?: 'correct' | 'incorrect' | 'cancelled';
 }
 
 export type MatchLiveRole = 'competitorA' | 'competitorB' | 'moderator' | 'spectator';

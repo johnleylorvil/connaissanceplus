@@ -88,7 +88,7 @@ export default function AdminDashboard() {
   const [arenaMsg, setArenaMsg] = useState('')
   const [arenaError, setArenaError] = useState('')
   const [arenaCompForm, setArenaCompForm] = useState({
-    name: '', questionCount: 10, secondsPerQuestion: 30,
+    name: '', competitorAUserId: '', competitorBUserId: '', moderatorUserId: '', questionCount: 10, secondsPerQuestion: 30,
     description: '', scheduledAt: ''
   })
   const [winnerPicker, setWinnerPicker] = useState<{ compId: string; participants: ArenaRegistration[] } | null>(null)
@@ -136,6 +136,14 @@ export default function AdminDashboard() {
   const applyArenaCompetitionUpdate = useCallback((competition: ArenaCompetition) => {
     setArenaCompetitions((prev) => prev.map((item) => item.id === competition.id ? competition : item))
   }, [])
+
+  const isAssignedArenaMatch = (competition: ArenaCompetition) =>
+    Boolean(competition.competitorAUserId && competition.competitorBUserId)
+
+  const getArenaDuelLabel = (competition: ArenaCompetition) =>
+    competition.competitorAName && competition.competitorBName
+      ? `${competition.competitorAName} vs ${competition.competitorBName}`
+      : null
 
   const submitCreateModerator = async (e: FormEvent) => {
     e.preventDefault()
@@ -236,12 +244,13 @@ export default function AdminDashboard() {
 
   const loadArenaTabData = useCallback(() => {
     arenaApi.getCompetitions().then(setArenaCompetitions).catch(() => {})
+    void callApi<Student[]>('/admin/students', setStudents)
     if (accessToken) {
       adminApi.listModerators(accessToken)
         .then((list) => setModeratorUsers(list))
         .catch(() => arenaApi.getModeratorUsers(accessToken).then(setModeratorUsers).catch(() => {}))
     }
-  }, [accessToken])
+  }, [accessToken, callApi])
 
   useEffect(() => { loadAll() }, [loadAll])
 
@@ -1139,52 +1148,93 @@ export default function AdminDashboard() {
               {arenaTab === 'matches' && (
                 <div>
                   {/* Create Competition */}
-                  <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Nouvelle compétition</h2>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Nouveau match</h2>
                   <div className="card" style={{ marginBottom: 24 }}>
                     <div className="responsive-two-col" style={{ gap: 12, marginBottom: 12 }}>
                       <div>
-                        <label className="field-label">Nom</label>
-                        <input className="field-input" value={arenaCompForm.name} onChange={(e) => setArenaCompForm(f => ({ ...f, name: e.target.value }))} placeholder="Challenge Mathématiques S1" style={{ width: '100%' }} />
+                        <label className="field-label">Nom du match</label>
+                        <input className="field-input" value={arenaCompForm.name} onChange={(e) => setArenaCompForm(f => ({ ...f, name: e.target.value }))} placeholder="Duel Mathématiques S1" style={{ width: '100%' }} />
                       </div>
                       <div>
-                        <label className="field-label">Nb questions</label>
+                        <label className="field-label">Compétiteur A</label>
+                        <select className="field-input" value={arenaCompForm.competitorAUserId} onChange={(e) => setArenaCompForm(f => ({ ...f, competitorAUserId: e.target.value }))} style={{ width: '100%' }}>
+                          <option value="">— Choisir le compétiteur A —</option>
+                          {students.map((student) => (
+                            <option key={student.id} value={student.id}>
+                              {student.firstName} {student.lastName} ({student.email})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">Compétiteur B</label>
+                        <select className="field-input" value={arenaCompForm.competitorBUserId} onChange={(e) => setArenaCompForm(f => ({ ...f, competitorBUserId: e.target.value }))} style={{ width: '100%' }}>
+                          <option value="">— Choisir le compétiteur B —</option>
+                          {students.map((student) => (
+                            <option key={student.id} value={student.id}>
+                              {student.firstName} {student.lastName} ({student.email})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">Modérateur assigné</label>
+                        <select className="field-input" value={arenaCompForm.moderatorUserId} onChange={(e) => setArenaCompForm(f => ({ ...f, moderatorUserId: e.target.value }))} style={{ width: '100%' }}>
+                          <option value="">— Assigner plus tard —</option>
+                          {moderatorUsers.map((moderator) => (
+                            <option key={moderator.id} value={moderator.id}>
+                              {moderator.firstName} {moderator.lastName} ({moderator.email}) {moderator.role === 'admin' ? '• Admin' : '• Modérateur'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">Questions prévues</label>
                         <input className="field-input" type="number" min={1} max={30} value={arenaCompForm.questionCount} onChange={(e) => setArenaCompForm(f => ({ ...f, questionCount: +e.target.value }))} style={{ width: '100%' }} />
                       </div>
                       <div>
-                        <label className="field-label">Secondes/question</label>
+                        <label className="field-label">Temps de réponse (secondes)</label>
                         <input className="field-input" type="number" min={10} max={120} value={arenaCompForm.secondsPerQuestion} onChange={(e) => setArenaCompForm(f => ({ ...f, secondsPerQuestion: +e.target.value }))} style={{ width: '100%' }} />
                       </div>
                       <div>
-                        <label className="field-label">Date planifiée</label>
+                        <label className="field-label">Date du direct</label>
                         <input className="field-input" type="datetime-local" value={arenaCompForm.scheduledAt} onChange={(e) => setArenaCompForm(f => ({ ...f, scheduledAt: e.target.value }))} style={{ width: '100%' }} />
                       </div>
                     </div>
                     <div style={{ marginBottom: 12 }}>
-                      <label className="field-label">Description</label>
-                      <textarea className="field-input" rows={3} value={arenaCompForm.description} onChange={(e) => setArenaCompForm(f => ({ ...f, description: e.target.value }))} placeholder="Contexte, règles, thème et éventuelles récompenses décrites en texte" style={{ width: '100%', resize: 'vertical' }} />
+                      <label className="field-label">Brief du match</label>
+                      <textarea className="field-input" rows={3} value={arenaCompForm.description} onChange={(e) => setArenaCompForm(f => ({ ...f, description: e.target.value }))} placeholder="Contexte éditorial, thème et consignes pour le modérateur" style={{ width: '100%', resize: 'vertical' }} />
                     </div>
+                    <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.6 }}>
+                      Le match est créé avec deux compétiteurs désignés à l’avance. Une bonne réponse vaut 1 point et le modérateur garde la main sur chaque question.
+                    </p>
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={async () => {
                         setArenaError(''); setArenaMsg('')
                         try {
                           if (!accessToken) throw new Error('Session administrateur invalide.')
-                          if (!arenaCompForm.name.trim()) throw new Error('Le nom de la compétition est requis.')
-                          if (!arenaCompForm.scheduledAt) throw new Error('La date planifiée est requise.')
+                          if (!arenaCompForm.name.trim()) throw new Error('Le nom du match est requis.')
+                          if (!arenaCompForm.competitorAUserId || !arenaCompForm.competitorBUserId) throw new Error('Choisissez les deux compétiteurs du match.')
+                          if (arenaCompForm.competitorAUserId === arenaCompForm.competitorBUserId) throw new Error('Choisissez deux compétiteurs différents.')
+                          if (!arenaCompForm.scheduledAt) throw new Error('La date du direct est requise.')
                           const c = await arenaApi.createCompetition({
                             name: arenaCompForm.name.trim(),
+                            competitorAUserId: arenaCompForm.competitorAUserId,
+                            competitorBUserId: arenaCompForm.competitorBUserId,
+                            moderatorUserId: arenaCompForm.moderatorUserId || undefined,
                             questionCount: arenaCompForm.questionCount,
                             secondsPerQuestion: arenaCompForm.secondsPerQuestion,
                             scheduledAt: arenaCompForm.scheduledAt,
                             description: arenaCompForm.description.trim() || undefined,
                           }, accessToken)
                           setArenaCompetitions(prev => [c, ...prev])
-                          setArenaMsg(`Compétition "${c.name}" créée.`)
-                          setArenaCompForm({ name: '', questionCount: 10, secondsPerQuestion: 30, description: '', scheduledAt: '' })
+                          setArenaMsg(`Match "${c.name}" créé.`)
+                          setArenaCompForm({ name: '', competitorAUserId: '', competitorBUserId: '', moderatorUserId: '', questionCount: 10, secondsPerQuestion: 30, description: '', scheduledAt: '' })
                         } catch (err) { setArenaError((err as Error).message) }
                       }}
                     >
-                      Créer la compétition
+                      Créer le match
                     </button>
                   </div>
 
@@ -1201,7 +1251,10 @@ export default function AdminDashboard() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: 200 }}>
                               <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{comp.name}</p>
-                              <p style={{ fontSize: 12, color: 'var(--ink-3)' }}>{comp.status} · {comp.questionCount}q · {comp.secondsPerQuestion}s</p>
+                              <p style={{ fontSize: 12, color: 'var(--ink-3)' }}>{comp.status} · {comp.questionCount} question{comp.questionCount > 1 ? 's' : ''} · {comp.secondsPerQuestion}s / réponse</p>
+                              {getArenaDuelLabel(comp) && (
+                                <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{getArenaDuelLabel(comp)}</p>
+                              )}
                               {comp.moderatorUserId && (
                                 <p style={{ fontSize: 11, color: 'var(--cobalt)', marginTop: 2 }}>
                                   🎙️ {comp.moderatorName ?? comp.moderatorEmail ?? 'Modérateur assigné'}
@@ -1214,7 +1267,7 @@ export default function AdminDashboard() {
                               </p>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                              {comp.status === 'pending' && (
+                              {comp.status === 'pending' && !isAssignedArenaMatch(comp) && (
                                 <button className="btn btn-primary btn-sm" onClick={async () => {
                                   setArenaError(''); setArenaMsg('')
                                   try {
@@ -1236,10 +1289,10 @@ export default function AdminDashboard() {
                                     })
                                     if (!res.ok) { const d = await res.json(); throw new Error(d.message ?? 'Erreur') }
                                     setArenaCompetitions(prev => prev.map(c => c.id === comp.id ? { ...c, status: 'live' } : c))
-                                    setArenaMsg('Compétition lancée en direct.')
+                                    setArenaMsg('Match lancé en direct.')
                                   } catch (err) { setArenaError((err as Error).message) }
                                 }}>
-                                  ? Lancer
+                                  Mettre en direct
                                 </button>
                               )}
                               {comp.status === 'live' && (
@@ -1258,9 +1311,9 @@ export default function AdminDashboard() {
                                     try {
                                       const res = await fetch(`${ARENA_API}/competitions/${comp.id}/next-round`, { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}` } })
                                       if (!res.ok) { const d = await res.json(); throw new Error(d.message ?? 'Erreur') }
-                                      setArenaMsg('Round suivant démarré.')
+                                      setArenaMsg('Question suivante ouverte.')
                                     } catch (err) { setArenaError((err as Error).message) }
-                                  }}>Round suivant</button>
+                                  }}>Question suivante</button>
                                   <button className="btn btn-ghost btn-sm" style={{ color: 'var(--error)' }} onClick={async () => {
                                     setArenaError(''); setArenaMsg('')
                                     const regs = await arenaApi.getRegistrations(comp.id, accessToken!).catch(() => [])
@@ -1277,7 +1330,7 @@ export default function AdminDashboard() {
                                 setSelectedCompetitionId(comp.id)
                                 const regs = await arenaApi.getRegistrations(comp.id, accessToken!).catch(() => [])
                                 setArenaRegistrations(regs)
-                              }}>Inscriptions</button>
+                              }}>{isAssignedArenaMatch(comp) ? 'Fiche du match' : 'Inscriptions'}</button>
                             </div>
                           </div>
 
@@ -1458,7 +1511,7 @@ export default function AdminDashboard() {
                           {/* Registrations inline panel */}
                           {selectedCompetitionId === comp.id && arenaRegistrations.length > 0 && (
                             <div style={{ marginTop: 10, border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden' }}>
-                              {arenaRegistrations.some(r => r.status === 'pending') && (
+                              {!isAssignedArenaMatch(comp) && arenaRegistrations.some(r => r.status === 'pending') && (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 12px', background: '#f5f5f5', borderBottom: '1px solid var(--rule)' }}>
                                   <button className="btn btn-primary btn-sm" onClick={async () => {
                                     setArenaError('')
@@ -1486,7 +1539,7 @@ export default function AdminDashboard() {
                                       {reg.status === 'approved' ? '? Approuvé' : reg.status === 'rejected' ? '? Rejeté' : '? En attente'}
                                     </span>
                                   </p>
-                                  {reg.status === 'pending' && (
+                                  {!isAssignedArenaMatch(comp) && reg.status === 'pending' && (
                                     <>
                                       <button className="btn btn-primary btn-sm" onClick={async () => {
                                         setArenaError('')

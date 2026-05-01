@@ -24,6 +24,7 @@ import {
   DisqualifyParticipantDto,
   RegisterParticipantDto,
   ReviewParticipantRegistrationDto,
+  ScoreRoundDto,
   SetArenaPublicStreamStatusDto,
   SetWinnerDto,
   UpdateArenaPublicStreamDto,
@@ -58,6 +59,33 @@ export class ArenaService {
   // ─────────────────────────────────────────────
 
   async createCompetition(adminId: string, dto: CreateArenaCompetitionDto) {
+    if (dto.competitorAUserId === dto.competitorBUserId) {
+      throw new BadRequestException('Choisissez deux compétiteurs distincts pour ce match.');
+    }
+
+    const participantIds = [dto.competitorAUserId, dto.competitorBUserId];
+    const participantUsers = await this.userRepo.find({
+      where: { id: In(participantIds) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+      },
+    });
+
+    if (participantUsers.length !== 2 || participantUsers.some((user) => user.role !== UserRole.STUDENT)) {
+      throw new BadRequestException('Les deux compétiteurs sélectionnés doivent être des étudiants valides.');
+    }
+
+    let moderatorUser: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'role'> | null = null;
+    if (dto.moderatorUserId) {
+      moderatorUser = await this.userRepo.findOne({ where: { id: dto.moderatorUserId } });
+      if (!moderatorUser || ![UserRole.ADMIN, UserRole.MODERATOR].includes(moderatorUser.role)) {
+        throw new BadRequestException('Le modérateur sélectionné doit être un administrateur ou un modérateur valide.');
+      }
+    }
+
     const competition = await this.competitionRepo.save(
       this.competitionRepo.create({
         ...dto,
@@ -65,31 +93,42 @@ export class ArenaService {
         description: dto.description ?? null,
         createdByAdminId: adminId,
         status: ArenaCompetitionStatus.PENDING,
+        competitorAUserId: dto.competitorAUserId,
+        competitorBUserId: dto.competitorBUserId,
+        moderatorUserId: dto.moderatorUserId ?? null,
       }),
     );
 
-    const students = await this.userRepo.find({
-      where: { role: UserRole.STUDENT },
-      select: {
-        id: true,
-      },
-    });
+    await this.registrationRepo.save(
+      participantIds.map((participantUserId) => ({
+        competitionId: competition.id,
+        participantUserId,
+        status: ArenaParticipantRegistrationStatus.APPROVED,
+      })),
+    );
 
-    if (students.length > 0) {
+    const notificationRecipients = Array.from(
+      new Set([
+        ...participantUsers.map((user) => user.id),
+        moderatorUser?.id ?? null,
+      ].filter((userId): userId is string => !!userId)),
+    );
+
+    if (notificationRecipients.length > 0) {
       const scheduledLabel = competition.scheduledAt.toLocaleString('fr-HT');
       await this.notificationRepo.save(
         this.notificationRepo.create(
-          students.map((student) => ({
-            userId: student.id,
-            title: 'Nouveau challenge Arena',
-            message: `${competition.name} est maintenant programme pour ${scheduledLabel}. Consultez Arena pour vous inscrire.`,
+          notificationRecipients.map((userId) => ({
+            userId,
+            title: 'Match Arena programmé',
+            message: `${competition.name} est programmé pour ${scheduledLabel}. Consultez Arena pour confirmer votre présence au direct.`,
             type: 'arena_competition',
           })),
         ),
       );
     }
 
-    return competition;
+    return this.decorateCompetition(competition);
   }
 
   async getCompetitions(status?: string) {
@@ -115,6 +154,9 @@ export class ArenaService {
   async openRegistrations(adminId: string, competitionId: string) {
     const competition = await this.competitionRepo.findOne({ where: { id: competitionId } });
     if (!competition) throw new NotFoundException('Compétition introuvable.');
+    if (competition.competitorAUserId || competition.competitorBUserId) {
+      throw new BadRequestException('Ce match fonctionne avec deux compétiteurs désignés à l’avance et n’ouvre pas les inscriptions publiques.');
+    }
     competition.status = ArenaCompetitionStatus.APPROVED;
     return this.competitionRepo.save(competition);
   }
@@ -122,6 +164,9 @@ export class ArenaService {
   async registerParticipant(userId: string, competitionId: string) {
     const competition = await this.competitionRepo.findOne({ where: { id: competitionId } });
     if (!competition) throw new NotFoundException('Compétition introuvable.');
+    if (competition.competitorAUserId || competition.competitorBUserId) {
+      throw new BadRequestException('Ce match est fermé aux inscriptions: les deux compétiteurs ont déjà été désignés.');
+    }
     if (competition.status === ArenaCompetitionStatus.PENDING) {
       throw new BadRequestException('Les inscriptions ne sont pas encore ouvertes.');
     }
@@ -182,57 +227,106 @@ export class ArenaService {
     if (competition.status === ArenaCompetitionStatus.LIVE) {
       throw new BadRequestException('Compétition déjà en cours.');
     }
+    if (![ArenaCompetitionStatus.PENDING, ArenaCompetitionStatus.APPROVED].includes(competition.status)) {
+      throw new BadRequestException('Ce match ne peut pas être lancé dans son état actuel.');
+    }
 
-    const approvedRegs = await this.registrationRepo.find({
-      where: { competitionId, status: ArenaParticipantRegistrationStatus.APPROVED },
-      order: { registeredAt: 'ASC' },
-    });
+    const configuredParticipantIds = [competition.competitorAUserId, competition.competitorBUserId].filter(
+      (participantId): participantId is string => !!participantId,
+    );
 
-    if (approvedRegs.length < 2) {
-      const pendingRegs = await this.registrationRepo.find({
-        where: { competitionId, status: ArenaParticipantRegistrationStatus.PENDING },
+    if (configuredParticipantIds.length === 1) {
+      throw new BadRequestException('Le match doit avoir deux compétiteurs assignés avant le lancement.');
+    }
+
+    if (configuredParticipantIds.length === 2) {
+      const existingRegistrations = await this.registrationRepo.find({ where: { competitionId } });
+      const registrationsByParticipant = new Map(
+        existingRegistrations.map((registration) => [registration.participantUserId, registration]),
+      );
+      const registrationsToSave = configuredParticipantIds.flatMap((participantUserId) => {
+        const existingRegistration = registrationsByParticipant.get(participantUserId);
+        if (!existingRegistration) {
+          return [{
+            competitionId,
+            participantUserId,
+            status: ArenaParticipantRegistrationStatus.APPROVED,
+          }];
+        }
+        if (existingRegistration.status !== ArenaParticipantRegistrationStatus.APPROVED) {
+          existingRegistration.status = ArenaParticipantRegistrationStatus.APPROVED;
+          return [existingRegistration];
+        }
+        return [];
+      });
+
+      if (registrationsToSave.length > 0) {
+        await this.registrationRepo.save(registrationsToSave);
+      }
+    } else {
+      const approvedRegs = await this.registrationRepo.find({
+        where: { competitionId, status: ArenaParticipantRegistrationStatus.APPROVED },
         order: { registeredAt: 'ASC' },
       });
-      for (const reg of pendingRegs) {
-        reg.status = ArenaParticipantRegistrationStatus.APPROVED;
+
+      if (approvedRegs.length < 2) {
+        const pendingRegs = await this.registrationRepo.find({
+          where: { competitionId, status: ArenaParticipantRegistrationStatus.PENDING },
+          order: { registeredAt: 'ASC' },
+        });
+        for (const reg of pendingRegs) {
+          reg.status = ArenaParticipantRegistrationStatus.APPROVED;
+        }
+        if (pendingRegs.length > 0) {
+          await this.registrationRepo.save(pendingRegs);
+        }
       }
-      if (pendingRegs.length > 0) {
-        await this.registrationRepo.save(pendingRegs);
+
+      const approvedAfterAuto = await this.registrationRepo.find({
+        where: { competitionId, status: ArenaParticipantRegistrationStatus.APPROVED },
+        order: { registeredAt: 'ASC' },
+      });
+
+      if (approvedAfterAuto.length < 2) {
+        throw new BadRequestException('Au moins 2 compétiteurs approuvés sont requis pour lancer le live.');
       }
+
+      competition.competitorAUserId = approvedAfterAuto[0].participantUserId;
+      competition.competitorBUserId = approvedAfterAuto[1].participantUserId;
     }
 
-    const approvedAfterAuto = await this.registrationRepo.find({
-      where: { competitionId, status: ArenaParticipantRegistrationStatus.APPROVED },
-      order: { registeredAt: 'ASC' },
-    });
-
-    if (approvedAfterAuto.length < 2) {
-      throw new BadRequestException('Au moins 2 compétiteurs approuvés sont requis pour lancer le live.');
-    }
-
-    competition.competitorAUserId = approvedAfterAuto[0].participantUserId;
-    competition.competitorBUserId = approvedAfterAuto[1].participantUserId;
-    competition.moderatorUserId = adminId;
+    competition.moderatorUserId = competition.moderatorUserId ?? adminId;
 
     competition.status = ArenaCompetitionStatus.LIVE;
     competition.startedAt = new Date();
     competition.currentRound = 0;
     await this.competitionRepo.save(competition);
 
-    // Create rounds
-    const roundsToCreate = competition.questionCount;
-    const rounds = await this.roundRepo.save(
-      Array.from({ length: roundsToCreate }, (_, index) =>
-        this.roundRepo.create({
-          competitionId,
-          questionId: null,
-          roundMode: ArenaRoundMode.ORAL,
-          position: index + 1,
-          startedAt: null,
-          endedAt: null,
-        }),
-      ),
-    );
+    const existingRounds = await this.roundRepo.find({
+      where: { competitionId },
+      order: { position: 'ASC' },
+    });
+
+    const existingPositions = new Set(existingRounds.map((round) => round.position));
+    const missingPositions = Array.from({ length: competition.questionCount }, (_, index) => index + 1)
+      .filter((position) => !existingPositions.has(position));
+
+    const createdRounds = missingPositions.length > 0
+      ? await this.roundRepo.save(
+          missingPositions.map((position) =>
+            this.roundRepo.create({
+              competitionId,
+              questionId: null,
+              roundMode: ArenaRoundMode.ORAL,
+              position,
+              startedAt: null,
+              endedAt: null,
+            }),
+          ),
+        )
+      : [];
+
+    const rounds = [...existingRounds, ...createdRounds].sort((left, right) => left.position - right.position);
 
     return { competition, rounds };
   }
@@ -261,7 +355,7 @@ export class ArenaService {
       where: { competitionId, position: nextPosition },
     });
 
-    if (!round) throw new NotFoundException('Plus de rounds disponibles.');
+    if (!round) throw new NotFoundException('Plus de questions disponibles pour ce match.');
 
     round.startedAt = new Date();
     round.endTime = new Date(Date.now() + competition.secondsPerQuestion * 1000);
@@ -307,9 +401,12 @@ export class ArenaService {
     };
   }
 
-  async scoreRound(adminId: string, roundId: string, result: 'A' | 'B' | 'BOTH' | 'NONE') {
+  async scoreRound(adminId: string, roundId: string, dto: ScoreRoundDto) {
     const round = await this.roundRepo.findOne({ where: { id: roundId } });
     if (!round) throw new NotFoundException('Round introuvable.');
+    if (!round.endedAt) {
+      throw new BadRequestException('Clôturez la question avant d’enregistrer la décision du modérateur.');
+    }
 
     const competition = await this.competitionRepo.findOne({ where: { id: round.competitionId } });
     if (!competition) throw new NotFoundException('Compétition introuvable.');
@@ -320,28 +417,74 @@ export class ArenaService {
       throw new BadRequestException('Slots compétiteurs non initialisés pour ce match.');
     }
 
-    const pointsA = result === 'A' || result === 'BOTH' ? 100 : 0;
-    const pointsB = result === 'B' || result === 'BOTH' ? 100 : 0;
+    const normalizedVerdict = dto.verdict?.trim().toLowerCase();
+    const legacyResult = dto.result?.trim().toUpperCase() as 'A' | 'B' | 'BOTH' | 'NONE' | undefined;
+    if (!normalizedVerdict && !legacyResult) {
+      throw new BadRequestException('Précisez une décision de modération pour cette question.');
+    }
+
+    const directed = this.getDirectedParticipant(competition, round);
+    const opposingParticipantId = directed.slot === 'A' ? competitorBId : competitorAId;
 
     const existing = await this.answerRepo.find({
       where: { roundId: round.id, participantUserId: In([competitorAId, competitorBId]) },
     });
     const byParticipant = new Map(existing.map((ans) => [ans.participantUserId, ans]));
 
-    const upsertA = byParticipant.get(competitorAId)
-      ? { ...byParticipant.get(competitorAId)!, isCorrect: pointsA > 0, pointsAwarded: pointsA, selectedOption: result, submittedAt: new Date(), submittedByUserId: adminId }
-      : this.answerRepo.create({ roundId: round.id, participantUserId: competitorAId, submittedByUserId: adminId, selectedOption: result, isCorrect: pointsA > 0, pointsAwarded: pointsA, submittedAt: new Date() });
-    const upsertB = byParticipant.get(competitorBId)
-      ? { ...byParticipant.get(competitorBId)!, isCorrect: pointsB > 0, pointsAwarded: pointsB, selectedOption: result, submittedAt: new Date(), submittedByUserId: adminId }
-      : this.answerRepo.create({ roundId: round.id, participantUserId: competitorBId, submittedByUserId: adminId, selectedOption: result, isCorrect: pointsB > 0, pointsAwarded: pointsB, submittedAt: new Date() });
+    const now = new Date();
+    const buildAnswerRecord = (
+      participantUserId: string,
+      selectedOption: string | null,
+      pointsAwarded: number,
+    ) => {
+      const existingAnswer = byParticipant.get(participantUserId);
+      const payload = {
+        ...(existingAnswer ?? {}),
+        roundId: round.id,
+        participantUserId,
+        submittedByUserId: adminId,
+        selectedOption,
+        isCorrect: pointsAwarded > 0,
+        pointsAwarded,
+        submittedAt: now,
+      };
+      return existingAnswer ? payload : this.answerRepo.create(payload);
+    };
 
-    await this.answerRepo.save([upsertA, upsertB]);
+    const answersToSave: Array<ReturnType<typeof buildAnswerRecord>> = [];
+    if (normalizedVerdict) {
+      switch (normalizedVerdict) {
+        case 'correct':
+          answersToSave.push(buildAnswerRecord(directed.participantUserId, `CORRECT_${directed.slot}`, 1));
+          break;
+        case 'incorrect':
+          answersToSave.push(buildAnswerRecord(directed.participantUserId, `INCORRECT_${directed.slot}`, 0));
+          break;
+        case 'cancelled':
+          answersToSave.push(buildAnswerRecord(directed.participantUserId, 'CANCELLED', 0));
+          break;
+        default:
+          throw new BadRequestException('Décision de modération invalide.');
+      }
+
+      const opposingAnswer = byParticipant.get(opposingParticipantId);
+      if (opposingAnswer) {
+        answersToSave.push(buildAnswerRecord(opposingParticipantId, 'OVERRIDDEN', 0));
+      }
+    } else {
+      const pointsA = legacyResult === 'A' || legacyResult === 'BOTH' ? 1 : 0;
+      const pointsB = legacyResult === 'B' || legacyResult === 'BOTH' ? 1 : 0;
+      answersToSave.push(buildAnswerRecord(competitorAId, legacyResult ?? null, pointsA));
+      answersToSave.push(buildAnswerRecord(competitorBId, legacyResult ?? null, pointsB));
+    }
+
+    await this.answerRepo.save(answersToSave);
 
     const leaderboard = await this.getLiveLeaderboard(round.competitionId);
     return {
       competitionId: round.competitionId,
       roundId: round.id,
-      result,
+      result: legacyResult ?? normalizedVerdict ?? null,
       leaderboard,
     };
   }
@@ -440,6 +583,11 @@ export class ArenaService {
 
     if (!isActiveCompetitor) {
       throw new BadRequestException('Seuls les deux compétiteurs du match peuvent signaler une réponse.');
+    }
+
+    const directed = this.getDirectedParticipant(competition, round);
+    if (participantId !== directed.participantUserId) {
+      throw new BadRequestException('Cette question est actuellement adressée à l’autre compétiteur.');
     }
 
     return {
@@ -548,6 +696,9 @@ export class ArenaService {
       });
 
     const participants = matchParticipants.filter((p) => p.role !== 'moderator');
+    const currentQuestionTarget = currentRound
+      ? this.buildQuestionTargetSnapshot(competition, currentRound, userMap)
+      : null;
 
     return {
       competitionId,
@@ -563,6 +714,7 @@ export class ArenaService {
       leaderboard,
       participants,
       matchParticipants,
+      currentQuestionTarget,
       publicStream: this.buildPublicStreamSnapshot(competition),
     };
   }
@@ -899,13 +1051,40 @@ export class ArenaService {
   }
 
   private async decorateCompetition(competition: ArenaCompetition) {
-    const [winnerParticipant] = competition.winnerParticipantUserId
-      ? await this.userRepo.find({ where: { id: competition.winnerParticipantUserId } })
-      : [null];
+    const relatedUserIds = [
+      competition.winnerParticipantUserId,
+      competition.competitorAUserId,
+      competition.competitorBUserId,
+      competition.moderatorUserId,
+    ].filter((userId): userId is string => !!userId);
+
+    const users = relatedUserIds.length > 0
+      ? await this.userRepo.find({ where: { id: In(relatedUserIds) } })
+      : [];
+    const userMap = new Map(users.map((user) => [user.id, user]));
+    const winnerParticipant = competition.winnerParticipantUserId
+      ? userMap.get(competition.winnerParticipantUserId) ?? null
+      : null;
+    const competitorA = competition.competitorAUserId
+      ? userMap.get(competition.competitorAUserId) ?? null
+      : null;
+    const competitorB = competition.competitorBUserId
+      ? userMap.get(competition.competitorBUserId) ?? null
+      : null;
+    const moderator = competition.moderatorUserId
+      ? userMap.get(competition.moderatorUserId) ?? null
+      : null;
 
     return {
       ...competition,
       publicStream: this.buildPublicStreamSnapshot(competition),
+      competitorAUserId: competition.competitorAUserId,
+      competitorAName: competitorA ? `${competitorA.firstName} ${competitorA.lastName}`.trim() : null,
+      competitorBUserId: competition.competitorBUserId,
+      competitorBName: competitorB ? `${competitorB.firstName} ${competitorB.lastName}`.trim() : null,
+      moderatorUserId: competition.moderatorUserId,
+      moderatorName: moderator ? `${moderator.firstName} ${moderator.lastName}`.trim() : null,
+      moderatorEmail: moderator?.email ?? null,
       winnerParticipantUserId: competition.winnerParticipantUserId,
       winnerParticipantName: winnerParticipant
         ? `${winnerParticipant.firstName} ${winnerParticipant.lastName}`.trim()
@@ -914,21 +1093,45 @@ export class ArenaService {
   }
 
   private async decorateCompetitions(competitions: ArenaCompetition[]) {
-    const winnerIds = competitions
-      .map((competition) => competition.winnerParticipantUserId)
-      .filter((winnerId): winnerId is string => !!winnerId);
+    const relatedUserIds = Array.from(
+      new Set(
+        competitions
+          .flatMap((competition) => [
+            competition.winnerParticipantUserId,
+            competition.competitorAUserId,
+            competition.competitorBUserId,
+            competition.moderatorUserId,
+          ])
+          .filter((userId): userId is string => !!userId),
+      ),
+    );
 
-    const winners = winnerIds.length > 0
-      ? await this.userRepo.find({ where: { id: In(winnerIds) } })
+    const users = relatedUserIds.length > 0
+      ? await this.userRepo.find({ where: { id: In(relatedUserIds) } })
       : [];
-    const winnerMap = new Map(winners.map((winner) => [winner.id, `${winner.firstName} ${winner.lastName}`.trim()]));
+    const userMap = new Map(users.map((user) => [user.id, user]));
 
     return competitions.map((competition) => ({
       ...competition,
       publicStream: this.buildPublicStreamSnapshot(competition),
+      competitorAUserId: competition.competitorAUserId,
+      competitorAName: competition.competitorAUserId
+        ? `${userMap.get(competition.competitorAUserId)?.firstName ?? ''} ${userMap.get(competition.competitorAUserId)?.lastName ?? ''}`.trim() || null
+        : null,
+      competitorBUserId: competition.competitorBUserId,
+      competitorBName: competition.competitorBUserId
+        ? `${userMap.get(competition.competitorBUserId)?.firstName ?? ''} ${userMap.get(competition.competitorBUserId)?.lastName ?? ''}`.trim() || null
+        : null,
+      moderatorUserId: competition.moderatorUserId,
+      moderatorName: competition.moderatorUserId
+        ? `${userMap.get(competition.moderatorUserId)?.firstName ?? ''} ${userMap.get(competition.moderatorUserId)?.lastName ?? ''}`.trim() || null
+        : null,
+      moderatorEmail: competition.moderatorUserId
+        ? userMap.get(competition.moderatorUserId)?.email ?? null
+        : null,
       winnerParticipantUserId: competition.winnerParticipantUserId,
       winnerParticipantName: competition.winnerParticipantUserId
-        ? (winnerMap.get(competition.winnerParticipantUserId) ?? null)
+        ? (`${userMap.get(competition.winnerParticipantUserId)?.firstName ?? ''} ${userMap.get(competition.winnerParticipantUserId)?.lastName ?? ''}`.trim() || null)
         : null,
     }));
   }
@@ -1110,6 +1313,39 @@ export class ArenaService {
 
   private buildYouTubeChatUrl(videoId: string) {
     return `https://www.youtube.com/live_chat?v=${videoId}`;
+  }
+
+  private getDirectedParticipant(competition: ArenaCompetition, round: ArenaRound) {
+    const slot = round.position % 2 === 1 ? 'A' as const : 'B' as const;
+    const participantUserId = slot === 'A' ? competition.competitorAUserId : competition.competitorBUserId;
+
+    if (!participantUserId) {
+      throw new BadRequestException('Impossible de déterminer le compétiteur attendu pour cette question.');
+    }
+
+    return {
+      slot,
+      participantUserId,
+    };
+  }
+
+  private buildQuestionTargetSnapshot(
+    competition: ArenaCompetition,
+    round: ArenaRound,
+    userMap: Map<string, User>,
+  ) {
+    const slot = round.position % 2 === 1 ? 'A' as const : 'B' as const;
+    const participantUserId = slot === 'A' ? competition.competitorAUserId : competition.competitorBUserId;
+    if (!participantUserId) {
+      return null;
+    }
+
+    const participant = userMap.get(participantUserId);
+    return {
+      slot,
+      participantUserId,
+      displayName: participant ? `${participant.firstName} ${participant.lastName}`.trim() : null,
+    };
   }
 
   private async ensurePublicStreamControl(callerId: string, competition: ArenaCompetition) {

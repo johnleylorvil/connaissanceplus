@@ -5,7 +5,7 @@ import { arenaApi, type ArenaCompetition } from '../arena/arenaApi'
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'En attente',
-  approved: 'Inscriptions ouvertes',
+  approved: 'Match confirmé',
   live: 'En direct',
   paused: 'En pause',
   completed: 'Terminé',
@@ -189,6 +189,9 @@ export default function ModeratorArenaPage() {
 
                     {/* Info */}
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>
+                      {comp.competitorAName && comp.competitorBName && (
+                        <span>{comp.competitorAName} vs {comp.competitorBName}</span>
+                      )}
                       <span>{comp.questionCount} questions</span>
                       <span>{comp.secondsPerQuestion}s / question</span>
                     </div>

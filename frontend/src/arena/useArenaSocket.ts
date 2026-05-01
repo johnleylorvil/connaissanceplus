@@ -26,6 +26,12 @@ export type ArenaMatchParticipant = {
   role: 'competitorA' | 'competitorB' | 'moderator' | 'spectator'
 }
 
+export type ArenaQuestionTarget = {
+  participantUserId: string
+  displayName: string | null
+  slot: 'A' | 'B'
+}
+
 export type ArenaLiveState = {
   competitionId: string
   competitionName: string
@@ -41,6 +47,7 @@ export type ArenaLiveState = {
   leaderboard: ArenaLeaderboardRow[]
   participants?: ArenaParticipant[]
   matchParticipants?: ArenaMatchParticipant[]
+  currentQuestionTarget?: ArenaQuestionTarget | null
 }
 
 export type ArenaOnlineUser = {
@@ -153,6 +160,17 @@ export function useArenaSocket(params: {
               currentQuestion: nextQuestion,
               currentRoundNumber: data.round.position,
               currentQuestionNumber: nextQuestion.position,
+              currentQuestionTarget: (() => {
+                const targetSlot = nextQuestion.position % 2 === 1 ? 'A' as const : 'B' as const
+                const targetParticipant = s.state?.participants?.find((participant) => participant.slot === targetSlot)
+                return targetParticipant
+                  ? {
+                      participantUserId: targetParticipant.userId,
+                      displayName: targetParticipant.displayName,
+                      slot: targetSlot,
+                    }
+                  : null
+              })(),
             }
           : null,
       }))

@@ -32,6 +32,10 @@ export type ArenaCompetition = {
   completedAt?: string
   description: string | null
   currentRound: number
+  competitorAUserId: string | null
+  competitorAName?: string | null
+  competitorBUserId: string | null
+  competitorBName?: string | null
   winnerParticipantUserId: string | null
   winnerParticipantName?: string | null
   moderatorUserId: string | null
@@ -81,6 +85,9 @@ export type ArenaRegistration = {
 
 export type CreateArenaCompetitionPayload = {
   name: string
+  competitorAUserId: string
+  competitorBUserId: string
+  moderatorUserId?: string
   questionCount: number
   secondsPerQuestion: number
   scheduledAt: string

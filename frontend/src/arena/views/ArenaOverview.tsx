@@ -7,7 +7,7 @@ type Props = { onNavigate: (tab: ArenaTab) => void }
 
 const statusLabel: Record<string, string> = {
   pending: 'À venir',
-  approved: 'Inscriptions ouvertes',
+  approved: 'Match confirmé',
   live: 'En cours',
   paused: 'En pause',
   completed: 'Terminé',
@@ -75,7 +75,9 @@ export default function ArenaOverview({ onNavigate }: Props) {
             </p>
             <p style={{ fontSize: 18, fontWeight: 600, color: '#fff', marginBottom: 2 }}>{liveComp.name}</p>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-              {liveComp.questionCount} questions
+              {(liveComp.competitorAName && liveComp.competitorBName)
+                ? `${liveComp.competitorAName} vs ${liveComp.competitorBName} · ${liveComp.questionCount} questions`
+                : `${liveComp.questionCount} questions`}
             </p>
           </div>
           <button
@@ -133,6 +135,9 @@ export default function ArenaOverview({ onNavigate }: Props) {
                     {new Date(c.scheduledAt).toLocaleDateString('fr-HT')} à{' '}
                     {new Date(c.scheduledAt).toLocaleTimeString('fr-HT', { hour: '2-digit', minute: '2-digit' })}
                   </p>
+                  {c.competitorAName && c.competitorBName && (
+                    <p style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 4 }}>{c.competitorAName} vs {c.competitorBName}</p>
+                  )}
                 </div>
                 <span
                   style={{
@@ -157,7 +162,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
         <div className="card">
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Génie scolaire 1v1</p>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>
-            Consultez les compétitions ouvertes et préparez votre participation aux affrontements en direct.
+            Consultez les matchs annoncés, repérez les duels confirmés et rejoignez la scène privée si vous êtes compétiteur ou modérateur assigné.
           </p>
           <button onClick={() => onNavigate('competitions')} className="btn btn-ghost btn-sm">Voir les compétitions →</button>
         </div>

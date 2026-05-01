@@ -155,7 +155,7 @@ export class ArenaController {
     @Param('roundId') roundId: string,
     @Body() dto: ScoreRoundDto,
   ) {
-    const result = await this.arenaService.scoreRound(req.user.id, roundId, dto.result);
+    const result = await this.arenaService.scoreRound(req.user.id, roundId, dto);
     this.arenaGateway.broadcastScoreUpdated(result.competitionId, result.leaderboard);
     return result;
   }
