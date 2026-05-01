@@ -556,6 +556,49 @@
   }
 }
 
+.auth-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.auth-panel .btn-full,
+.auth-social-button {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.auth-panel .btn-full {
+  min-height: 54px;
+  padding-inline: 18px;
+}
+
+.auth-social-button {
+  line-height: 1.45;
+  padding-inline: 14px;
+}
+
+.auth-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.auth-check-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .auth-form-grid {
   display: grid;
   grid-template-columns: 1fr;
