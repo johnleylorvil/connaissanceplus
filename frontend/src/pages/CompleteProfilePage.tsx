@@ -94,7 +94,7 @@ export default function CompleteProfilePage() {
           Terminez votre inscription.
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28, lineHeight: 1.7 }}>
-          Votre compte est bien relié. Il nous manque seulement quelques informations scolaires pour activer votre espace élève dans de bonnes conditions.
+          Votre compte est bien relié. Il nous manque seulement quelques informations scolaires pour activer correctement votre espace de génie scolaire.
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
@@ -243,10 +243,10 @@ export default function CompleteProfilePage() {
         </div>
         <div>
           <blockquote className="display" style={{ fontSize: 'clamp(26px,2.8vw,40px)', color: '#fff', fontStyle: 'italic', lineHeight: 1.25, marginBottom: 24, letterSpacing: '-0.03em' }}>
-            "Un profil complet,<br />puis la compétition."
+            "Un profil complet,<br />puis le génie scolaire."
           </blockquote>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', lineHeight: 1.8 }}>
-            Cette étape permet d’afficher les bonnes matières, les bons quiz et un classement cohérent avec votre niveau réel.
+            Cette étape permet d'afficher les bonnes matières, les bonnes manches et un classement cohérent avec votre niveau réel.
           </p>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24 }}>

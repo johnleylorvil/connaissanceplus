@@ -417,7 +417,7 @@ export default function ArenaWatchPage() {
                 <div>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#fff' }}>Diffusion publique YouTube</p>
                   <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                    Le direct public est diffusé via YouTube, tandis que le score et la progression restent synchronisés sur Konesans+.
+                    Le génie scolaire public est diffusé via YouTube, tandis que le score et la progression restent synchronisés sur Konesans+.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -454,7 +454,7 @@ export default function ArenaWatchPage() {
             )}
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', textAlign: 'center', margin: 0 }}>
               {broadcastProvider === 'youtube'
-                ? 'Diffusion publique YouTube Live · Score et progression synchronisés sur Konesans+'
+                ? 'Génie scolaire public sur YouTube Live · Score et progression synchronisés sur Konesans+'
                 : 'Flux HLS public · Léger décalage possible selon la connexion'}
             </p>
           </div>

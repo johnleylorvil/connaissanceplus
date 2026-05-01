@@ -13,10 +13,10 @@ export default function TermsPage() {
           Conditions d'utilisation
         </p>
         <h1 className="display" style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: 'var(--ink)', marginBottom: 14, letterSpacing: '-0.03em' }}>
-          Un cadre clair pour une compétition académique équitable.
+          Un cadre clair pour un génie scolaire en ligne équitable.
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.8, marginBottom: 28 }}>
-          En utilisant Konesans+, vous acceptez des règles destinées à protéger l’équité des concours, la sécurité des comptes et le respect entre participants.
+          En utilisant Konesans+, vous acceptez des règles destinées à protéger l'équité des concours, la sécurité des comptes et le respect entre participants du génie scolaire en ligne.
         </p>
 
         <div style={{ display: 'grid', gap: 24 }}>

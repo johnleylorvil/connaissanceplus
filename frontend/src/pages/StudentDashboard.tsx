@@ -309,7 +309,7 @@ export default function StudentDashboard() {
             <span className="brand" style={{ fontSize: 17, color: 'var(--cobalt)' }}>Konesans</span>
             <span className="brand" style={{ fontSize: 17, color: 'var(--gold)' }}>+</span>
           </div>
-          <p style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 3 }}>Tableau de bord étudiant</p>
+          <p style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 3 }}>Tableau de bord du génie scolaire</p>
         </div>
 
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -367,7 +367,7 @@ export default function StudentDashboard() {
             <div>
               <p className="overline" style={{ marginBottom: 8 }}>Tableau de bord</p>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Bonjour, {user?.firstName}.</h1>
-              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Retrouvez vos repères, préparez vos quiz et suivez votre progression hebdomadaire.</p>
+              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Retrouvez vos repères, préparez vos manches de génie scolaire et suivez votre progression hebdomadaire.</p>
 
               <div className="responsive-three-col" style={{ border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 }}>
                 {[
@@ -384,10 +384,10 @@ export default function StudentDashboard() {
 
               <div className="card responsive-stack row" style={{ marginBottom: 28 }}>
                 <div>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 5 }}>Un entraînement rapide ?</p>
-                  <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Lancez une session pour réviser une matière avant votre prochain duel.</p>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 5 }}>Une manche d'entraînement ?</p>
+                  <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Lancez une session pour réviser une matière avant votre prochain affrontement.</p>
                 </div>
-                <button onClick={() => setTab('quiz')} className="btn btn-primary" style={{ flexShrink: 0 }}>Lancer un quiz</button>
+                <button onClick={() => setTab('quiz')} className="btn btn-primary" style={{ flexShrink: 0 }}>Lancer une manche</button>
               </div>
 
               {history.length > 0 && (
@@ -413,13 +413,13 @@ export default function StudentDashboard() {
           {tab === 'quiz' && (
             <div>
               <p className="overline" style={{ marginBottom: 8 }}>Session</p>
-              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Lancer un quiz</h1>
-              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Choisissez une matière liée à votre profil scolaire. Chaque session comporte 10 questions chronométrées.</p>
+              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Préparer mon génie scolaire</h1>
+              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Choisissez une matière liée à votre profil scolaire. Chaque session vous prépare aux manches de génie scolaire avec 10 questions chronométrées.</p>
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <div className="card" style={{ marginBottom: 0 }}>
-                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>Quiz individuel</p>
-                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Révisez une matière de votre classe avec un format court, clair et rythmé.</p>
+                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>Manche individuelle</p>
+                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Révisez une matière de votre classe avec un format court, clair et rythmé, inspiré du génie scolaire.</p>
 
                   {quizError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{quizError}</div>}
 
@@ -432,14 +432,14 @@ export default function StudentDashboard() {
                       </select>
                     </div>
                     <button onClick={startQuiz} disabled={quizLoading || !quizSubjectId} className="btn btn-primary btn-full">
-                      {quizLoading ? 'Chargement…' : 'Commencer le quiz'}
+                      {quizLoading ? 'Chargement…' : 'Commencer la manche'}
                     </button>
                   </div>
                 </div>
 
                 <div className="card" style={{ marginBottom: 0 }}>
-                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>Duel classé</p>
-                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Affrontez un autre élève dans la matière choisie. Le classement hebdomadaire dépend de vos victoires en duel.</p>
+                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>Affrontement classé</p>
+                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Affrontez un autre élève dans la matière choisie. Le classement hebdomadaire dépend de vos victoires dans les confrontations de génie scolaire.</p>
 
                   {duelError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{duelError}</div>}
 
@@ -464,12 +464,12 @@ export default function StudentDashboard() {
           {tab === 'history' && (
             <div>
               <p className="overline" style={{ marginBottom: 8 }}>Historique</p>
-              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Sessions de quiz</h1>
+              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Historique des manches</h1>
 
               {history.length === 0 ? (
                 <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--ink-3)', marginBottom: 16 }}>Aucune session enregistrée pour le moment.</p>
-                  <button onClick={() => setTab('quiz')} className="btn btn-primary btn-sm">Lancer ma première session</button>
+                  <p style={{ color: 'var(--ink-3)', marginBottom: 16 }}>Aucune manche enregistrée pour le moment.</p>
+                  <button onClick={() => setTab('quiz')} className="btn btn-primary btn-sm">Lancer ma première manche</button>
                 </div>
               ) : (
                 <div style={{ border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden' }}>
@@ -503,7 +503,7 @@ export default function StudentDashboard() {
 
               <div className="card" style={{ marginBottom: 18 }}>
                 <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.7 }}>
-                  Le classement se met à jour avec les duels remportés dans la semaine. En cas d'égalité de victoires, les bonnes réponses départagent, puis la rapidité sur les victoires. Les 3 premiers sont mis en avant, mais tout le classement reste visible.
+                  Le classement se met à jour avec les affrontements remportés dans la semaine. En cas d'égalité de victoires, les bonnes réponses départagent, puis la rapidité. Les 3 premiers sont mis en avant, mais tout le classement du génie scolaire reste visible.
                 </p>
               </div>
 

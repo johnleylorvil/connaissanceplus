@@ -52,7 +52,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
         Vue générale
       </h1>
       <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28 }}>
-        Suivez les compétitions académiques en direct et repérez les prochains affrontements.
+        Suivez le génie scolaire en direct et repérez les prochaines confrontations.
       </p>
 
       {/* Live banner */}
@@ -155,16 +155,16 @@ export default function ArenaOverview({ onNavigate }: Props) {
       {/* Quick actions */}
       <div className="responsive-two-col" style={{ gap: 12 }}>
         <div className="card">
-          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Compétitions 1v1</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Génie scolaire 1v1</p>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>
-            Consultez les compétitions ouvertes et préparez votre participation aux duels en direct.
+            Consultez les compétitions ouvertes et préparez votre participation aux affrontements en direct.
           </p>
           <button onClick={() => onNavigate('competitions')} className="btn btn-ghost btn-sm">Voir les compétitions →</button>
         </div>
         <div className="card">
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Vue spectateur</p>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>
-            Suivez les rencontres en direct depuis la page publique, avec score et progression en temps réel.
+            Suivez les rencontres de génie scolaire en direct depuis la page publique, avec score et progression en temps réel.
           </p>
           <button
             onClick={() => navigate('/arena/spectator')}

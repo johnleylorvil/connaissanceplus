@@ -136,7 +136,7 @@ export default function RegisterPage() {
 
         <h1 className="display" style={{ fontSize: 'clamp(28px, 7vw, 34px)', color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.03em' }}>Créer mon compte</h1>
         <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 32, lineHeight: 1.6 }}>
-          Créez votre espace pour participer aux quiz, aux duels et au classement hebdomadaire.
+          Créez votre espace pour participer au génie scolaire en ligne, avec manches académiques, affrontements et classement hebdomadaire.
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}

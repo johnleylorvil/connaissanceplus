@@ -106,14 +106,14 @@ export default function LandingPage() {
 
           {/* LEFT: text */}
           <div>
-            <p className="overline" style={{ marginBottom: 24 }}>Compétition scolaire nationale</p>
+            <p className="overline" style={{ marginBottom: 24 }}>Génie scolaire en ligne</p>
             <h1 className="display landing-hero-title" style={{ letterSpacing: '-0.03em', marginBottom: 18, color: '#fff' }}>
               La plateforme haïtienne<br />
-              où le <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>mérite scolaire</em><br />
-              devient visible.
+              de <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>génie scolaire</em><br />
+              en ligne.
             </h1>
             <p className="landing-hero-copy" style={{ color: 'rgba(255,255,255,0.58)' }}>
-              Quiz académiques, duels en direct, classements hebdomadaires et récompenses. Pensé pour les élèves haïtiens, de la 6e AF à la NS4.
+              Konesans+ transforme l'esprit du génie scolaire en une expérience numérique claire: manches de questions, affrontements en direct, classement hebdomadaire et reconnaissance des meilleurs élèves, de la 6e AF à la NS4.
             </p>
             <div className="landing-hero-cta">
               <button onClick={handleStudentCta} className="btn btn-gold btn-lg">Créer mon compte</button>
@@ -183,7 +183,7 @@ export default function LandingPage() {
                   Étudiants de la semaine
                 </p>
                 <p style={{ margin: 0, fontSize: 16, color: 'var(--ink-2)', lineHeight: 1.7 }}>
-                  Les trois meilleurs profils de la semaine, selon les victoires en duel et la qualité des réponses.
+                  Les trois meilleurs talents du génie scolaire de la semaine, selon les victoires et la qualité des réponses.
                 </p>
               </div>
               <a href="/login" style={{ textDecoration: 'none' }}>
@@ -265,13 +265,13 @@ export default function LandingPage() {
                 — Johnley-Roosevelt Lorvil, Fondateur de Konesans+
               </p>
               <p style={{ margin: '18px 0 0', maxWidth: 520, fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.8 }}>
-                Konesans+ est porté par une ambition simple: offrir aux élèves haïtiens un espace moderne, lisible et stimulant pour apprendre, se mesurer et faire reconnaître leur progression.
+                Konesans+ est porté par une ambition simple: faire vivre le génie scolaire haïtien en ligne, avec un cadre moderne pour apprendre, s'affronter et faire reconnaître sa progression.
               </p>
             </div>
             <div className="about-side-panel">
               {[
                 { n: '01', t: 'Accessible', d: 'Inscription gratuite et accès simplifié pour les élèves haïtiens, où qu’ils se trouvent.' },
-                { n: '02', t: 'Structuré', d: 'Règles claires, parcours lisible et classements hebdomadaires compréhensibles par tous.' },
+                { n: '02', t: 'Structuré', d: 'Règles claires, parcours lisible et classement compréhensible, comme dans un génie scolaire bien organisé.' },
                 { n: '03', t: 'Ancré localement', d: 'Contenus alignés sur le programme haïtien, de la 6e AF à la NS4.' },
               ].map((item, i, arr) => (
                 <div key={item.n} style={{ paddingBottom: i < arr.length - 1 ? 28 : 0, marginBottom: i < arr.length - 1 ? 28 : 0, borderBottom: i < arr.length - 1 ? '1px solid var(--rule)' : 'none' }}>
@@ -298,10 +298,10 @@ export default function LandingPage() {
           </div>
           <div className="features-grid">
             {[
-              { n: '01', t: 'Quiz académiques', d: 'Des sessions courtes et rythmées pour réviser par matière et mesurer rapidement votre niveau.' },
+              { n: '01', t: 'Manches académiques', d: "Des manches de questions par matière pour réviser et se préparer dans l'esprit du génie scolaire." },
               { n: '02', t: 'Classement hebdomadaire', d: 'Un classement remis à jour chaque semaine pour valoriser la régularité, la victoire et la progression.' },
-              { n: '03', t: 'Podium visible', d: 'Les meilleurs profils gagnent en visibilité sans faire disparaître le reste du classement.' },
-              { n: '04', t: 'Duels en direct', d: 'Affrontez un autre élève sur une matière donnée dans un format compétitif, clair et chronométré.' },
+              { n: '03', t: 'Podium visible', d: 'Les meilleurs profils du génie scolaire gagnent en visibilité sans faire disparaître le reste du classement.' },
+              { n: '04', t: 'Affrontements en direct', d: 'Affrontez un autre élève sur une matière donnée dans un format compétitif, clair et chronométré.' },
             ].map((f, i) => (
               <div key={f.n} style={{ background: [0, 3].includes(i) ? '#fff' : 'var(--stone)', padding: '40px 36px' }}>
                 <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 18 }}>{f.n}</span>
@@ -325,8 +325,8 @@ export default function LandingPage() {
           <div className="steps-row">
             {[
               { s: '01', t: 'Créez votre compte', d: 'Inscrivez-vous avec vos informations scolaires et confirmez votre adresse e-mail en quelques minutes.' },
-              { s: '02', t: 'Préparez-vous', d: 'Choisissez une matière, lancez un quiz et développez vos réflexes avant les compétitions.' },
-              { s: '03', t: 'Entrez en compétition', d: 'Participez aux duels, améliorez votre rang et visez le podium hebdomadaire.' },
+              { s: '02', t: 'Préparez vos manches', d: 'Choisissez une matière, lancez un entraînement et développez vos réflexes avant les confrontations.' },
+              { s: '03', t: 'Entrez dans le génie', d: 'Participez aux affrontements, améliorez votre rang et visez le podium hebdomadaire.' },
             ].map((s, i) => (
               <div key={s.s} style={{ padding: '48px 36px 48px 0', paddingLeft: i > 0 ? 36 : 0, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
                 <div className="display" style={{ fontSize: 56, color: 'rgba(255,255,255,0.06)', lineHeight: 1, marginBottom: 12, letterSpacing: '-0.05em' }}>{s.s}</div>
@@ -357,17 +357,17 @@ export default function LandingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.10)', marginBottom: 22, width: 'fit-content' }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--gold)', boxShadow: '0 0 0 4px rgba(201,145,36,0.18)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Prêt pour le classement national</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Prêt pour le génie scolaire national</span>
                 </div>
 
                 <h2 className="display" style={{ fontSize: 'clamp(36px,5vw,68px)', color: '#fff', marginBottom: 20, letterSpacing: '-0.04em', lineHeight: 1.02, maxWidth: 620 }}>
-                  Votre prochain résultat<br />
+                  Votre prochaine performance<br />
                   peut vous rapprocher du <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>podium</em><br />
                   national.
                 </h2>
 
                 <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', lineHeight: 1.8, maxWidth: 520, margin: '0 0 30px' }}>
-                  Inscription gratuite, compétitions cadrées, reconnaissance visible pour les meilleurs profils.
+                  Inscription gratuite, génie scolaire cadré, et reconnaissance visible pour les meilleurs profils.
                 </p>
 
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -380,7 +380,7 @@ export default function LandingPage() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
-                  {['Quiz académiques', 'Duels en direct', 'Classement national'].map((item) => (
+                  {['Génie scolaire en ligne', 'Affrontements en direct', 'Classement national'].map((item) => (
                     <span key={item} style={{ padding: '9px 13px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', fontSize: 12, color: 'rgba(255,255,255,0.84)' }}>
                       {item}
                     </span>
@@ -394,7 +394,7 @@ export default function LandingPage() {
                     Pourquoi rejoindre Konesans+
                   </p>
                   <p style={{ margin: 0, fontSize: 20, lineHeight: 1.45, color: '#fff' }}>
-                    Prenez vos repères dès maintenant avant les prochains cycles de quiz, de duel et de classement.
+                    Prenez vos repères dès maintenant avant les prochaines manches, confrontations et mises à jour du classement.
                   </p>
                 </div>
 
@@ -426,7 +426,7 @@ export default function LandingPage() {
                 Konesans+
               </p>
               <p style={{ margin: 0, fontSize: 15, color: '#fff', lineHeight: 1.7 }}>
-                La plateforme de compétition académique conçue pour valoriser les élèves haïtiens.
+                La plateforme de génie scolaire en ligne conçue pour valoriser les élèves haïtiens.
               </p>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -445,10 +445,10 @@ export default function LandingPage() {
                 <span className="brand" style={{ fontSize: 20, color: 'var(--gold)' }}>+</span>
               </div>
               <p style={{ margin: '0 0 18px', fontSize: 14, lineHeight: 1.8, color: 'rgba(255,255,255,0.62)', maxWidth: 320 }}>
-                Plateforme haïtienne de quiz, duels et concours académiques en ligne pour révéler le mérite scolaire.
+                Plateforme haïtienne de génie scolaire en ligne, avec manches académiques, affrontements et classement national.
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {['6e AF à NS4', 'Classement national', 'Duels en direct'].map((item) => (
+                {['6e AF à NS4', 'Classement national', 'Affrontements en direct'].map((item) => (
                   <span key={item} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
                     {item}
                   </span>
@@ -478,8 +478,8 @@ export default function LandingPage() {
                 Plateforme
               </p>
               <div style={{ display: 'grid', gap: 10 }}>
-                <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Quiz académiques</a>
-                <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Duels en direct</a>
+                <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Manches académiques</a>
+                <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Affrontements en direct</a>
                 <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Classements nationaux</a>
                 <a href="#sponsors" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Sponsors et soutien</a>
               </div>
@@ -488,7 +488,7 @@ export default function LandingPage() {
                   Engagement
                 </p>
                 <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.74)', lineHeight: 1.7 }}>
-                  Une expérience claire, équitable et évolutive au service de la performance académique.
+                  Une expérience claire, équitable et évolutive au service du génie scolaire haïtien.
                 </p>
               </div>
             </div>

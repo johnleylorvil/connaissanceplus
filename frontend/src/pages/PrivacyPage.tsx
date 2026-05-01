@@ -16,14 +16,14 @@ export default function PrivacyPage() {
           Vos données sont utilisées pour faire fonctionner la plateforme de manière claire et responsable.
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.8, marginBottom: 28 }}>
-          Konesans+ collecte uniquement les informations nécessaires à l’authentification, au positionnement scolaire, aux classements et aux communications que vous avez choisies.
+          Konesans+ collecte uniquement les informations nécessaires à l'authentification, au positionnement scolaire, aux classements et aux communications que vous avez choisies dans le cadre du génie scolaire en ligne.
         </p>
 
         <div style={{ display: 'grid', gap: 24 }}>
           <section>
             <h2 style={{ fontSize: 18, color: 'var(--cobalt)', marginBottom: 8 }}>1. Données collectées</h2>
             <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.8 }}>
-              Nous conservons les informations utiles à votre compte: identité, adresse e-mail, classe, section, établissement, résultats de quiz et de duel, ainsi que vos préférences de contact. En cas de connexion avec Google, seules les données de base nécessaires à la création du compte sont utilisées.
+              Nous conservons les informations utiles à votre compte: identité, adresse e-mail, classe, section, établissement, résultats des manches et affrontements, ainsi que vos préférences de contact. En cas de connexion avec Google, seules les données de base nécessaires à la création du compte sont utilisées.
             </p>
           </section>
           <section>

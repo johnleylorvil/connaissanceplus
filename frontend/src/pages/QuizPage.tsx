@@ -144,13 +144,13 @@ export default function QuizPage() {
 
           <div style={{ background: 'rgba(27,53,99,0.04)', border: '1px solid rgba(27,53,99,0.1)', borderRadius: 6, padding: '12px 16px', marginBottom: 20 }}>
             <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.6 }}>
-              Chaque bonne réponse améliore votre niveau de préparation. Le classement hebdomadaire dépend ensuite de vos performances en duel.
+              Chaque bonne réponse améliore votre préparation pour le génie scolaire. Le classement hebdomadaire dépend ensuite de vos performances en affrontement.
             </p>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button onClick={() => navigate('/dashboard', { replace: true })} className="btn btn-primary btn-full">Retour au tableau de bord</button>
-            <button onClick={() => navigate('/dashboard')} className="btn btn-ghost btn-full">Jouer un autre quiz</button>
+            <button onClick={() => navigate('/dashboard')} className="btn btn-ghost btn-full">Lancer une autre manche</button>
           </div>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function QuizPage() {
 
         {/* Navigation */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.65 }}>10 secondes par question, avec passage automatique à la suivante.</p>
+          <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.65 }}>10 secondes par question, avec passage automatique à la suivante, comme dans une manche de génie scolaire.</p>
           {current < questions.length - 1 ? (
             <button onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))} className="btn btn-primary btn-sm">Suivant →</button>
           ) : (

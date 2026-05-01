@@ -215,7 +215,7 @@ export default function DuelPage() {
   if (loading && !duelState) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--ink-3)', fontSize: 18 }}>Chargement du concours…</p>
+        <p style={{ color: 'var(--ink-3)', fontSize: 18 }}>Chargement du génie scolaire…</p>
       </div>
     )
   }
@@ -249,7 +249,7 @@ export default function DuelPage() {
         <div style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => navigate(homePath)} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Retour</button>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Duel oral en direct</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Génie scolaire oral en direct</p>
             <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{duelState.competitionName}</p>
           </div>
           <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: wsConnected ? '#d1fae5' : '#fee2e2', color: wsConnected ? '#065f46' : '#991b1b' }}>
@@ -315,7 +315,7 @@ export default function DuelPage() {
           {oralStatus === 'waiting' && (
             <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
               <p className="overline" style={{ marginBottom: 8 }}>En attente</p>
-              <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Le duel n’a pas encore commencé</h2>
+              <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Le génie n’a pas encore commencé</h2>
               <p style={{ fontSize: 16, color: 'var(--ink-3)' }}>Restez sur cette page. Le lancement sera annoncé ici dès le démarrage.</p>
             </div>
           )}
@@ -324,7 +324,7 @@ export default function DuelPage() {
           {oralStatus === 'completed' && (
             <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
               <p className="overline" style={{ marginBottom: 8 }}>Résultat</p>
-              <h2 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 14 }}>Duel terminé</h2>
+              <h2 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 14 }}>Génie terminé</h2>
               {oralWinner ? (
                 <p style={{ fontSize: 18, color: 'var(--ink)' }}>
                   Gagnant : <span style={{ fontWeight: 700, color: 'var(--cobalt)' }}>
@@ -355,7 +355,7 @@ export default function DuelPage() {
       <div style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button onClick={() => navigate(homePath)} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Retour</button>
         <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Concours</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Génie scolaire</p>
           <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{duelState.competitionName}</p>
         </div>
         <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, padding: '4px 12px', borderRadius: 4, background: timeLeft <= 3 ? 'var(--error)' : 'var(--stone)', color: timeLeft <= 3 ? '#fff' : 'var(--cobalt)' }}>
@@ -400,7 +400,7 @@ export default function DuelPage() {
           <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
             <p className="overline" style={{ marginBottom: 8 }}>Matchmaking</p>
             <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Recherche d'un adversaire</h2>
-            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Nous recherchons un adversaire disponible pour {duelState.competitionName}.<br/>Restez sur cette page.</p>
+            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Nous recherchons un adversaire disponible pour cette confrontation de génie scolaire: {duelState.competitionName}.<br/>Restez sur cette page.</p>
           </div>
         )}
 
@@ -444,7 +444,7 @@ export default function DuelPage() {
         {duelState.status === 'completed' && (
           <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
             <p className="overline" style={{ marginBottom: 8 }}>Résultat final</p>
-            <h2 className="display" style={{ fontSize: 34, color: 'var(--cobalt)', marginBottom: 14 }}>Concours terminé</h2>
+            <h2 className="display" style={{ fontSize: 34, color: 'var(--cobalt)', marginBottom: 14 }}>Confrontation terminée</h2>
             {duelState.winnerUserId ? (
               <p style={{ fontSize: 18, color: 'var(--ink)', marginBottom: 8 }}>
                 Gagnant : <span style={{ fontWeight: 700, color: 'var(--cobalt)' }}>{winner?.name}</span>
@@ -453,7 +453,7 @@ export default function DuelPage() {
             ) : (
               <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 8 }}>Égalité parfaite — même score, même temps.</p>
             )}
-            <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 22 }}>Départage : score, puis temps total le plus court.</p>
+            <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 22 }}>Départage : score, puis temps total le plus court, selon les règles du génie scolaire.</p>
             <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour</button>
           </div>
         )}
