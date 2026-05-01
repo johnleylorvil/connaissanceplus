@@ -47,11 +47,11 @@ export default function SponsorsSection() {
         </div>
 
         {loading && (
-          <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Chargement des sponsors…</p>
+          <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Chargement des partenaires…</p>
         )}
 
         {!loading && (hasError || sponsors.length === 0) && (
-          <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Sponsors a venir.</p>
+          <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Les partenaires officiels seront annoncés prochainement.</p>
         )}
 
         {!loading && sponsors.length > 0 && (

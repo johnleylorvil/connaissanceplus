@@ -224,7 +224,7 @@ export default function DuelPage() {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
         <div className="card" style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-          <div className="alert alert-error" style={{ marginBottom: 16 }}>{error || 'Concours introuvable'}</div>
+          <div className="alert alert-error" style={{ marginBottom: 16 }}>{error || 'Duel introuvable'}</div>
           <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour</button>
         </div>
       </div>
@@ -249,7 +249,7 @@ export default function DuelPage() {
         <div style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => navigate(homePath)} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Retour</button>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Duel Oral Live</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Duel oral en direct</p>
             <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{duelState.competitionName}</p>
           </div>
           <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: wsConnected ? '#d1fae5' : '#fee2e2', color: wsConnected ? '#065f46' : '#991b1b' }}>
@@ -265,7 +265,7 @@ export default function DuelPage() {
             {oralParticipants.length > 0 ? oralParticipants.map((p) => (
               <div key={p.userId} className="card" style={{ border: p.userId === user?.id ? '1.5px solid var(--cobalt)' : '1px solid var(--rule)', textAlign: 'center' }}>
                 <p style={{ fontSize: 12, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                  Compétiteur {p.role}
+                    Participant {p.role}
                   {p.userId === user?.id && <span style={{ color: 'var(--cobalt)', marginLeft: 6 }}>Vous</span>}
                 </p>
                 <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>{p.name}</p>
@@ -315,8 +315,8 @@ export default function DuelPage() {
           {oralStatus === 'waiting' && (
             <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
               <p className="overline" style={{ marginBottom: 8 }}>En attente</p>
-              <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Le modérateur n'a pas encore démarré le duel</h2>
-              <p style={{ fontSize: 16, color: 'var(--ink-3)' }}>Restez sur cette page. Le duel démarrera bientôt.</p>
+              <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Le duel n’a pas encore commencé</h2>
+              <p style={{ fontSize: 16, color: 'var(--ink-3)' }}>Restez sur cette page. Le lancement sera annoncé ici dès le démarrage.</p>
             </div>
           )}
 
@@ -400,7 +400,7 @@ export default function DuelPage() {
           <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
             <p className="overline" style={{ marginBottom: 8 }}>Matchmaking</p>
             <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Recherche d'un adversaire</h2>
-            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Le matchmaking est en cours sur {duelState.competitionName}.<br/>Restez sur cette page.</p>
+            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Nous recherchons un adversaire disponible pour {duelState.competitionName}.<br/>Restez sur cette page.</p>
           </div>
         )}
 
@@ -436,7 +436,7 @@ export default function DuelPage() {
         {duelState.status === 'in_progress' && !duelState.canAnswer && (
           <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
             <h2 className="display" style={{ fontSize: 28, color: 'var(--cobalt)', marginBottom: 10 }}>En attente de l'adversaire</h2>
-            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Vous avez terminé. Le résultat final arrive dès que l'autre joueur termine.</p>
+            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Votre série est terminée. Le résultat final s’affichera dès que l’autre joueur aura terminé.</p>
           </div>
         )}
 

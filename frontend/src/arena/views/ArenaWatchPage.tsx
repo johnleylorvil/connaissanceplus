@@ -333,16 +333,16 @@ export default function ArenaWatchPage() {
             )}
             <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#6366f1', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }} />
             <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>
-              {broadcastStatus === 'stopped' ? 'Match terminé' : isLive ? 'Match en cours…' : 'En attente de la diffusion…'}
+              {broadcastStatus === 'stopped' ? 'Diffusion terminée' : isLive ? 'Diffusion en cours…' : 'En attente du direct…'}
             </p>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
               {broadcastStatus === 'stopped'
-                ? "La diffusion est terminée. Consultez l'Arena pour les résultats."
+                ? "La diffusion est terminée. Consultez l’Arena pour retrouver les résultats."
                 : isLive
                   ? hasYoutubeStream
-                    ? 'Le match est en cours. La vidéo YouTube apparaîtra ici dès que le modérateur confirmera la mise en direct publique.'
-                    : 'Le match est en cours. La scène privée reste sur Konesans+ et la vidéo publique YouTube apparaîtra ici après configuration.'
-                  : 'La diffusion démarrera quand l’équipe aura configuré et activé le live public YouTube.'}
+                    ? 'Le direct est en cours. La vidéo publique apparaîtra ici dès que la diffusion externe sera confirmée.'
+                    : 'Le direct est en cours. La vidéo publique apparaîtra ici dès que la diffusion spectateur sera disponible.'
+                  : 'La diffusion apparaîtra ici dès qu’elle sera activée pour le public.'}
             </p>
             {hasYoutubeStream && (
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 20 }}>
@@ -417,7 +417,7 @@ export default function ArenaWatchPage() {
                 <div>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#fff' }}>Diffusion publique YouTube</p>
                   <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                    La scène privée reste sur Konesans+, mais la vidéo spectateur est servie par YouTube Live pour réduire la latence d\'exploitation côté plateforme.
+                    Le direct public est diffusé via YouTube, tandis que le score et la progression restent synchronisés sur Konesans+.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -454,8 +454,8 @@ export default function ArenaWatchPage() {
             )}
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', textAlign: 'center', margin: 0 }}>
               {broadcastProvider === 'youtube'
-                ? 'Vidéo publique YouTube Live · Le score, les rounds et la modération restent synchronisés par Konesans+'
-                : 'Latence HLS standard (~10–20s) · Haute définition'}
+                ? 'Diffusion publique YouTube Live · Score et progression synchronisés sur Konesans+'
+                : 'Flux HLS public · Léger décalage possible selon la connexion'}
             </p>
           </div>
         )}

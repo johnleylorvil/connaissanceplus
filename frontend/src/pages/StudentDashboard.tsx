@@ -367,7 +367,7 @@ export default function StudentDashboard() {
             <div>
               <p className="overline" style={{ marginBottom: 8 }}>Tableau de bord</p>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Bonjour, {user?.firstName}.</h1>
-              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Prêt à dominer le classement aujourd'hui ?</p>
+              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Retrouvez vos repères, préparez vos quiz et suivez votre progression hebdomadaire.</p>
 
               <div className="responsive-three-col" style={{ border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 }}>
                 {[
@@ -384,10 +384,10 @@ export default function StudentDashboard() {
 
               <div className="card responsive-stack row" style={{ marginBottom: 28 }}>
                 <div>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 5 }}>Prêt pour un quiz ?</p>
-                  <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Lancez une session pour vous entraîner avant vos prochains duels.</p>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 5 }}>Un entraînement rapide ?</p>
+                  <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Lancez une session pour réviser une matière avant votre prochain duel.</p>
                 </div>
-                <button onClick={() => setTab('quiz')} className="btn btn-primary" style={{ flexShrink: 0 }}>Commencer</button>
+                <button onClick={() => setTab('quiz')} className="btn btn-primary" style={{ flexShrink: 0 }}>Lancer un quiz</button>
               </div>
 
               {history.length > 0 && (
@@ -413,13 +413,13 @@ export default function StudentDashboard() {
           {tab === 'quiz' && (
             <div>
               <p className="overline" style={{ marginBottom: 8 }}>Session</p>
-              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Lancer un Quiz</h1>
-              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Choisissez une matière selon votre classe de profil. Les concours se jouent en 10 questions fixes.</p>
+              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Lancer un quiz</h1>
+              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 28 }}>Choisissez une matière liée à votre profil scolaire. Chaque session comporte 10 questions chronométrées.</p>
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <div className="card" style={{ marginBottom: 0 }}>
                   <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>Quiz individuel</p>
-                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Entraînez-vous dans une matière de votre classe avec 10 questions chronométrées.</p>
+                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Révisez une matière de votre classe avec un format court, clair et rythmé.</p>
 
                   {quizError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{quizError}</div>}
 
@@ -432,14 +432,14 @@ export default function StudentDashboard() {
                       </select>
                     </div>
                     <button onClick={startQuiz} disabled={quizLoading || !quizSubjectId} className="btn btn-primary btn-full">
-                      {quizLoading ? 'Chargement…' : 'Lancer le Quiz'}
+                      {quizLoading ? 'Chargement…' : 'Commencer le quiz'}
                     </button>
                   </div>
                 </div>
 
                 <div className="card" style={{ marginBottom: 0 }}>
-                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>Concours Général</p>
-                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Affrontez un autre étudiant en ligne dans la matière choisie. Le matchmaking respecte votre classe de profil et le classement hebdomadaire dépend toujours de vos victoires.</p>
+                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>Duel classé</p>
+                  <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.7 }}>Affrontez un autre élève dans la matière choisie. Le classement hebdomadaire dépend de vos victoires en duel.</p>
 
                   {duelError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{duelError}</div>}
 
@@ -468,8 +468,8 @@ export default function StudentDashboard() {
 
               {history.length === 0 ? (
                 <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--ink-3)', marginBottom: 16 }}>Vous n'avez pas encore joué de quiz.</p>
-                  <button onClick={() => setTab('quiz')} className="btn btn-primary btn-sm">Commencer maintenant</button>
+                  <p style={{ color: 'var(--ink-3)', marginBottom: 16 }}>Aucune session enregistrée pour le moment.</p>
+                  <button onClick={() => setTab('quiz')} className="btn btn-primary btn-sm">Lancer ma première session</button>
                 </div>
               ) : (
                 <div style={{ border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden' }}>
@@ -600,7 +600,7 @@ export default function StudentDashboard() {
                   <p style={{ fontSize: 16, color: 'var(--ink-3)', marginTop: 4 }}>{unreadCount} non lue{unreadCount !== 1 ? 's' : ''}</p>
                 </div>
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Tout marquer lu</button>
+                  <button onClick={markAllRead} className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Tout marquer comme lu</button>
                 )}
               </div>
 
@@ -668,7 +668,7 @@ export default function StudentDashboard() {
           {tab === 'profile' && (
             <div>
               <p className="overline" style={{ marginBottom: 8 }}>Compte</p>
-              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Mon Profil</h1>
+              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Mon profil</h1>
 
               <div className="card" style={{ maxWidth: 480 }}>
                 {profileMsg && <div className="alert alert-ok" style={{ marginBottom: 14 }}>{profileMsg}</div>}
@@ -736,7 +736,7 @@ export default function StudentDashboard() {
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                     <input type="checkbox" checked={profileForm.canBeContacted} onChange={(e) => setProfileForm({ ...profileForm, canBeContacted: e.target.checked })} style={{ accentColor: 'var(--cobalt)', width: 15, height: 15 }} />
-                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Accepter d'être contacté par Konesans+</span>
+                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Accepter d’être contacté par Konesans+</span>
                   </label>
 
                   <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 16, marginTop: 4 }}>

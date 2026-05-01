@@ -16,18 +16,18 @@ function BrandQuote({ isAdminPortal }: { isAdminPortal: boolean }) {
         <br />
         plateforme,
         <br />
-        gardez la main."
+        avec clarté."
       </>
     )
   }
 
   return (
     <>
-      "Testez vos
+      "Mesurez vos
       <br />
-      connaissances,
+      performances,
       <br />
-      excellez."
+      progressez."
     </>
   )
 }
@@ -86,7 +86,7 @@ export default function LoginPage() {
       login(data.accessToken, normalizedUser)
       navigate(userHome(normalizedUser), { replace: true })
     } catch (err) {
-      setError((err as ApiError).message || 'Erreur de connexion')
+      setError((err as ApiError).message || 'Impossible de vous connecter pour le moment.')
     } finally {
       setLoading(false)
     }
@@ -104,12 +104,12 @@ export default function LoginPage() {
         </Link>
 
         <h1 className="display" style={{ fontSize: 'clamp(30px, 7vw, 38px)', color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.03em' }}>
-          {isAdminPortal ? 'Portail interne.' : 'Bon retour.'}
+          {isAdminPortal ? 'Portail d’administration' : 'Bon retour sur Konesans+'}
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 32, lineHeight: 1.6 }}>
           {isAdminPortal
-            ? 'Accès réservé aux administrateurs et modérateurs Konesans+.'
-            : 'Connectez-vous pour accéder à votre tableau de bord.'}
+            ? 'Accès réservé aux administrateurs et aux modérateurs autorisés.'
+            : 'Connectez-vous pour retrouver votre espace, vos quiz et votre progression.'}
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
@@ -196,8 +196,8 @@ export default function LoginPage() {
           </blockquote>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.38)', lineHeight: 1.8 }}>
             {isAdminPortal
-              ? 'Portail interne pour la gestion et la modération de Konesans+.'
-              : 'La plateforme académique haïtienne pour les étudiants de la 7e AF à la Philo.'}
+              ? 'Espace interne dédié au pilotage, à la modération et au suivi opérationnel de Konesans+.'
+              : 'La plateforme académique haïtienne pensée pour réviser, concourir et progresser.'}
           </p>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24 }}>

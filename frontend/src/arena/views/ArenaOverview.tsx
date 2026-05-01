@@ -52,7 +52,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
         Vue générale
       </h1>
       <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28 }}>
-        Compétitions académiques live en 1v1.
+        Suivez les compétitions académiques en direct et repérez les prochains affrontements.
       </p>
 
       {/* Live banner */}
@@ -71,7 +71,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
         >
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 6 }}>
-              Live maintenant
+              En direct maintenant
             </p>
             <p style={{ fontSize: 18, fontWeight: 600, color: '#fff', marginBottom: 2 }}>{liveComp.name}</p>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
@@ -83,7 +83,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
             className="btn btn-gold btn-sm"
             style={{ flexShrink: 0 }}
           >
-            Rejoindre →
+            Voir le direct →
           </button>
         </div>
       )}
@@ -157,14 +157,14 @@ export default function ArenaOverview({ onNavigate }: Props) {
         <div className="card">
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Compétitions 1v1</p>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>
-            Inscrivez-vous individuellement et participez aux matchs oraux en direct.
+            Consultez les compétitions ouvertes et préparez votre participation aux duels en direct.
           </p>
           <button onClick={() => onNavigate('competitions')} className="btn btn-ghost btn-sm">Voir les compétitions →</button>
         </div>
         <div className="card">
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Vue spectateur</p>
           <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>
-            Suivez les compétitions en direct depuis la page publique.
+            Suivez les rencontres en direct depuis la page publique, avec score et progression en temps réel.
           </p>
           <button
             onClick={() => navigate('/arena/spectator')}

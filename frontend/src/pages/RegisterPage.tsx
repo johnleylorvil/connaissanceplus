@@ -14,7 +14,7 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   const message = (error as { message?: string })?.message?.trim()
   if (!message) return fallback
   if (message === 'Failed to fetch') {
-    return "Impossible de contacter le serveur pour l'instant. Reessayez dans quelques instants."
+    return "Impossible de contacter le serveur pour l'instant. Réessayez dans quelques instants."
   }
   return message
 }
@@ -74,9 +74,9 @@ export default function RegisterPage() {
       setOtpEmail(data.email)
       setOtpCode('')
       setResendCountdown(data.resendAvailableInSeconds)
-      setNotice(`Un code OTP a ete envoye a ${data.email}. Saisissez-le pour finaliser votre inscription.`)
+      setNotice(`Un code de vérification a été envoyé à ${data.email}. Saisissez-le pour finaliser votre inscription.`)
     } catch (err) {
-      setError(getOtpErrorMessage(err, "Erreur lors de l'inscription"))
+      setError(getOtpErrorMessage(err, "Impossible de démarrer l'inscription."))
     } finally {
       setLoading(false)
     }
@@ -95,9 +95,9 @@ export default function RegisterPage() {
       setOtpEmail(data.email)
       setResendCountdown(data.resendAvailableInSeconds)
       setOtpCode('')
-      setNotice(`Un nouveau code OTP a ete envoye a ${data.email}.`)
+      setNotice(`Un nouveau code de vérification a été envoyé à ${data.email}.`)
     } catch (err) {
-      setError(getOtpErrorMessage(err, "Impossible de renvoyer le code OTP."))
+      setError(getOtpErrorMessage(err, "Impossible de renvoyer le code de vérification."))
     } finally {
       setLoading(false)
     }
@@ -117,7 +117,7 @@ export default function RegisterPage() {
       login(data.accessToken, data.user)
       navigate(userHome(data.user), { replace: true })
     } catch (err) {
-      setError(getOtpErrorMessage(err, 'Erreur lors de la verification OTP'))
+      setError(getOtpErrorMessage(err, 'Impossible de vérifier le code pour le moment.'))
     } finally {
       setLoading(false)
     }
@@ -136,7 +136,7 @@ export default function RegisterPage() {
 
         <h1 className="display" style={{ fontSize: 'clamp(28px, 7vw, 34px)', color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.03em' }}>Créer mon compte</h1>
         <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 32, lineHeight: 1.6 }}>
-          Rejoignez des milliers d'étudiants haïtiens sur Konesans+
+          Créez votre espace pour participer aux quiz, aux duels et au classement hebdomadaire.
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
@@ -145,10 +145,10 @@ export default function RegisterPage() {
         {verificationId ? (
           <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, marginTop: -2 }}>
-              Entrez le code recu par email{otpEmail ? ` a ${otpEmail}` : ''}. Le code expire au bout de 10 minutes.
+              Entrez le code reçu par e-mail{otpEmail ? ` à ${otpEmail}` : ''}. Il reste valable pendant 10 minutes.
             </p>
             <div>
-              <label className="field-label">Code OTP</label>
+              <label className="field-label">Code de vérification</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -163,11 +163,11 @@ export default function RegisterPage() {
             </div>
 
             <button type="submit" disabled={loading || otpCode.length !== 6} className="btn btn-primary btn-full btn-lg" style={{ marginTop: 4 }}>
-              {loading ? 'Verification…' : 'Verifier mon email'}
+              {loading ? 'Vérification…' : 'Vérifier mon adresse e-mail'}
             </button>
 
             <button type="button" className="btn btn-ghost btn-full" onClick={handleResendOtp} disabled={loading || resendCountdown > 0}>
-              {resendCountdown > 0 ? `Renvoyer le code dans ${resendCountdown}s` : 'Renvoyer le code OTP'}
+              {resendCountdown > 0 ? `Renvoyer le code dans ${resendCountdown}s` : 'Renvoyer le code'}
             </button>
 
             <button type="button" className="btn btn-ghost btn-full" onClick={() => { setVerificationId(null); setOtpCode(''); setOtpEmail(''); setNotice(''); setResendCountdown(0) }}>
@@ -257,7 +257,7 @@ export default function RegisterPage() {
               style={{ marginTop: 3, accentColor: 'var(--cobalt)', width: 14, height: 14, flexShrink: 0 }}
             />
             <span style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-              J'accepte d'être contacté par Konesans+ pour des offres et annonces
+              J’accepte de recevoir les annonces et informations utiles de Konesans+.
             </span>
           </label>
 
@@ -277,7 +277,7 @@ export default function RegisterPage() {
           </label>
 
           <button type="submit" disabled={loading || !form.acceptedPrivacyPolicy} className="btn btn-primary btn-full btn-lg" style={{ marginTop: 4 }}>
-            {loading ? 'Envoi du code…' : 'Recevoir mon code OTP'}
+            {loading ? 'Envoi du code…' : 'Recevoir mon code de vérification'}
           </button>
         </form>
         )}
@@ -318,7 +318,7 @@ export default function RegisterPage() {
             "Votre première question vous attend."
           </blockquote>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.38)', lineHeight: 1.8 }}>
-            Inscription gratuite, classement national, récompenses réelles.
+            Inscription gratuite, progression visible et accès direct aux compétitions académiques.
           </p>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24 }}>

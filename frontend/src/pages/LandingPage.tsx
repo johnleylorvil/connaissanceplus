@@ -8,7 +8,7 @@ export default function LandingPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [scrolled, setScrolled] = useState(false)
-  const navLinks = [['À propos', '#about'], ['Fonctionnalités', '#features'], ['Comment', '#how']] as const
+  const navLinks = [['À propos', '#about'], ['Fonctionnalités', '#features'], ['Parcours', '#how']] as const
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > window.innerHeight - 80)
@@ -50,7 +50,7 @@ export default function LandingPage() {
             </div>
             <div className="hidden md:flex" style={{ alignItems: 'center', gap: 8, padding: '7px 11px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.08)' : 'rgba(22,36,71,0.06)', border: `1px solid ${onDark ? 'rgba(255,255,255,0.08)' : 'rgba(22,36,71,0.08)'}` }}>
               <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--gold)', boxShadow: '0 0 0 4px rgba(201,145,36,0.12)' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: onDark ? 'rgba(255,255,255,0.72)' : 'var(--cobalt)' }}>Arena live</span>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: onDark ? 'rgba(255,255,255,0.72)' : 'var(--cobalt)' }}>Arena en direct</span>
             </div>
           </div>
           <div className="hidden md:flex" style={{ gap: 10, padding: '6px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.05)' : 'rgba(22,36,71,0.04)', border: `1px solid ${onDark ? 'rgba(255,255,255,0.08)' : 'rgba(22,36,71,0.06)'}` }}>
@@ -94,19 +94,19 @@ export default function LandingPage() {
           <div>
             <p className="overline" style={{ marginBottom: 24 }}>Compétition scolaire nationale</p>
             <h1 className="display landing-hero-title" style={{ letterSpacing: '-0.03em', marginBottom: 18, color: '#fff' }}>
-              Prouvez votre classe.<br />
-              Montez au <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>classement</em>.<br />
-              Gagnez.
+              La plateforme haïtienne<br />
+              où le <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>mérite scolaire</em><br />
+              devient visible.
             </h1>
             <p className="landing-hero-copy" style={{ color: 'rgba(255,255,255,0.58)' }}>
-              Quiz, duels en direct, podium national, primes. De la 7e AF à la Philo.
+              Quiz académiques, duels en direct, classements hebdomadaires et récompenses. Pensé pour les élèves haïtiens, de la 7e AF à la Philo.
             </p>
             <div className="landing-hero-cta">
-              <button onClick={handleStudentCta} className="btn btn-gold btn-lg">Entrer dans l'arène</button>
-              <a href="#about" className="btn btn-lg" style={{ color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', textDecoration: 'none' }}>Voir plus</a>
+              <button onClick={handleStudentCta} className="btn btn-gold btn-lg">Créer mon compte</button>
+              <a href="#about" className="btn btn-lg" style={{ color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', textDecoration: 'none' }}>Découvrir la plateforme</a>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
-              {[{ v: '500+', l: 'Questions' }, { v: 'Live', l: 'Duels' }, { v: 'Primes', l: 'Podium' }].map((s, i) => (
+              {[{ v: '500+', l: 'Questions' }, { v: 'Hebdo', l: 'Classement' }, { v: 'En direct', l: 'Duels' }].map((s, i) => (
                 <div key={s.l} style={{ paddingRight: 32, paddingLeft: i > 0 ? 32 : 0, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
                   <div className="display" style={{ fontSize: 24, color: '#fff', letterSpacing: '-0.03em' }}>{s.v}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4 }}>{s.l}</div>
@@ -120,13 +120,13 @@ export default function LandingPage() {
             {/* Live duel card */}
             <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '24px', marginBottom: 16 }}>
               <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 14 }}>
-                Duel live · Sciences
+                Duel en direct · Sciences
               </p>
               <p style={{ fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 20 }}>
                 Jean R. 8 · 7 Marie C.
               </p>
               <div className="responsive-card-grid" style={{ gap: 10 }}>
-                {[{ l: 'J1', v: 'Jean R.', active: true }, { l: 'J2', v: 'Marie C.', active: false }, { l: 'Live', v: '214', active: false }, { l: 'Prime', v: '500 HTG', active: false }].map(opt => (
+                {[{ l: 'Élève 1', v: 'Jean R.', active: true }, { l: 'Élève 2', v: 'Marie C.', active: false }, { l: 'Public', v: '214', active: false }, { l: 'Prime', v: '500 HTG', active: false }].map(opt => (
                   <div key={opt.l} style={{ padding: '12px 16px', borderRadius: 6, background: opt.active ? 'var(--gold)' : 'rgba(255,255,255,0.06)', border: `1px solid ${opt.active ? 'var(--gold)' : 'rgba(255,255,255,0.08)'}`, fontSize: 14, color: opt.active ? '#fff' : 'rgba(255,255,255,0.7)', fontWeight: opt.active ? 600 : 400, display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: 12, opacity: 0.6 }}>{opt.l}</span>{opt.v}
                   </div>
@@ -171,7 +171,7 @@ export default function LandingPage() {
           <div className="about-grid">
             <div>
               <blockquote style={{ margin: '0 0 24px', fontFamily: "'DM Serif Display', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(20px,2.4vw,30px)', color: 'var(--cobalt)', lineHeight: 1.45, letterSpacing: '-0.02em' }}>
-                "Transformer le savoir en défi, en mérite et en reconnaissance."
+                "Faire de l'excellence scolaire une expérience visible, motivante et reconnue."
               </blockquote>
               <p style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-2)', fontWeight: 600 }}>
                 — Johnley, Initiateur de Konesans+
@@ -184,10 +184,10 @@ export default function LandingPage() {
                     style={{ width: '100%', aspectRatio: '4 / 5', objectFit: 'cover', borderRadius: 18, display: 'block', border: '1px solid var(--rule)' }}
                   />
                 ) : (
-                  <div style={{ width: '100%', aspectRatio: '4 / 5', borderRadius: 18, border: '1px dashed rgba(22,36,71,0.2)', background: 'linear-gradient(180deg, rgba(201,145,36,0.08), rgba(22,36,71,0.04))', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+                  <div style={{ width: '100%', aspectRatio: '4 / 5', borderRadius: 18, border: '1px solid rgba(22,36,71,0.08)', background: 'linear-gradient(180deg, rgba(201,145,36,0.08), rgba(22,36,71,0.04))', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
                     <div>
-                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--cobalt)' }}>Votre photo ici</p>
-                      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>Ajoutez votre portrait pour personnaliser cette section.</p>
+                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--cobalt)' }}>Vision Konesans+</p>
+                      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>Une plateforme pensée pour valoriser les élèves, les écoles et la culture de la performance académique en Haïti.</p>
                     </div>
                   </div>
                 )}
@@ -195,9 +195,9 @@ export default function LandingPage() {
             </div>
             <div className="about-side-panel">
               {[
-                { n: '01', t: 'Accessible', d: 'Gratuit et ouvert aux élèves haïtiens, partout dans le pays.' },
-                { n: '02', t: 'Compétitif', d: 'Classements clairs, duels live, top 3 visible chaque semaine.' },
-                { n: '03', t: 'Local', d: 'Contenu aligné sur le programme haïtien, de la 7e AF à la Philo.' },
+                { n: '01', t: 'Accessible', d: 'Inscription gratuite et accès simplifié pour les élèves haïtiens, où qu’ils se trouvent.' },
+                { n: '02', t: 'Structuré', d: 'Règles claires, parcours lisible et classements hebdomadaires compréhensibles par tous.' },
+                { n: '03', t: 'Ancré localement', d: 'Contenus alignés sur le programme haïtien, du fondamental jusqu’à la Philo.' },
               ].map((item, i, arr) => (
                 <div key={item.n} style={{ paddingBottom: i < arr.length - 1 ? 28 : 0, marginBottom: i < arr.length - 1 ? 28 : 0, borderBottom: i < arr.length - 1 ? '1px solid var(--rule)' : 'none' }}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -223,10 +223,10 @@ export default function LandingPage() {
           </div>
           <div className="features-grid">
             {[
-              { n: '01', t: 'Quiz Adaptatifs', d: 'Questions calibrées sur le curriculum haïtien selon votre classe et matière. 10 secondes par question, 10 questions par session.' },
-              { n: '02', t: 'Classements Nationaux', d: 'Compétissez avec des étudiants de tout le pays. Le classement hebdomadaire se base sur les victoires en duel et repart à zéro chaque lundi.' },
-              { n: '03', t: 'Podium Hebdomadaire', d: 'Les trois premiers sont mis en avant chaque semaine, tout en gardant visibles les autres étudiants du classement.' },
-              { n: '04', t: 'Duels en Direct', d: 'Défiez un adversaire en temps réel sur un sujet choisi. Le score final détermine le gagnant.' },
+              { n: '01', t: 'Quiz académiques', d: 'Des sessions courtes et rythmées pour réviser par matière et mesurer rapidement votre niveau.' },
+              { n: '02', t: 'Classement hebdomadaire', d: 'Un classement remis à jour chaque semaine pour valoriser la régularité, la victoire et la progression.' },
+              { n: '03', t: 'Podium visible', d: 'Les meilleurs profils gagnent en visibilité sans faire disparaître le reste du classement.' },
+              { n: '04', t: 'Duels en direct', d: 'Affrontez un autre élève sur une matière donnée dans un format compétitif, clair et chronométré.' },
             ].map((f, i) => (
               <div key={f.n} style={{ background: [0, 3].includes(i) ? '#fff' : 'var(--stone)', padding: '40px 36px' }}>
                 <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 18 }}>{f.n}</span>
@@ -249,9 +249,9 @@ export default function LandingPage() {
           </div>
           <div className="steps-row">
             {[
-              { s: '01', t: 'Créez votre compte', d: "Inscrivez-vous en 60 secondes avec vos informations scolaires. Aucune carte bancaire, aucun abonnement." },
-              { s: '02', t: 'Entraînez-vous au quiz', d: 'Sélectionnez votre matière et lancez une session de 10 questions. 10 secondes par question pour vous préparer aux duels.' },
-              { s: '03', t: 'Grimpez au classement', d: 'Cherchez un adversaire, gagnez vos duels et visez le top 3 du classement hebdomadaire.' },
+              { s: '01', t: 'Créez votre compte', d: 'Inscrivez-vous avec vos informations scolaires et confirmez votre adresse e-mail en quelques minutes.' },
+              { s: '02', t: 'Préparez-vous', d: 'Choisissez une matière, lancez un quiz et développez vos réflexes avant les compétitions.' },
+              { s: '03', t: 'Entrez en compétition', d: 'Participez aux duels, améliorez votre rang et visez le podium hebdomadaire.' },
             ].map((s, i) => (
               <div key={s.s} style={{ padding: '48px 36px 48px 0', paddingLeft: i > 0 ? 36 : 0, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
                 <div className="display" style={{ fontSize: 56, color: 'rgba(255,255,255,0.06)', lineHeight: 1, marginBottom: 12, letterSpacing: '-0.05em' }}>{s.s}</div>
@@ -282,30 +282,30 @@ export default function LandingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.10)', marginBottom: 22, width: 'fit-content' }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--gold)', boxShadow: '0 0 0 4px rgba(201,145,36,0.18)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Entrez dans le classement</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Prêt pour le classement national</span>
                 </div>
 
                 <h2 className="display" style={{ fontSize: 'clamp(36px,5vw,68px)', color: '#fff', marginBottom: 20, letterSpacing: '-0.04em', lineHeight: 1.02, maxWidth: 620 }}>
-                  Le prochain nom<br />
-                  du <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>podium</em><br />
-                  peut etre le votre.
+                  Votre prochain résultat<br />
+                  peut vous rapprocher du <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>podium</em><br />
+                  national.
                 </h2>
 
                 <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', lineHeight: 1.8, maxWidth: 520, margin: '0 0 30px' }}>
-                  Inscription gratuite. Competition reelle. Reconnaissance nationale.
+                  Inscription gratuite, compétitions cadrées, reconnaissance visible pour les meilleurs profils.
                 </p>
 
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                   <button onClick={handleStudentCta} className="btn btn-gold btn-lg" style={{ boxShadow: '0 16px 30px rgba(201,145,36,0.24)' }}>
-                    Commencer
+                    Commencer maintenant
                   </button>
                   <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.52)', letterSpacing: '0.03em' }}>
-                    Sans carte bancaire. Acces immediat.
+                    Sans carte bancaire. Accès immédiat.
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
-                  {['Quiz academiques', 'Duels live', 'Top national'].map((item) => (
+                  {['Quiz académiques', 'Duels en direct', 'Classement national'].map((item) => (
                     <span key={item} style={{ padding: '9px 13px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', fontSize: 12, color: 'rgba(255,255,255,0.84)' }}>
                       {item}
                     </span>
@@ -316,19 +316,19 @@ export default function LandingPage() {
               <div style={{ display: 'grid', gap: 14 }}>
                 <div style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 24, padding: '24px 22px' }}>
                   <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.52)' }}>
-                    Pourquoi maintenant
+                    Pourquoi rejoindre Konesans+
                   </p>
                   <p style={{ margin: 0, fontSize: 20, lineHeight: 1.45, color: '#fff' }}>
-                    Rejoignez la plateforme avant les prochains cycles de duel et de classement.
+                    Prenez vos repères dès maintenant avant les prochains cycles de quiz, de duel et de classement.
                   </p>
                 </div>
 
                 <div className="responsive-card-grid" style={{ gap: 14 }}>
                   {[
-                    { value: 'Top 3', label: 'Visibilite hebdo' },
-                    { value: 'Live', label: 'Defis en direct' },
-                    { value: 'Primes', label: 'Recompenses' },
-                    { value: 'National', label: 'Portee du classement' },
+                    { value: 'Top 3', label: 'Visibilité hebdo' },
+                    { value: 'Direct', label: 'Défis en temps réel' },
+                    { value: 'Primes', label: 'Récompenses' },
+                    { value: 'National', label: 'Portée du classement' },
                   ].map((item) => (
                     <div key={item.label} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 20, padding: '18px 16px' }}>
                       <p className="display" style={{ margin: '0 0 6px', fontSize: 26, letterSpacing: '-0.04em', color: '#fff' }}>{item.value}</p>
@@ -348,14 +348,14 @@ export default function LandingPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', padding: '0 0 22px', marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <div>
               <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.42)' }}>
-                Konesans+ Network
+                Konesans+
               </p>
               <p style={{ margin: 0, fontSize: 15, color: '#fff', lineHeight: 1.7 }}>
-                Une vitrine plus sérieuse pour une plateforme de concours académique nationale.
+                La plateforme de compétition académique conçue pour valoriser les élèves haïtiens.
               </p>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {['Education', 'Competition', 'Recognition'].map((item) => (
+              {['Éducation', 'Compétition', 'Reconnaissance'].map((item) => (
                 <span key={item} style={{ padding: '9px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', fontSize: 12, color: 'rgba(255,255,255,0.74)' }}>
                   {item}
                 </span>
@@ -380,7 +380,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <p style={{ margin: '18px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.42)', lineHeight: 1.7 }}>
-                Siège provisoire: Port-au-Prince, Haïti
+                Port-au-Prince, Haïti
               </p>
             </div>
 
@@ -410,10 +410,10 @@ export default function LandingPage() {
               </div>
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                 <p style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.36)' }}>
-                  Statut
+                  Engagement
                 </p>
                 <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.74)', lineHeight: 1.7 }}>
-                  Déploiement progressif avec informations publiques modifiables.
+                  Une expérience claire, équitable et évolutive au service de la performance académique.
                 </p>
               </div>
             </div>
@@ -458,7 +458,7 @@ export default function LandingPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, paddingTop: 22 }}>
             <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.34)', letterSpacing: '0.04em' }}>
-              © 2026 Konesans+. Tous droits réservés. Informations de contact et d'organisation provisoires.
+              © 2026 Konesans+. Tous droits réservés.
             </p>
             <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
               <a href="#about" style={{ color: 'rgba(255,255,255,0.52)', textDecoration: 'none', fontSize: 12 }}>Vision</a>

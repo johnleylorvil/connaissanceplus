@@ -144,7 +144,7 @@ export default function QuizPage() {
 
           <div style={{ background: 'rgba(27,53,99,0.04)', border: '1px solid rgba(27,53,99,0.1)', borderRadius: 6, padding: '12px 16px', marginBottom: 20 }}>
             <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.6 }}>
-              Chaque bonne réponse vaut 1 point pour votre entraînement. Le classement hebdomadaire dépend de vos résultats en duel.
+              Chaque bonne réponse améliore votre niveau de préparation. Le classement hebdomadaire dépend ensuite de vos performances en duel.
             </p>
           </div>
 
@@ -168,7 +168,7 @@ export default function QuizPage() {
           <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>Question {current + 1}/{questions.length}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 15, color: 'var(--ink-3)' }}>{answeredCount}/{questions.length} répondues</span>
+          <span style={{ fontSize: 15, color: 'var(--ink-3)' }}>{answeredCount}/{questions.length} réponses</span>
           <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, padding: '4px 12px', borderRadius: 4, background: questionTimeLeft <= 3 ? 'var(--error)' : 'var(--stone)', color: questionTimeLeft <= 3 ? '#fff' : 'var(--cobalt)' }}>
             {questionTimeLeft}s
           </span>
@@ -213,18 +213,18 @@ export default function QuizPage() {
 
         {/* Navigation */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.65 }}>10 secondes par question · passage automatique</p>
+          <p style={{ fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.65 }}>10 secondes par question, avec passage automatique à la suivante.</p>
           {current < questions.length - 1 ? (
             <button onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))} className="btn btn-primary btn-sm">Suivant →</button>
           ) : (
-            <button onClick={handleSubmit} disabled={submitting} className="btn btn-primary btn-sm">{submitting ? '…' : 'Soumettre'}</button>
+            <button onClick={handleSubmit} disabled={submitting} className="btn btn-primary btn-sm">{submitting ? '…' : 'Terminer le quiz'}</button>
           )}
         </div>
 
         {answeredCount > 0 && (
           <div style={{ marginTop: 20, textAlign: 'center' }}>
             <button onClick={handleSubmit} disabled={submitting} className="btn btn-ghost btn-sm">
-              Soumettre maintenant ({answeredCount}/{questions.length})
+              Terminer maintenant ({answeredCount}/{questions.length})
             </button>
           </div>
         )}

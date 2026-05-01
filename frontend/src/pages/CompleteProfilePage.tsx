@@ -94,7 +94,7 @@ export default function CompleteProfilePage() {
           Terminez votre inscription.
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28, lineHeight: 1.7 }}>
-          Votre compte Google est bien connecté, mais nous avons encore besoin de votre classe scolaire et de votre consentement privacy avant d'activer les fonctionnalités étudiantes.
+          Votre compte est bien relié. Il nous manque seulement quelques informations scolaires pour activer votre espace élève dans de bonnes conditions.
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
@@ -246,7 +246,7 @@ export default function CompleteProfilePage() {
             "Un profil complet,<br />puis la compétition."
           </blockquote>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', lineHeight: 1.8 }}>
-            Cette étape garantit que les quiz, duels et classements restent cohérents avec votre classe réelle.
+            Cette étape permet d’afficher les bonnes matières, les bons quiz et un classement cohérent avec votre niveau réel.
           </p>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24 }}>
