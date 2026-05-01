@@ -420,6 +420,34 @@ export class ArenaService {
     return { answer, leaderboard };
   }
 
+  async signalOralAnswer(userId: string, roundId: string, participantId: string) {
+    if (participantId !== userId) {
+      throw new ForbiddenException('Chaque compétiteur ne peut signaler sa prise de parole que pour lui-même.');
+    }
+
+    const round = await this.roundRepo.findOne({ where: { id: roundId } });
+    if (!round) throw new NotFoundException('Question introuvable.');
+    if (round.endedAt) throw new BadRequestException('Cette question est déjà clôturée.');
+
+    const competition = await this.competitionRepo.findOne({ where: { id: round.competitionId } });
+    if (!competition) throw new NotFoundException('Compétition introuvable.');
+    if (competition.status !== ArenaCompetitionStatus.LIVE) {
+      throw new BadRequestException('Le direct n\'est pas actif pour cette question.');
+    }
+
+    const isActiveCompetitor =
+      participantId === competition.competitorAUserId || participantId === competition.competitorBUserId;
+
+    if (!isActiveCompetitor) {
+      throw new BadRequestException('Seuls les deux compétiteurs du match peuvent signaler une réponse.');
+    }
+
+    return {
+      competitionId: round.competitionId,
+      roundId: round.id,
+    };
+  }
+
   async getLiveLeaderboard(competitionId: string) {
     const registrations = await this.registrationRepo.find({
       where: {
@@ -527,8 +555,11 @@ export class ArenaService {
       status: competition.status,
       secondsPerQuestion: competition.secondsPerQuestion,
       currentRoundNumber: competition.currentRound,
+      currentQuestionNumber: competition.currentRound,
       totalRounds: competition.questionCount,
+      totalQuestions: competition.questionCount,
       currentRound,
+      currentQuestion: currentRound,
       leaderboard,
       participants,
       matchParticipants,

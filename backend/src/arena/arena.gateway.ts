@@ -61,6 +61,9 @@ export class ArenaGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** Active viewer-count push intervals per competitionId */
   private readonly viewerCountIntervals = new Map<string, ReturnType<typeof setInterval>>();
 
+  /** Tracks one oral signal per participant per active question. */
+  private readonly oralSignals = new Map<string, Set<string>>();
+
   constructor(
     private readonly arenaService: ArenaService,
     private readonly rtcService: RtcService,
@@ -203,11 +206,6 @@ export class ArenaGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody()
     payload: { roundId: string; participantId: string; selectedOption: 'A' | 'B' | 'C' | 'D' },
   ) {
-    if (this.isOralV1()) {
-      client.emit('arena:error', { message: 'Réponses QCM désactivées en mode oral_v1.' });
-      return;
-    }
-
     const ctx = this.connections.get(client.id);
     if (!ctx) {
       client.emit('arena:error', { message: 'Non connecté.' });
@@ -215,6 +213,32 @@ export class ArenaGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
+      if (this.isOralV1()) {
+        const signal = await this.arenaService.signalOralAnswer(
+          ctx.userId,
+          payload.roundId,
+          payload.participantId,
+        );
+
+        const alreadySignaled = this.oralSignals.get(signal.roundId) ?? new Set<string>();
+        if (alreadySignaled.has(payload.participantId)) {
+          client.emit('arena:error', { message: 'Votre prise de parole est déjà signalée pour cette question.' });
+          return;
+        }
+
+        alreadySignaled.add(payload.participantId);
+        this.oralSignals.set(signal.roundId, alreadySignaled);
+
+        const event = {
+          participantId: payload.participantId,
+          option: null,
+          at: new Date().toISOString(),
+        };
+
+        this.server.to(`competition:${signal.competitionId}`).emit('arena:answer-submitted', event);
+        return;
+      }
+
       const result = await this.arenaService.submitParticipantAnswer(
         ctx.userId,
         payload.roundId,
@@ -225,12 +249,13 @@ export class ArenaGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Push updated leaderboard to the whole competition room
       const room = `competition:${ctx.competitionId}`;
       this.server.to(room).emit('arena:leaderboard', result.leaderboard);
-      // Notify admin room that this participant has submitted (includes option)
-      this.server.to(`admin:${ctx.competitionId}`).emit('arena:answer-submitted', {
+      const submissionEvent = {
         participantId: payload.participantId,
         option: payload.selectedOption,
         at: new Date().toISOString(),
-      });
+      };
+      this.server.to(room).emit('arena:answer-submitted', submissionEvent);
+      this.server.to(`admin:${ctx.competitionId}`).emit('arena:answer-submitted', submissionEvent);
     } catch (err) {
       client.emit('arena:error', { message: (err as Error).message });
     }
@@ -242,9 +267,16 @@ export class ArenaGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Called by ArenaService when admin launches a round.
    */
   broadcastRoundStart(competitionId: string, roundPayload: unknown, leaderboard: unknown) {
+    if (roundPayload && typeof roundPayload === 'object' && 'id' in roundPayload) {
+      const roundId = (roundPayload as { id?: string }).id;
+      if (roundId) {
+        this.oralSignals.delete(roundId);
+      }
+    }
+
     this.server
       .to(`competition:${competitionId}`)
-      .emit('arena:round-start', { round: roundPayload, leaderboard });
+      .emit('arena:round-start', { round: roundPayload, question: roundPayload, leaderboard });
   }
 
   /**

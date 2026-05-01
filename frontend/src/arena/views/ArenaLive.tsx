@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useArenaSocket } from '../useArenaSocket'
@@ -13,41 +13,96 @@ type MatchParticipant = {
   slot: 'A' | 'B'
 }
 
-// -- Design tokens -------------------------------------------------------
-const T = {
-  bg:          '#07101e',
-  cardBg:      '#0d1b2e',
-  sidebarBg:   '#091525',
-  border:      'rgba(255,255,255,0.07)',
-  borderBright:'rgba(255,255,255,0.14)',
-  text:        '#f1f5f9',
-  textMuted:   'rgba(255,255,255,0.45)',
-  accentA:     '#3b82f6',
-  accentB:     '#ef4444',
-  accentMod:   '#f59e0b',
-  accentLive:  '#22c55e',
-  gold:        '#f59e0b',
+type LiveQuestion = {
+  id: string
+  position: number
+  questionId: string | null
+  startedAt: string | null
+  endedAt: string | null
+  endTime: string | null
 }
 
-// -- Shared style tokens ------------------------------------------------
+type LiveStateSnapshot = {
+  competitionId: string
+  competitionName: string
+  status: string
+  type?: string
+  secondsPerQuestion: number
+  currentRoundNumber: number
+  currentQuestionNumber?: number
+  totalRounds: number
+  totalQuestions?: number
+  currentRound: LiveQuestion | null
+  currentQuestion?: LiveQuestion | null
+  leaderboard: ArenaLeaderboardRow[]
+  participants?: Array<{ userId: string; displayName: string; slot: 'A' | 'B' }>
+  matchParticipants?: Array<{ userId: string; displayName: string; role: 'competitorA' | 'competitorB' | 'moderator' }>
+}
+
+type PhaseTone = 'neutral' | 'live' | 'alert' | 'success'
+
+// -- Design tokens -------------------------------------------------------
+const T = {
+  bg: '#06101c',
+  bgRaised: '#0b1626',
+  cardBg: '#0d1b2e',
+  cardBgSoft: '#102038',
+  border: 'rgba(148,163,184,0.16)',
+  borderBright: 'rgba(148,163,184,0.28)',
+  text: '#f8fafc',
+  textMuted: 'rgba(203,213,225,0.72)',
+  textSubtle: 'rgba(148,163,184,0.92)',
+  accentA: '#5da0ff',
+  accentB: '#ff6b7a',
+  accentMod: '#f8b84e',
+  accentLive: '#2ed3b7',
+  success: '#34d399',
+  danger: '#fb7185',
+  gold: '#f8b84e',
+}
+
 const S = {
   label: {
-    fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-    textTransform: 'uppercase' as const, color: T.textMuted, margin: 0,
-  } as React.CSSProperties,
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase' as const,
+    color: T.textSubtle,
+    margin: 0,
+  } as CSSProperties,
+  card: {
+    background: `linear-gradient(180deg, ${T.cardBgSoft} 0%, ${T.cardBg} 100%)`,
+    border: `1px solid ${T.border}`,
+    borderRadius: 22,
+    boxShadow: '0 24px 70px rgba(2, 8, 23, 0.38)',
+  } as CSSProperties,
   timerNormal: {
-    background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.28)',
-    borderRadius: 8, padding: '3px 18px',
-    fontWeight: 800, fontSize: 22, minWidth: 72, textAlign: 'center' as const,
-    fontVariantNumeric: 'tabular-nums', letterSpacing: '0.04em', color: '#93c5fd',
-  } as React.CSSProperties,
+    background: 'rgba(93,160,255,0.14)',
+    border: '1px solid rgba(93,160,255,0.28)',
+    borderRadius: 999,
+    padding: '8px 18px',
+    fontWeight: 900,
+    fontSize: 24,
+    minWidth: 92,
+    textAlign: 'center' as const,
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '0.04em',
+    color: '#cfe1ff',
+  } as CSSProperties,
   timerCritical: {
-    background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.5)',
-    borderRadius: 8, padding: '3px 18px',
-    fontWeight: 800, fontSize: 22, minWidth: 72, textAlign: 'center' as const,
-    fontVariantNumeric: 'tabular-nums', letterSpacing: '0.04em', color: '#fca5a5',
+    background: 'rgba(251,113,133,0.18)',
+    border: '1px solid rgba(251,113,133,0.44)',
+    borderRadius: 999,
+    padding: '8px 18px',
+    fontWeight: 900,
+    fontSize: 24,
+    minWidth: 92,
+    textAlign: 'center' as const,
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '0.04em',
+    color: '#fecdd3',
     animation: 'timerPulse 0.65s ease-in-out infinite',
-  } as React.CSSProperties,
+  } as CSSProperties,
 }
 
 // Competition phase state machine (frontend display only)
@@ -64,7 +119,7 @@ function getPhase(opts: {
   teamLoaded: boolean
   competitionStatus: string | null | undefined
   isPaused: boolean
-  currentRound: { endedAt: string | null } | null | undefined
+  currentQuestion: { endedAt: string | null } | null | undefined
   roundEnded: unknown
   competitionResult: unknown
 }): CompetitionPhase {
@@ -73,10 +128,47 @@ function getPhase(opts: {
   if (opts.competitionResult) return 'finished'
   if (opts.isPaused) return 'paused'
   if (opts.competitionStatus !== 'live') return 'waiting'
-  if (opts.currentRound?.endedAt) return 'live-between'
+  if (opts.currentQuestion?.endedAt) return 'live-between'
   if (opts.roundEnded) return 'live-between'
-  if (opts.currentRound) return 'live-question'
+  if (opts.currentQuestion) return 'live-question'
   return 'live-waiting'
+}
+
+function formatTimer(seconds: number | null) {
+  if (seconds === null) return '--:--'
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.max(0, seconds % 60)).padStart(2, '0')}`
+}
+
+function phaseMeta(phase: CompetitionPhase): { label: string; description: string; tone: PhaseTone } {
+  switch (phase) {
+    case 'waiting':
+      return { label: 'Prêt à lancer', description: 'Le direct attend l ouverture de la première question.', tone: 'neutral' }
+    case 'live-waiting':
+      return { label: 'En attente', description: 'Le plateau est en direct. Le modérateur peut ouvrir la prochaine question.', tone: 'live' }
+    case 'live-question':
+      return { label: 'Question active', description: 'Les compétiteurs répondent pendant que le chrono tourne.', tone: 'live' }
+    case 'live-between':
+      return { label: 'Décision modérateur', description: 'La question est clôturée. Attribuez le point puis ouvrez la suivante.', tone: 'success' }
+    case 'paused':
+      return { label: 'En pause', description: 'Le match est suspendu. Reprenez quand le plateau est prêt.', tone: 'alert' }
+    case 'finished':
+      return { label: 'Terminé', description: 'Le direct est terminé.', tone: 'success' }
+    default:
+      return { label: 'Connexion', description: 'Préparation de la régie Arena.', tone: 'neutral' }
+  }
+}
+
+function toneColor(tone: PhaseTone) {
+  switch (tone) {
+    case 'live':
+      return T.accentLive
+    case 'alert':
+      return T.gold
+    case 'success':
+      return T.success
+    default:
+      return T.accentA
+  }
 }
 
 function PublicStreamPanel({ competitionId, accessToken }: { competitionId: string | undefined; accessToken: string | null }) {
@@ -124,21 +216,21 @@ function PublicStreamPanel({ competitionId, accessToken }: { competitionId: stri
   const isYoutube = stream?.provider === 'youtube' && !!stream?.streamUrl
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, padding: '10px 12px', background: 'rgba(255,255,255,0.03)' }}>
-        <p style={{ margin: 0, fontSize: 11, color: T.textMuted, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Diffusion publique</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ border: `1px solid ${T.border}`, borderRadius: 18, padding: '14px 16px', background: 'rgba(255,255,255,0.03)' }}>
+        <p style={S.label}>Diffusion publique</p>
         {isYoutube ? (
           <>
-            <p style={{ margin: '6px 0 0', fontSize: 13, fontWeight: 700, color: T.text }}>
-              YouTube Live {stream?.status === 'live' ? 'actif' : stream?.status === 'stopped' ? 'termine' : 'pret'}
+            <p style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 800, color: T.text }}>
+              YouTube Live {stream?.status === 'live' ? 'actif' : stream?.status === 'stopped' ? 'terminé' : 'prêt'}
             </p>
-            <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.45, color: T.textMuted }}>
-              Les spectateurs regardent la page publique Arena, qui embarque la video YouTube. La scene privee RTC reste ici pour les joueurs et le moderateur.
+            <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.55, color: T.textMuted }}>
+              Les spectateurs regardent la page publique Arena pendant que la scène privée reste réservée au modérateur et aux deux compétiteurs.
             </p>
           </>
         ) : (
-          <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.45, color: T.textMuted }}>
-            Configurez d'abord le lien YouTube dans l'espace admin pour ouvrir la diffusion publique aux spectateurs.
+          <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.55, color: T.textMuted }}>
+            Configurez d abord le lien YouTube dans l espace admin pour ouvrir la diffusion publique aux spectateurs.
           </p>
         )}
       </div>
@@ -146,24 +238,24 @@ function PublicStreamPanel({ competitionId, accessToken }: { competitionId: stri
       {isYoutube && (
         <>
           <button
-            style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.35)', background: 'rgba(34,197,94,0.1)', color: '#4ade80', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em', opacity: statusRequest === 'live' ? 0.6 : 1 }}
+            style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(52,211,153,0.35)', background: 'rgba(52,211,153,0.12)', color: '#6ee7b7', fontWeight: 800, fontSize: 12, cursor: 'pointer', letterSpacing: '0.08em', opacity: statusRequest === 'live' ? 0.6 : 1 }}
             disabled={statusRequest !== null}
             onClick={() => updateStatus('live')}
           >
-            {statusRequest === 'live' ? 'MISE EN DIRECT…' : '▶ OUVRIR AU PUBLIC'}
+            {statusRequest === 'live' ? 'OUVERTURE…' : 'OUVRIR AU PUBLIC'}
           </button>
           <button
-            style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: '1px solid rgba(248,113,113,0.4)', background: 'rgba(239,68,68,0.12)', color: '#f87171', fontWeight: 700, fontSize: 12, cursor: 'pointer', letterSpacing: '0.06em', opacity: statusRequest === 'stopped' ? 0.6 : 1 }}
+            style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(248,113,113,0.35)', background: 'rgba(251,113,133,0.12)', color: '#fda4af', fontWeight: 800, fontSize: 12, cursor: 'pointer', letterSpacing: '0.08em', opacity: statusRequest === 'stopped' ? 0.6 : 1 }}
             disabled={statusRequest !== null}
             onClick={() => updateStatus('stopped')}
           >
-            {statusRequest === 'stopped' ? 'FERMETURE…' : '⏹ FERMER COTE PUBLIC'}
+            {statusRequest === 'stopped' ? 'FERMETURE…' : 'FERMER CÔTÉ PUBLIC'}
           </button>
           <a
             href={`/arena/watch/${competitionId}`}
             target="_blank"
             rel="noreferrer"
-            style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: `1px solid ${T.borderBright}`, background: 'transparent', color: T.text, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', textAlign: 'center', textDecoration: 'none' }}
+            style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: `1px solid ${T.borderBright}`, background: 'transparent', color: T.text, fontWeight: 800, fontSize: 12, letterSpacing: '0.08em', textAlign: 'center', textDecoration: 'none' }}
           >
             PAGE SPECTATEURS
           </a>
@@ -184,19 +276,7 @@ export default function ArenaLive() {
   const isModerator = user?.role === 'admin' || user?.role === 'moderator'
   const [isRegisteredCompetitor, setIsRegisteredCompetitor] = useState(false)
   const [teamLoaded, setTeamLoaded] = useState(false)
-  const [polledState, setPolledState] = useState<{
-    competitionId: string
-    competitionName: string
-    status: string
-    type: string
-    secondsPerQuestion: number
-    currentRoundNumber: number
-    totalRounds: number
-    currentRound: { id: string; position: number; questionId: string; startedAt: string | null; endedAt: string | null; endTime: string | null } | null
-    leaderboard: ArenaLeaderboardRow[]
-    participants?: Array<{ userId: string; displayName: string; slot: 'A' | 'B' }>
-    matchParticipants?: Array<{ userId: string; displayName: string; role: 'competitorA' | 'competitorB' | 'moderator' }>
-  } | null>(null)
+  const [polledState, setPolledState] = useState<LiveStateSnapshot | null>(null)
   const [polledLeaderboard, setPolledLeaderboard] = useState<ArenaLeaderboardRow[]>([])
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [eventLog, setEventLog] = useState<string[]>([])
@@ -234,10 +314,10 @@ export default function ArenaLive() {
     [accessToken, competitionId, isModerator, isRegisteredCompetitor, teamLoaded, user?.id],
   )
 
-  const { socketState } = useArenaSocket(socketParams)
+  const { socketState, submitAnswer } = useArenaSocket(socketParams)
   const {
     connected, state, leaderboard, roundEnded, competitionResult, error,
-    isPaused, onlineParticipantIds, onlineUsers, viewerCount,
+    isPaused, onlineParticipantIds, onlineUsers, viewerCount, submissionStatuses,
   } = socketState
 
   // Spectator fallback polling (no room access without team)
@@ -268,11 +348,11 @@ export default function ArenaLive() {
 
   const liveState = state ?? polledState
   const liveLeaderboard = leaderboard.length > 0 ? leaderboard : polledLeaderboard
-  const currentRound = liveState?.currentRound ?? null
-  const currentRoundStartedAt = currentRound?.startedAt ?? null
-  const currentRoundEndTime = currentRound?.endTime ?? null
+  const currentQuestion = liveState?.currentQuestion ?? liveState?.currentRound ?? null
+  const currentQuestionStartedAt = currentQuestion?.startedAt ?? null
+  const currentQuestionEndTime = currentQuestion?.endTime ?? null
   const secondsPerQuestion = liveState?.secondsPerQuestion ?? 30
-  const roundIsClosed = Boolean(roundEnded || currentRound?.endedAt)
+  const questionIsClosed = Boolean(roundEnded || currentQuestion?.endedAt)
 
   const participants = useMemo<MatchParticipant[]>(() => {
     const seededFromState = (liveState?.participants ?? []).map((p) => {
@@ -318,31 +398,44 @@ export default function ArenaLive() {
     [participants, onlineUsers],
   )
 
+  const submissionOrder = useMemo(() => {
+    return participants
+      .map((participant) => ({
+        participant,
+        submission: submissionStatuses[participant.participantUserId] ?? null,
+      }))
+      .filter((entry) => entry.submission?.submitted)
+      .sort((left, right) => {
+        const leftAt = left.submission?.at ? new Date(left.submission.at).getTime() : Number.MAX_SAFE_INTEGER
+        const rightAt = right.submission?.at ? new Date(right.submission.at).getTime() : Number.MAX_SAFE_INTEGER
+        return leftAt - rightAt
+      })
+  }, [participants, submissionStatuses])
+
   useEffect(() => {
-    const next = currentRound
-      ? `Round ${currentRound.position}/${liveState?.totalRounds ?? 0} lancé`
+    const next = currentQuestion
+      ? `Question ${currentQuestion.position}/${liveState?.totalQuestions ?? liveState?.totalRounds ?? 0} ouverte`
       : null
     if (!next) return
     setEventLog((prev) => {
       if (prev[0] === next) return prev
       return [next, ...prev].slice(0, 5)
     })
-  }, [currentRound, liveState?.totalRounds])
+  }, [currentQuestion, liveState?.totalQuestions, liveState?.totalRounds])
 
   useEffect(() => {
     if (!roundEnded) return
-    setEventLog((prev) => [`Round terminé - score mis à jour`, ...prev].slice(0, 5))
+    setEventLog((prev) => ['Question clôturée - attribution des points disponible', ...prev].slice(0, 5))
   }, [roundEnded])
 
-  // Timer countdown
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current)
-    if (!currentRound || roundIsClosed) return
+    if (!currentQuestion || questionIsClosed) return
     const computeRemaining = () => {
-      if (currentRoundEndTime) {
-        return Math.max(0, Math.round((new Date(currentRoundEndTime).getTime() - Date.now()) / 1000))
+      if (currentQuestionEndTime) {
+        return Math.max(0, Math.round((new Date(currentQuestionEndTime).getTime() - Date.now()) / 1000))
       }
-      const started = currentRoundStartedAt ? new Date(currentRoundStartedAt).getTime() : Date.now()
+      const started = currentQuestionStartedAt ? new Date(currentQuestionStartedAt).getTime() : Date.now()
       const durationMs = secondsPerQuestion * 1000
       return Math.max(0, Math.round((started + durationMs - Date.now()) / 1000))
     }
@@ -354,9 +447,8 @@ export default function ArenaLive() {
       })
     }, 1000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [currentRound, currentRoundEndTime, currentRoundStartedAt, roundIsClosed, secondsPerQuestion])
+  }, [currentQuestion, currentQuestionEndTime, currentQuestionStartedAt, questionIsClosed, secondsPerQuestion])
 
-  // -- LiveKit RTC token fetch (stage participants only) ------------------
   useEffect(() => {
     if (!competitionId || !accessToken || userMode === 'spectator' || !canControlLocalMedia) return
     arenaApi.getRtcToken(competitionId, accessToken)
@@ -364,7 +456,6 @@ export default function ArenaLive() {
       .catch(() => { /* token fetch failed à stage will be audio-only */ })
   }, [competitionId, accessToken, userMode, canControlLocalMedia])
 
-  // -- LiveKit Stage (camera/mic for mod + competitors) --------------------
   const {
     roomConnected: stageConnected,
     participants: stageParticipants,
@@ -380,7 +471,6 @@ export default function ArenaLive() {
     canPublish: canControlLocalMedia,
   })
 
-  // Admin action helper
   const adminFetch = async (url: string, method = 'PATCH', body?: unknown) => {
     try {
       const init: RequestInit = {
@@ -396,57 +486,67 @@ export default function ArenaLive() {
     } catch (e) { alert((e as Error).message) }
   }
 
-  // State machine
   const isLive = liveState?.status === 'live'
   const phase = getPhase({
     teamLoaded, competitionStatus: liveState?.status, isPaused,
-    currentRound: liveState?.currentRound, roundEnded, competitionResult,
+    currentQuestion, roundEnded, competitionResult,
   })
-  const questionNumber = liveState?.currentRoundNumber ?? 0
-  const totalQuestions = liveState?.totalRounds ?? 0
+  const questionNumber = liveState?.currentQuestionNumber ?? liveState?.currentRoundNumber ?? 0
+  const totalQuestions = liveState?.totalQuestions ?? liveState?.totalRounds ?? 0
   const leadingScore = participants.length > 0 ? Math.max(...participants.map((participant) => participant.score)) : null
   const leadingParticipants = leadingScore === null
     ? []
     : participants.filter((participant) => participant.score === leadingScore)
   const uniqueWinner = leadingParticipants.length === 1 ? leadingParticipants[0] : null
+  const progressRatio = totalQuestions > 0 ? Math.min(questionNumber / totalQuestions, 1) : 0
+  const currentPhaseMeta = phaseMeta(phase)
+  const currentTone = toneColor(currentPhaseMeta.tone)
+  const isOralQuestion = currentQuestion?.questionId == null
+  const mySubmission = user?.id ? submissionStatuses[user.id] ?? null : null
+  const canSignalAnswer =
+    userMode === 'competitor' &&
+    Boolean(currentQuestion) &&
+    isOralQuestion &&
+    phase === 'live-question' &&
+    !questionIsClosed &&
+    !mySubmission?.submitted
+  const signalButtonLabel = mySubmission?.submitted ? 'Prise de parole signalée' : 'Je prends la parole'
 
-  // -- Loading -----------------------------------------------------------
   if (phase === 'loading') {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: T.bg }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: `radial-gradient(circle at top, rgba(93,160,255,0.12), transparent 38%), ${T.bg}` }}>
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 40, height: 40, border: `3px solid ${T.border}`, borderTopColor: T.accentA, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <p style={{ color: T.textMuted, fontSize: 12, margin: 0, letterSpacing: '0.12em', fontWeight: 700 }}>CONNEXION EN COURS…</p>
+          <div style={{ width: 44, height: 44, border: `3px solid ${T.border}`, borderTopColor: T.accentA, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ color: T.textMuted, fontSize: 12, margin: 0, letterSpacing: '0.12em', fontWeight: 800 }}>CONNEXION À LA RÉGIE…</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
 
-  // -- Finished ----------------------------------------------------------
   if (phase === 'finished') {
     const podium = competitionResult?.podium ?? liveLeaderboard.slice(0, 3)
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: T.bg, padding: 24, textAlign: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: T.textMuted, textTransform: 'uppercase', marginBottom: 8, display: 'block' }}>Compétition</span>
-        <h1 style={{ fontSize: 36, fontWeight: 900, color: T.gold, margin: '0 0 6px', letterSpacing: '-0.02em' }}>Match terminé</h1>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: `radial-gradient(circle at top, rgba(248,184,78,0.16), transparent 40%), ${T.bg}`, padding: 24, textAlign: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.16em', color: T.textSubtle, textTransform: 'uppercase', marginBottom: 10, display: 'block' }}>Arena Live</span>
+        <h1 style={{ fontSize: 40, fontWeight: 900, color: T.gold, margin: '0 0 8px', letterSpacing: '-0.03em' }}>Match terminé</h1>
         {podium[0] && (
-          <p style={{ fontSize: 16, color: T.text, fontWeight: 600, marginBottom: 36 }}>
+          <p style={{ fontSize: 16, color: T.text, fontWeight: 700, marginBottom: 36 }}>
             Vainqueur · <span style={{ color: T.gold }}>{podium[0].displayName}</span>
           </p>
         )}
-        <div style={{ width: '100%', maxWidth: 440, marginBottom: 36 }}>
+        <div style={{ width: '100%', maxWidth: 500, marginBottom: 36 }}>
           {podium.slice(0, 3).map((row: ArenaLeaderboardRow, i: number) => (
             <div key={row.participantUserId} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 20px', marginBottom: 8,
-              background: i === 0 ? 'rgba(245,158,11,0.1)' : T.cardBg,
-              borderRadius: 10,
-              border: `1px solid ${i === 0 ? 'rgba(245,158,11,0.35)' : T.border}`,
-              boxShadow: i === 0 ? '0 0 24px rgba(245,158,11,0.12)' : 'none',
+              padding: '16px 22px', marginBottom: 10,
+              background: i === 0 ? 'rgba(248,184,78,0.12)' : T.cardBg,
+              borderRadius: 18,
+              border: `1px solid ${i === 0 ? 'rgba(248,184,78,0.35)' : T.border}`,
+              boxShadow: i === 0 ? '0 0 28px rgba(248,184,78,0.14)' : 'none',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span style={{ fontSize: 22 }}>{['🥇', '🥈', '🥉'][i] ?? String(i + 1)}</span>
+                <span style={{ fontSize: 22, color: i === 0 ? T.gold : T.textMuted }}>{String(i + 1).padStart(2, '0')}</span>
                 <span style={{ fontWeight: 700, color: T.text, fontSize: 15 }}>{row.displayName}</span>
               </div>
               <span style={{ fontWeight: 900, color: i === 0 ? T.gold : T.accentA, fontSize: 20 }}>{row.score}</span>
@@ -455,7 +555,7 @@ export default function ArenaLive() {
         </div>
         <button
           onClick={() => navigate('/arena')}
-          style={{ padding: '12px 36px', background: T.accentA, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 14, cursor: 'pointer', letterSpacing: '0.08em', boxShadow: `0 0 20px ${T.accentA}40` }}
+          style={{ padding: '14px 38px', background: T.accentA, color: '#fff', border: 'none', borderRadius: 999, fontWeight: 900, fontSize: 14, cursor: 'pointer', letterSpacing: '0.08em', boxShadow: `0 0 24px ${T.accentA}45` }}
         >
           RETOUR À L'ARENA
         </button>
@@ -464,22 +564,21 @@ export default function ArenaLive() {
     )
   }
 
-
-  // -- Phase status text -------------------------------------------------
-  function getRoundStatusText() {
+  function getQuestionStatusText() {
     if (phase === 'waiting') return 'En attente du modérateur pour lancer le match.'
     if (phase === 'live-waiting') return 'En direct · En attente de la prochaine question.'
     if (phase === 'paused') return 'Le modérateur a mis le match en pause.'
     if (phase === 'live-question') return 'Question en cours · Répondez oralement.'
-    if (phase === 'live-between') return 'Round terminé · Calcul des scores en cours.'
+    if (phase === 'live-between') return 'Question terminée · Le modérateur attribue le point.'
     return 'Match en cours.'
   }
-  // -- LiveKit video tile -----------------------------------------------
+
   function LiveKitVideoTile({
-    title, subtitle, score, stagePart, isLocal, isOnline, accent,
+    title, subtitle, score, stagePart, isLocal, isOnline, accent, activityLabel,
   }: {
     title: string; subtitle: string; score?: number
     stagePart: StageParticipant | null; isLocal: boolean; isOnline: boolean; accent: string
+    activityLabel?: string | null
   }) {
     const videoRef = useRef<HTMLVideoElement>(null)
     const audioRef = useRef<HTMLAudioElement>(null)
@@ -507,15 +606,14 @@ export default function ArenaLive() {
       <div style={{
         background: T.cardBg,
         border: `1px solid ${isOnline ? accent : T.border}`,
-        borderRadius: 14,
+        borderRadius: 22,
         overflow: 'hidden',
         display: 'flex', flexDirection: 'column',
         boxShadow: isOnline
-          ? `0 0 0 1px ${accent}35, 0 8px 32px ${accent}14`
+          ? `0 0 0 1px ${accent}35, 0 16px 46px ${accent}14`
           : '0 4px 20px rgba(0,0,0,0.35)',
         transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
       }}>
-        {/* Video area */}
         <div style={{ aspectRatio: '16/9', background: '#040b17', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
           {camEnabled
             ? <video ref={videoRef} autoPlay muted={isLocal} playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -532,14 +630,13 @@ export default function ArenaLive() {
                   {initial}
                 </div>
                 <p style={{ fontSize: 10, color: T.textMuted, margin: 0, letterSpacing: '0.1em', fontWeight: 700 }}>
-                  {isOnline ? 'CAMÉRA DÉSACTIVÉE' : 'HORS LIGNE'}
+                    {isOnline ? 'CAMÉRA DÉSACTIVÉE' : 'HORS LIGNE'}
                 </p>
               </div>
             )
           }
           {!isLocal && <audio ref={audioRef} autoPlay />}
 
-          {/* Slot badge — top left */}
           <div style={{ position: 'absolute', top: 10, left: 10 }}>
             <span style={{
               fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
@@ -552,7 +649,6 @@ export default function ArenaLive() {
             </span>
           </div>
 
-          {/* Mic badge — top right */}
           <div style={{ position: 'absolute', top: 10, right: 10 }}>
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
@@ -562,11 +658,31 @@ export default function ArenaLive() {
               border: `1px solid ${micEnabled ? 'rgba(74,222,128,0.32)' : 'rgba(248,113,113,0.28)'}`,
               backdropFilter: 'blur(4px)',
             }}>
-              {micEnabled ? '🎤 ON' : '🔇 OFF'}
+              {micEnabled ? 'MIC ACTIF' : 'MIC COUPÉ'}
             </span>
           </div>
 
-          {/* Live dot — bottom right */}
+          {activityLabel && (
+            <div style={{ position: 'absolute', left: 10, bottom: 10 }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 10,
+                color: '#d1fae5',
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                padding: '4px 10px',
+                borderRadius: 999,
+                background: 'rgba(52,211,153,0.18)',
+                border: '1px solid rgba(52,211,153,0.28)',
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
+                {activityLabel}
+              </span>
+            </div>
+          )}
+
           {isOnline && (
             <div style={{ position: 'absolute', bottom: 8, right: 10 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#4ade80', fontWeight: 700, letterSpacing: '0.06em' }}>
@@ -577,17 +693,16 @@ export default function ArenaLive() {
           )}
         </div>
 
-        {/* Info footer */}
         <div style={{
-          padding: '11px 14px',
+          padding: '14px 16px',
           borderTop: `1px solid ${T.border}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           background: 'rgba(0,0,0,0.18)',
         }}>
           <div>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{subtitle}</p>
-            <p style={{ margin: '2px 0 0', fontSize: 10, color: isOnline ? '#4ade80' : T.textMuted, fontWeight: 700, letterSpacing: '0.06em' }}>
-              {isOnline ? '● EN LIGNE' : '○ HORS LIGNE'}
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: T.text, letterSpacing: '-0.01em' }}>{subtitle}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 10, color: isOnline ? '#4ade80' : T.textMuted, fontWeight: 700, letterSpacing: '0.08em' }}>
+              {isOnline ? 'EN LIGNE' : 'HORS LIGNE'}
             </p>
           </div>
           {typeof score === 'number' && (
@@ -601,7 +716,6 @@ export default function ArenaLive() {
     )
   }
 
-  // -- Match scene -------------------------------------------------------
   function MatchScene() {
     const competitorA = participants[0]
     const competitorB = participants[1]
@@ -609,11 +723,11 @@ export default function ArenaLive() {
 
     const competitorAUserId = onlineUsers.find((e) => e.participantId === competitorA.participantUserId)?.userId
     const competitorBUserId = onlineUsers.find((e) => e.participantId === competitorB.participantUserId)?.userId
-    const moderatorUserId   = onlineUsers.find((e) => e.role === 'admin')?.userId
+    const moderatorUserId = onlineUsers.find((e) => e.role === 'admin' || e.role === 'moderator')?.userId
 
     const isAOnline = onlineParticipantIds.includes(competitorA.participantUserId)
     const isBOnline = onlineParticipantIds.includes(competitorB.participantUserId)
-    const isModeratorOnline = stageConnected || isModerator
+    const isModeratorOnline = stageConnected || onlineUsers.some((entry) => entry.role === 'admin' || entry.role === 'moderator') || isModerator
     const localIdentity = user?.id ?? '__admin__'
 
     const localStagePartA: StageParticipant | null = competitorAUserId === localIdentity
@@ -626,28 +740,43 @@ export default function ArenaLive() {
       ? (stageParticipants.find((p) => p.isLocal) ?? null)
       : (stageParticipants.find((p) => p.identity === moderatorUserId) ?? null)
 
-    const fmtTimer = (t: number | null) =>
-      t !== null
-        ? `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.max(0, t % 60)).padStart(2, '0')}`
-        : '--:--'
+    const submissionLabelA = submissionStatuses[competitorA.participantUserId]?.submitted ? 'Prêt à répondre' : null
+    const submissionLabelB = submissionStatuses[competitorB.participantUserId]?.submitted ? 'Prêt à répondre' : null
+    const moderatorLabel = phase === 'live-question' ? 'Pilote la question' : phase === 'paused' ? 'Session en pause' : null
 
     return (
-      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <section style={{ ...S.card, padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+            <div>
+              <p style={S.label}>Plateau live</p>
+              <h2 style={{ margin: '8px 0 0', fontSize: 28, lineHeight: 1, color: T.text, letterSpacing: '-0.03em' }}>Face-à-face oral</h2>
+              <p style={{ margin: '10px 0 0', fontSize: 14, color: T.textMuted, maxWidth: 620, lineHeight: 1.55 }}>
+                Une scène pensée pour le modérateur: état des compétiteurs, ordre de prise de parole et contrôle de chaque question en temps réel.
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ padding: '10px 14px', borderRadius: 16, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.03)' }}>
+                <p style={{ ...S.label, marginBottom: 6 }}>Question active</p>
+                <p style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text, lineHeight: 1 }}>{questionNumber || 0}<span style={{ color: T.textSubtle }}>/{totalQuestions || 0}</span></p>
+              </div>
+              <div style={timeLeft !== null && timeLeft <= 5 ? S.timerCritical : S.timerNormal}>{formatTimer(timeLeft)}</div>
+            </div>
+          </div>
 
-        {/* Competitor tiles + VS divider */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 14, alignItems: 'stretch' }}>
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_48px_minmax(0,1fr)]" style={{ gap: 16, alignItems: 'stretch' }}>
           <LiveKitVideoTile
             title="COMPÉTITEUR A" subtitle={competitorA.displayName} score={competitorA.score}
             stagePart={localStagePartA} isLocal={competitorAUserId === localIdentity}
             isOnline={isAOnline} accent={T.accentA}
+            activityLabel={submissionLabelA}
           />
-          {/* VS separator */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: 38, gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <div style={{ width: 1, flex: 1, background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.09) 50%, transparent)' }} />
             <span style={{
-              fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.25)',
-              letterSpacing: '0.1em', padding: '6px 5px', lineHeight: 1,
-              background: 'rgba(255,255,255,0.04)', borderRadius: 6,
+              fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.35)',
+              letterSpacing: '0.12em', padding: '8px 8px', lineHeight: 1,
+              background: 'rgba(255,255,255,0.04)', borderRadius: 999,
               border: `1px solid ${T.border}`,
             }}>VS</span>
             <div style={{ width: 1, flex: 1, background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.09) 50%, transparent)' }} />
@@ -656,444 +785,490 @@ export default function ArenaLive() {
             title="COMPÉTITEUR B" subtitle={competitorB.displayName} score={competitorB.score}
             stagePart={localStagePartB} isLocal={competitorBUserId === localIdentity}
             isOnline={isBOnline} accent={T.accentB}
+            activityLabel={submissionLabelB}
           />
         </div>
 
-        {/* Moderator tile (compact) */}
-        <div style={{ maxWidth: 380, margin: '0 auto', width: '100%' }}>
+          <div style={{ maxWidth: 460, margin: '18px auto 0', width: '100%' }}>
           <LiveKitVideoTile
             title="MODÉRATEUR" subtitle={moderatorName}
             stagePart={localStagePartMod} isLocal={isModerator}
             isOnline={isModeratorOnline} accent={T.accentMod}
+            activityLabel={moderatorLabel}
           />
         </div>
 
-        {/* Status + timer card */}
-        <div style={{
-          background: T.cardBg, border: `1px solid ${T.border}`,
-          borderRadius: 10, padding: '12px 18px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        }}>
+          <div style={{
+            marginTop: 18,
+            background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`,
+            borderRadius: 18, padding: '16px 18px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+          }}>
           <div>
-            <p style={{ ...S.label, marginBottom: 5 }}>Question orale</p>
-            <p style={{ margin: 0, fontSize: 13, color: T.text, lineHeight: 1.5 }}>{getRoundStatusText()}</p>
+            <p style={{ ...S.label, marginBottom: 8 }}>Statut de la question</p>
+            <p style={{ margin: 0, fontSize: 15, color: T.text, lineHeight: 1.5, fontWeight: 700 }}>{getQuestionStatusText()}</p>
           </div>
-          <div style={{ flexShrink: 0, textAlign: 'right' }}>
-            <span style={{
-              fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1,
-              display: 'block', fontVariantNumeric: 'tabular-nums',
-              color: timeLeft !== null && timeLeft <= 5 ? '#fca5a5' : T.accentA,
-              transition: 'color 0.3s ease',
-            }}>
-              {fmtTimer(timeLeft)}
-            </span>
-            <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700, letterSpacing: '0.1em' }}>TIMER</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: currentTone, padding: '8px 12px', borderRadius: 999, background: `${currentTone}20`, border: `1px solid ${currentTone}40`, letterSpacing: '0.08em' }}>{currentPhaseMeta.label}</span>
+            <span style={{ fontSize: 12, color: T.textMuted }}>Chrono {formatTimer(timeLeft)}</span>
           </div>
         </div>
 
-        {/* Round ended banner */}
-        {phase === 'live-between' && roundIsClosed && (
-          <div style={{ padding: '10px 16px', border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.07)', borderRadius: 8 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#4ade80', letterSpacing: '0.04em' }}>
-              ✓ Round terminé — scores mis à jour
-            </p>
-          </div>
-        )}
+          {phase === 'live-between' && questionIsClosed && (
+            <div style={{ marginTop: 16, padding: '12px 16px', border: '1px solid rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.07)', borderRadius: 18 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#6ee7b7', letterSpacing: '0.04em' }}>
+                Question clôturée. Le modérateur peut maintenant attribuer le point.
+              </p>
+            </div>
+          )}
 
-        {stagePermissionError && (
-          <p style={{ textAlign: 'center', fontSize: 12, color: '#f87171', margin: 0 }}>{stagePermissionError}</p>
-        )}
+          {stagePermissionError && (
+            <p style={{ textAlign: 'center', fontSize: 12, color: '#fda4af', margin: '16px 0 0' }}>{stagePermissionError}</p>
+          )}
+        </section>
 
-        {/* Start button (waiting phase, moderator only) */}
-        {phase === 'waiting' && isModerator && (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button
-              style={{ padding: '13px 44px', background: T.accentA, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 15, cursor: 'pointer', letterSpacing: '0.08em', boxShadow: `0 0 28px ${T.accentA}38` }}
-              onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
-            >
-              DÉMARRER LE MATCH
-            </button>
-          </div>
-        )}
+        <section style={{ ...S.card, padding: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div>
+              <p style={S.label}>Commandes locales</p>
+              <p style={{ margin: '8px 0 0', fontSize: 14, color: T.textMuted, lineHeight: 1.55 }}>
+                Caméra, micro et signal de prise de parole sont accessibles depuis cette barre de contrôle.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {canControlLocalMedia && (
+                <>
+                  <button
+                    onClick={toggleCamera}
+                    disabled={isCameraLoading}
+                    style={{
+                      minWidth: 150,
+                      padding: '13px 18px',
+                      borderRadius: 999,
+                      border: `1px solid ${localCameraEnabled ? T.borderBright : 'rgba(52,211,153,0.35)'}`,
+                      background: localCameraEnabled ? 'rgba(255,255,255,0.04)' : 'rgba(52,211,153,0.14)',
+                      color: localCameraEnabled ? T.text : '#d1fae5',
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      opacity: isCameraLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {isCameraLoading ? 'Chargement…' : localCameraEnabled ? 'Couper la caméra' : 'Activer la caméra'}
+                  </button>
+                  <button
+                    onClick={toggleMic}
+                    style={{
+                      minWidth: 150,
+                      padding: '13px 18px',
+                      borderRadius: 999,
+                      border: `1px solid ${localMicEnabled ? T.borderBright : 'rgba(52,211,153,0.35)'}`,
+                      background: localMicEnabled ? 'rgba(255,255,255,0.04)' : 'rgba(52,211,153,0.14)',
+                      color: localMicEnabled ? T.text : '#d1fae5',
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {localMicEnabled ? 'Couper le micro' : 'Activer le micro'}
+                  </button>
+                </>
+              )}
 
-        {/* Camera / mic controls */}
-        {canControlLocalMedia && (
-          <div className="sticky bottom-0 left-0 right-0 p-4 mt-auto bg-[#0c1929] border-t border-gray-800 z-[60] flex gap-4 justify-center shadow-[0_-10px_20px_rgba(0,0,0,0.5)] lg:rounded-t-xl">
-            <button onClick={toggleCamera} disabled={isCameraLoading}
-              className={`font-bold rounded shadow-md px-6 py-2 ${localCameraEnabled ? 'bg-gray-800 text-white border border-gray-600 hover:bg-gray-700' : 'bg-green-600 text-white hover:bg-green-500'}`}
-              style={{ minWidth: 120, opacity: isCameraLoading ? 0.6 : 1 }}
-            >
-              {isCameraLoading ? 'Chargement…' : localCameraEnabled ? 'Cam OFF' : 'Cam ON'}
-            </button>
-            <button onClick={toggleMic}
-              className={`font-bold rounded shadow-md px-6 py-2 ${localMicEnabled ? 'bg-gray-800 text-white border border-gray-600 hover:bg-gray-700' : 'bg-green-600 text-white hover:bg-green-500'}`}
-              style={{ minWidth: 120 }}
-            >
-              {localMicEnabled ? 'Mic ON' : 'Mic OFF'}
-            </button>
+              {userMode === 'competitor' && (
+                <button
+                  onClick={() => {
+                    if (!currentQuestion || !user?.id) return
+                    submitAnswer(currentQuestion.id, user.id)
+                  }}
+                  disabled={!canSignalAnswer}
+                  style={{
+                    minWidth: 190,
+                    padding: '13px 18px',
+                    borderRadius: 999,
+                    border: `1px solid ${canSignalAnswer ? 'rgba(248,184,78,0.4)' : T.border}`,
+                    background: mySubmission?.submitted ? 'rgba(52,211,153,0.14)' : canSignalAnswer ? 'rgba(248,184,78,0.16)' : 'rgba(255,255,255,0.04)',
+                    color: mySubmission?.submitted ? '#d1fae5' : canSignalAnswer ? '#fde68a' : T.textSubtle,
+                    fontWeight: 900,
+                    fontSize: 13,
+                    cursor: canSignalAnswer ? 'pointer' : 'not-allowed',
+                    opacity: canSignalAnswer || mySubmission?.submitted ? 1 : 0.65,
+                  }}
+                >
+                  {signalButtonLabel}
+                </button>
+              )}
+            </div>
           </div>
-        )}
+        </section>
       </div>
     )
   }
 
-  // -- KPI strip (compact metrics bar replacing LiveInfoPanel) -----------
-  function KpiStrip() {
-    const phaseLabel: Record<string, string> = {
-      waiting: 'Préparation', 'live-waiting': 'En direct',
-      'live-question': 'Question', 'live-between': 'Inter-round',
-      paused: 'Pause', finished: 'Terminé', loading: 'Chargement',
-    }
-    const fmtTimer = (t: number | null) =>
-      t !== null
-        ? `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.max(0, t % 60)).padStart(2, '0')}`
-        : '–:–'
+  function InsightStrip() {
     const chips = [
       { label: 'Spectateurs', value: String(viewerCount) },
-      { label: 'Compétiteurs', value: String(competitorOnlineCount) },
-      { label: 'Round', value: `${questionNumber}/${totalQuestions || '–'}` },
-      { label: 'Timer', value: fmtTimer(timeLeft) },
-      { label: 'Statut', value: phaseLabel[phase] ?? phase },
+      { label: 'Compétiteurs en ligne', value: String(competitorOnlineCount) },
+      { label: 'Progression', value: `${questionNumber}/${totalQuestions || '–'}` },
+      { label: 'Chrono', value: formatTimer(timeLeft) },
+      { label: 'Statut', value: currentPhaseMeta.label },
     ]
+
     return (
-      <div style={{
-        flexShrink: 0, borderTop: `1px solid ${T.border}`,
-        background: T.sidebarBg, padding: '10px 20px',
-        display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch',
-      }}>
-        {chips.map((c) => (
-          <div key={c.label} style={{
-            flex: '1 1 0', minWidth: 72,
-            background: T.cardBg, border: `1px solid ${T.border}`,
-            borderRadius: 8, padding: '7px 12px',
-          }}>
-            <p style={{ ...S.label, fontSize: 9, marginBottom: 4 }}>{c.label}</p>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{c.value}</p>
-          </div>
-        ))}
+      <section style={{ ...S.card, padding: 18 }}>
+        <div className="grid grid-cols-2 xl:grid-cols-5" style={{ gap: 12 }}>
+          {chips.map((chip) => (
+            <div key={chip.label} style={{ padding: '14px 16px', borderRadius: 18, background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}` }}>
+              <p style={{ ...S.label, marginBottom: 8 }}>{chip.label}</p>
+              <p style={{ margin: 0, fontSize: 22, lineHeight: 1, fontWeight: 900, color: T.text, letterSpacing: '-0.03em' }}>{chip.value}</p>
+            </div>
+          ))}
+        </div>
+
         {eventLog.length > 0 && (
-          <div style={{ flex: '2 1 160px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {eventLog.slice(0, 2).map((evt) => (
-              <span key={evt} style={{ fontSize: 10, color: T.textMuted, background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: 999, padding: '3px 10px' }}>
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {eventLog.map((evt) => (
+              <span key={evt} style={{ padding: '7px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 11, fontWeight: 700 }}>
                 {evt}
               </span>
             ))}
           </div>
         )}
+      </section>
+    )
+  }
+
+  function CommandCenter() {
+    const nextQuestionNumber = Math.min(questionNumber + 1, totalQuestions)
+    const canOpenFirstQuestion = phase === 'waiting'
+    const canOpenNextQuestion = isLive && (phase === 'live-waiting' || phase === 'live-between') && questionNumber < totalQuestions
+    const canCloseQuestion = isLive && phase === 'live-question' && !!currentQuestion
+    const canScoreQuestion = isLive && phase === 'live-between' && !!currentQuestion
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <section style={{ ...S.card, padding: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+            <div>
+              <p style={S.label}>Régie du direct</p>
+              <h2 style={{ margin: '8px 0 0', fontSize: 24, lineHeight: 1.05, color: T.text, letterSpacing: '-0.03em' }}>{currentPhaseMeta.label}</h2>
+              <p style={{ margin: '10px 0 0', fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>{currentPhaseMeta.description}</p>
+            </div>
+            <div style={{ minWidth: 118 }}>
+              <p style={{ ...S.label, marginBottom: 8 }}>Question</p>
+              <p style={{ margin: 0, fontSize: 30, fontWeight: 900, color: currentTone, lineHeight: 1 }}>{questionNumber || 0}<span style={{ color: T.textSubtle }}>/ {totalQuestions || 0}</span></p>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 18 }}>
+            <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', border: `1px solid ${T.border}` }}>
+              <div style={{ width: `${Math.max(progressRatio * 100, phase === 'waiting' ? 4 : 0)}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${T.accentLive}, ${T.accentA})`, transition: 'width 0.35s ease' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: T.textMuted }}>Chrono actif: {formatTimer(timeLeft)}</span>
+              <span style={{ fontSize: 12, color: T.textMuted }}>{getQuestionStatusText()}</span>
+            </div>
+          </div>
+        </section>
+
+        <section style={{ ...S.card, padding: 22 }}>
+          <p style={S.label}>Prises de parole</p>
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {participants.map((participant) => {
+              const submission = submissionStatuses[participant.participantUserId] ?? null
+              const isSubmitted = Boolean(submission?.submitted)
+              const accent = participant.slot === 'A' ? T.accentA : T.accentB
+              return (
+                <div key={participant.participantUserId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: `1px solid ${isSubmitted ? accent + '55' : T.border}` }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: T.textSubtle, letterSpacing: '0.08em' }}>COMPÉTITEUR {participant.slot}</p>
+                    <p style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 800, color: T.text }}>{participant.displayName}</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: isSubmitted ? accent : T.textMuted }}>
+                      {isSubmitted ? 'Signal reçu' : 'En attente'}
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: 10, color: T.textSubtle }}>
+                      {isSubmitted && submission?.at ? new Date(submission.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Aucune prise de parole'}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+
+            {submissionOrder.length > 0 && (
+              <div style={{ marginTop: 4, padding: '12px 14px', borderRadius: 16, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.18)' }}>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#9ae6b4', letterSpacing: '0.08em' }}>ORDRE D ARRIVÉE</p>
+                <p style={{ margin: '6px 0 0', fontSize: 13, color: T.text, lineHeight: 1.55 }}>
+                  {submissionOrder.map((entry, index) => `${index + 1}. ${entry.participant.displayName}`).join('  ·  ')}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {isModerator && (
+          <section style={{ ...S.card, padding: 22 }}>
+            <p style={S.label}>Commandes modérateur</p>
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(canOpenFirstQuestion || canOpenNextQuestion) && (
+                <button
+                  style={{ width: '100%', padding: '14px 18px', borderRadius: 16, background: `linear-gradient(135deg, ${T.accentA}, #7bd3ff)`, color: '#03111f', border: 'none', fontWeight: 900, fontSize: 13, cursor: 'pointer', letterSpacing: '0.08em' }}
+                  onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
+                >
+                  {canOpenFirstQuestion ? 'LANCER LE MATCH' : `OUVRIR LA QUESTION ${nextQuestionNumber}`}
+                </button>
+              )}
+
+              {canCloseQuestion && currentQuestion && (
+                <button
+                  style={{ width: '100%', padding: '14px 18px', borderRadius: 16, background: 'rgba(251,113,133,0.16)', color: '#fecdd3', border: '1px solid rgba(251,113,133,0.34)', fontWeight: 900, fontSize: 13, cursor: 'pointer', letterSpacing: '0.08em' }}
+                  onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/end`)}
+                >
+                  CLÔTURER LA QUESTION
+                </button>
+              )}
+
+              {canScoreQuestion && currentQuestion && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button
+                    style={{ padding: '12px 10px', borderRadius: 14, background: `${T.accentA}1c`, color: T.accentA, border: `1px solid ${T.accentA}55`, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'A' })}
+                  >
+                    POINT A
+                  </button>
+                  <button
+                    style={{ padding: '12px 10px', borderRadius: 14, background: `${T.accentB}1c`, color: T.accentB, border: `1px solid ${T.accentB}55`, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'B' })}
+                  >
+                    POINT B
+                  </button>
+                  <button
+                    style={{ padding: '12px 10px', borderRadius: 14, background: 'rgba(248,184,78,0.15)', color: '#fde68a', border: '1px solid rgba(248,184,78,0.36)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'BOTH' })}
+                  >
+                    POINT AUX DEUX
+                  </button>
+                  <button
+                    style={{ padding: '12px 10px', borderRadius: 14, background: 'rgba(255,255,255,0.04)', color: T.textMuted, border: `1px solid ${T.border}`, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { result: 'NONE' })}
+                  >
+                    AUCUN POINT
+                  </button>
+                </div>
+              )}
+
+              <button
+                style={{ width: '100%', padding: '13px 18px', borderRadius: 16, background: 'rgba(251,113,133,0.08)', color: '#fda4af', border: '1px solid rgba(251,113,133,0.25)', fontWeight: 900, fontSize: 12, cursor: uniqueWinner ? 'pointer' : 'not-allowed', opacity: uniqueWinner ? 1 : 0.6, letterSpacing: '0.08em' }}
+                disabled={!uniqueWinner}
+                onClick={async () => {
+                  if (!uniqueWinner) {
+                    alert('Impossible de terminer le match: il y a une égalité en tête. Départagez les scores avant de clôturer.')
+                    return
+                  }
+                  if (!window.confirm(`Déclarer ${uniqueWinner.displayName} vainqueur et terminer le match ?`)) return
+                  await adminFetch(`${ARENA_API}/competitions/${competitionId}/complete`, 'PATCH', { participantUserId: uniqueWinner.participantUserId })
+                }}
+              >
+                TERMINER LE MATCH
+              </button>
+
+              {!uniqueWinner && (
+                <p style={{ margin: 0, fontSize: 11, color: '#fda4af', lineHeight: 1.55 }}>
+                  Une égalité subsiste en tête. Attribuez ou ajustez les points avant la clôture finale.
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginTop: 18 }}>
+              <PublicStreamPanel competitionId={competitionId} accessToken={accessToken} />
+            </div>
+          </section>
+        )}
+
+        <ScoreboardPanel />
       </div>
     )
   }
 
-  // -- Scoreboard + moderator controls panel ----------------------------
   function ScoreboardPanel() {
-    const competitorA = participants[0]
-    const competitorB = participants[1]
     const leader = uniqueWinner?.participantUserId ?? null
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Header */}
-        <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-          <p style={S.label}>Classement live</p>
-          <p style={{ margin: '3px 0 0', fontSize: 11, color: T.textMuted }}>Score en temps réel</p>
+      <section style={{ ...S.card, padding: 22 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+          <div>
+            <p style={S.label}>Tableau de match</p>
+            <h2 style={{ margin: '8px 0 0', fontSize: 24, color: T.text, lineHeight: 1.05, letterSpacing: '-0.03em' }}>Scores en direct</h2>
+          </div>
+          <span style={{ padding: '7px 11px', borderRadius: 999, border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 11, fontWeight: 800 }}>{viewerCount} vue(s)</span>
         </div>
 
-        {/* Top-2 competitor rows */}
-        <div style={{ flexShrink: 0 }}>
-          {[competitorA, competitorB].map((p, index) => {
-            const isLeader = p.participantUserId === leader
-            const isLocal = user?.id === p.participantUserId
-            const accent = index === 0 ? T.accentA : T.accentB
+        <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {participants.map((participant, index) => {
+            const accent = participant.slot === 'A' ? T.accentA : T.accentB
+            const isLeader = participant.participantUserId === leader
             return (
-              <div key={p.participantUserId} style={{
-                display: 'flex', alignItems: 'center',
-                padding: '12px 16px',
-                borderBottom: `1px solid ${T.border}`,
-                background: isLeader ? `${accent}08` : 'transparent',
-                transition: 'background 0.4s ease',
+              <div key={participant.participantUserId} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '16px 18px',
+                borderRadius: 18,
+                border: `1px solid ${isLeader ? accent + '50' : T.border}`,
+                background: isLeader ? `${accent}10` : 'rgba(255,255,255,0.03)',
               }}>
-                {/* Rank circle */}
-                <div style={{
-                  width: 30, height: 30, borderRadius: '50%', flexShrink: 0, marginRight: 12,
-                  background: isLeader ? `${accent}22` : T.cardBg,
-                  border: `1px solid ${isLeader ? accent + '45' : T.border}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: isLeader ? accent : T.textMuted }}>{index + 1}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${accent}20`, border: `1px solid ${accent}45`, color: accent, fontWeight: 900 }}>{index + 1}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 11, color: T.textSubtle, fontWeight: 800, letterSpacing: '0.08em' }}>COMPÉTITEUR {participant.slot}</p>
+                    <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{participant.displayName}</p>
+                  </div>
                 </div>
-                {/* Name */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase' as const }}>
-                    Compétiteur {p.slot}
-                    {isLocal && <span style={{ marginLeft: 6, color: T.accentA }}>● VOUS</span>}
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: 13, fontWeight: 700, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.displayName}</p>
-                </div>
-                {/* Score */}
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
-                  <span style={{ fontSize: 24, fontWeight: 900, color: accent, letterSpacing: '-0.02em', lineHeight: 1, display: 'block' }}>{p.score}</span>
-                  <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700, letterSpacing: '0.1em' }}>PTS</span>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, fontSize: 30, lineHeight: 1, fontWeight: 900, color: accent }}>{participant.score}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 10, color: T.textSubtle, fontWeight: 800, letterSpacing: '0.08em' }}>POINTS</p>
                 </div>
               </div>
             )
           })}
         </div>
 
-        {/* Extended leaderboard rows */}
-        {liveLeaderboard.length > 2 && (
-          <div style={{ borderTop: `1px solid ${T.border}`, overflowY: 'auto', maxHeight: 150 }}>
-            {liveLeaderboard.slice(2).map((row, i) => (
-              <div key={row.participantUserId} style={{ display: 'flex', alignItems: 'center', padding: '7px 16px', gap: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, width: 18, textAlign: 'center' }}>{i + 3}</span>
-                <span style={{ flex: 1, fontSize: 12, color: T.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.displayName}</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: T.accentA }}>{row.score}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Moderator controls (auto-pushed to bottom) */}
-        {isModerator && (
-          <div style={{ marginTop: 'auto', borderTop: `1px solid ${T.border}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 9, background: T.sidebarBg, overflowY: 'auto' }}>
-            <p style={{ ...S.label, marginBottom: 2 }}>Contrôles modérateur</p>
-
-            <PublicStreamPanel competitionId={competitionId} accessToken={accessToken} />
-
-            {(!isLive || phase === 'live-waiting') && (
-              <button
-                style={{ width: '100%', padding: '12px 0', borderRadius: 8, background: T.accentA, color: '#fff', border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', letterSpacing: '0.07em', boxShadow: `0 0 18px ${T.accentA}30` }}
-                onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
-              >
-                {!isLive ? 'DÉMARRER LE MATCH' : `DÉMARRER ROUND ${questionNumber + 1}`}
-              </button>
-            )}
-
-            {isLive && phase === 'live-question' && liveState?.currentRound && (
-              <button
-                style={{ width: '100%', padding: '12px 0', borderRadius: 8, background: T.accentB, color: '#fff', border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', letterSpacing: '0.07em' }}
-                onClick={() => adminFetch(`${ARENA_API}/rounds/${liveState.currentRound!.id}/end`)}
-              >
-                FIN DU ROUND
-              </button>
-            )}
-
-            {isLive && phase === 'live-between' && questionNumber < totalQuestions && (
-              <button
-                style={{ width: '100%', padding: '12px 0', borderRadius: 8, background: T.gold, color: '#1a1000', border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer', letterSpacing: '0.07em' }}
-                onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
-              >
-                ROUND {questionNumber + 1} →
-              </button>
-            )}
-
-            {isLive && phase === 'live-between' && liveState?.currentRound && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 2 }}>
-                <button
-                  style={{ padding: '10px 0', borderRadius: 8, background: `${T.accentA}1a`, color: T.accentA, border: `1px solid ${T.accentA}40`, fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.05em' }}
-                  onClick={() => adminFetch(`${ARENA_API}/rounds/${liveState.currentRound!.id}/score`, 'PATCH', { result: 'A' })}
-                >
-                  A CORRECT
-                </button>
-                <button
-                  style={{ padding: '10px 0', borderRadius: 8, background: `${T.accentB}1a`, color: T.accentB, border: `1px solid ${T.accentB}40`, fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.05em' }}
-                  onClick={() => adminFetch(`${ARENA_API}/rounds/${liveState.currentRound!.id}/score`, 'PATCH', { result: 'B' })}
-                >
-                  B CORRECT
-                </button>
-                <button
-                  style={{ padding: '10px 0', borderRadius: 8, background: 'rgba(167,139,250,0.12)', color: '#c4b5fd', border: '1px solid rgba(167,139,250,0.3)', fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.05em' }}
-                  onClick={() => adminFetch(`${ARENA_API}/rounds/${liveState.currentRound!.id}/score`, 'PATCH', { result: 'BOTH' })}
-                >
-                  LES DEUX
-                </button>
-                <button
-                  style={{ padding: '10px 0', borderRadius: 8, background: 'rgba(255,255,255,0.04)', color: T.textMuted, border: `1px solid ${T.border}`, fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.05em' }}
-                  onClick={() => adminFetch(`${ARENA_API}/rounds/${liveState.currentRound!.id}/score`, 'PATCH', { result: 'NONE' })}
-                >
-                  AUCUN
-                </button>
-              </div>
-            )}
-
-            <button
-              style={{ width: '100%', padding: '9px 0', marginTop: 4, borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontWeight: 700, fontSize: 11, cursor: 'pointer', letterSpacing: '0.07em' }}
-              disabled={!uniqueWinner}
-              onClick={async () => {
-                if (!uniqueWinner) {
-                  alert('Impossible de terminer le match: il y a une égalité en tête. Départagez les scores avant de clôturer.')
-                  return
-                }
-                await adminFetch(`${ARENA_API}/competitions/${competitionId}/complete`, 'PATCH', { participantUserId: uniqueWinner.participantUserId })
-              }}
-            >
-              TERMINER LE MATCH
-            </button>
-            {!uniqueWinner && (
-              <p style={{ margin: 0, fontSize: 11, lineHeight: 1.45, color: '#fca5a5' }}>
-                Égalité en tête: ajustez les scores avant de terminer le match.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+        <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 18, background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}` }}>
+          <p style={{ ...S.label, marginBottom: 8 }}>Lecture du match</p>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: T.textMuted }}>
+            {uniqueWinner
+              ? `${uniqueWinner.displayName} mène actuellement la rencontre.`
+              : 'Les deux compétiteurs sont au coude-à-coude. Le prochain point peut faire la différence.'}
+          </p>
+        </div>
+      </section>
     )
   }
 
-  // -- Premium header bar -----------------------------------------------
   const topBar = (
     <header style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 20px', height: 62, flexShrink: 0, gap: 12, color: '#fff',
-      background: 'linear-gradient(135deg, #07101e 0%, #0d1f3c 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '18px 22px',
+      gap: 14,
+      color: '#fff',
+      background: 'linear-gradient(180deg, rgba(8,15,27,0.92) 0%, rgba(8,15,27,0.82) 100%)',
       borderBottom: `1px solid ${T.border}`,
-      boxShadow: '0 2px 24px rgba(0,0,0,0.5)',
-      zIndex: 50, position: 'relative',
+      backdropFilter: 'blur(18px)',
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
     }}>
-      {/* Left: back + branding + match name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
         <button
           onClick={() => navigate('/arena')}
-          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', fontSize: 20, padding: '0 2px', flexShrink: 0, lineHeight: 1 }}
+          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.62)', cursor: 'pointer', fontSize: 20, padding: 0, lineHeight: 1 }}
           title="Retour à l'Arena"
         >←</button>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, flexShrink: 0 }}>
-          <span style={{ fontWeight: 900, fontSize: 14, letterSpacing: '0.02em', color: '#fff' }}>KONESANS</span>
-          <span style={{ fontWeight: 900, fontSize: 14, color: T.gold }}>+</span>
-          <span style={{ fontSize: 12, color: T.textMuted, marginLeft: 5, fontWeight: 600, letterSpacing: '0.06em' }}>ARENA</span>
+          <span style={{ fontWeight: 900, fontSize: 15, letterSpacing: '0.04em', color: '#fff' }}>KONESANS</span>
+          <span style={{ fontWeight: 900, fontSize: 15, color: T.gold }}>+</span>
+          <span style={{ fontSize: 11, color: T.textSubtle, marginLeft: 6, fontWeight: 700, letterSpacing: '0.16em' }}>ARENA LIVE</span>
         </div>
         <div style={{ width: 1, height: 18, background: T.border, flexShrink: 0 }} />
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
-          {liveState?.competitionName ?? 'Match Arena Live'}
-        </p>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 11, color: T.textSubtle, fontWeight: 800, letterSpacing: '0.1em' }}>MATCH</p>
+          <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>{liveState?.competitionName ?? 'Match Arena Live'}</p>
+        </div>
       </div>
 
-      {/* Center: status pills + timer */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        {isLive && totalQuestions > 0 && (
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', border: `1px solid ${T.border}` }}>
-            ROUND {questionNumber}/{totalQuestions}
-          </span>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <span style={{ padding: '8px 12px', borderRadius: 999, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.04)', color: T.textMuted, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em' }}>
+          QUESTION {questionNumber || 0}/{totalQuestions || 0}
+        </span>
         {!connected && (
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: T.textMuted, border: `1px solid ${T.border}` }}>
+          <span style={{ padding: '8px 12px', borderRadius: 999, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.04)', color: T.textMuted, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em' }}>
             CONNEXION…
           </span>
         )}
         {isPaused && (
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '3px 12px', borderRadius: 6, background: 'rgba(245,158,11,0.16)', color: T.gold, border: '1px solid rgba(245,158,11,0.35)' }}>
-            ⏸ PAUSE
+          <span style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(248,184,78,0.32)', background: 'rgba(248,184,78,0.14)', color: '#fde68a', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em' }}>
+            EN PAUSE
           </span>
         )}
         {connected && !isPaused && isLive && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '3px 12px', borderRadius: 6, background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.28)' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'liveDot 1.5s ease-in-out infinite' }} />
-            LIVE
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(46,211,183,0.28)', background: 'rgba(46,211,183,0.12)', color: '#99f6e4', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: T.accentLive, display: 'inline-block', animation: 'liveDot 1.5s ease-in-out infinite' }} />
+            EN DIRECT
           </span>
         )}
-        {timeLeft !== null && !roundIsClosed && liveState?.currentRound && (
-          <div style={timeLeft <= 5 ? S.timerCritical : S.timerNormal}>
-            {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(Math.max(0, timeLeft % 60)).padStart(2, '0')}
-          </div>
-        )}
-      </div>
-
-      {/* Right: viewer count + admin quick controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)', border: `1px solid ${T.border}` }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-          {viewerCount}
+        <span style={{ padding: '8px 12px', borderRadius: 999, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.04)', color: T.text, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em' }}>
+          {viewerCount} spectateur(s)
         </span>
         {isModerator && isLive && (
-          <>
-            <button
-              onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/${isPaused ? 'resume' : 'pause'}`)}
-              style={{ background: isPaused ? 'rgba(245,158,11,0.18)' : 'rgba(255,255,255,0.07)', border: `1px solid ${isPaused ? 'rgba(245,158,11,0.4)' : T.border}`, color: isPaused ? T.gold : 'rgba(255,255,255,0.75)', borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.07em' }}
-            >
-              {isPaused ? 'REPRENDRE' : 'PAUSE'}
-            </button>
-            {phase === 'live-question' && liveState?.currentRound && (
-              <button
-                onClick={() => adminFetch(`${ARENA_API}/rounds/${liveState.currentRound!.id}/end`)}
-                style={{ background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5', borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.07em' }}
-              >
-                CLÔTURER
-              </button>
-            )}
-            {phase === 'live-between' && questionNumber < totalQuestions && (
-              <button
-                onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
-                style={{ background: 'rgba(245,158,11,0.18)', border: '1px solid rgba(245,158,11,0.4)', color: T.gold, borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.07em' }}
-              >
-                ROUND {questionNumber + 1}
-              </button>
-            )}
-            {phase === 'live-between' && questionNumber === totalQuestions && (
-              <button
-                onClick={async () => {
-                  if (!uniqueWinner) {
-                    alert('Impossible de terminer le match: il y a une égalité en tête. Départagez les scores avant de clôturer.')
-                    return
-                  }
-                  if (!confirm(`Déclarer "${uniqueWinner.displayName}" vainqueur et terminer ?`)) return
-                  await adminFetch(`${ARENA_API}/competitions/${competitionId}/complete`, 'PATCH', { participantUserId: uniqueWinner.participantUserId })
-                }}
-                style={{ background: 'rgba(245,158,11,0.25)', border: '1px solid rgba(245,158,11,0.5)', color: T.gold, borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 700, cursor: uniqueWinner ? 'pointer' : 'not-allowed', opacity: uniqueWinner ? 1 : 0.55 }}
-                disabled={!uniqueWinner}
-              >
-                TERMINER
-              </button>
-            )}
-          </>
+          <button
+            onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/${isPaused ? 'resume' : 'pause'}`)}
+            style={{ padding: '10px 14px', borderRadius: 999, background: isPaused ? 'rgba(248,184,78,0.16)' : 'rgba(255,255,255,0.06)', border: `1px solid ${isPaused ? 'rgba(248,184,78,0.32)' : T.border}`, color: isPaused ? '#fde68a' : T.text, fontSize: 11, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}
+          >
+            {isPaused ? 'REPRENDRE' : 'PAUSE'}
+          </button>
         )}
       </div>
     </header>
   )
 
-  // -- Alert strip -------------------------------------------------------
   const alertStrip = (
     <>
       {error && (
-        <div style={{ padding: '8px 20px', background: 'rgba(239,68,68,0.1)', borderBottom: '1px solid rgba(239,68,68,0.28)', flexShrink: 0 }}>
-          <span style={{ fontSize: 13, color: '#f87171', fontWeight: 600 }}>{error}</span>
+        <div style={{ padding: '10px 22px', background: 'rgba(251,113,133,0.1)', borderBottom: '1px solid rgba(251,113,133,0.24)' }}>
+          <span style={{ fontSize: 13, color: '#fecdd3', fontWeight: 700 }}>{error}</span>
         </div>
       )}
       {isPaused && (
-        <div style={{ padding: '8px 20px', background: 'rgba(245,158,11,0.09)', borderBottom: '1px solid rgba(245,158,11,0.28)', flexShrink: 0, textAlign: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.gold, letterSpacing: '0.06em' }}>
-            ⏸ SESSION EN PAUSE — reprise imminente
+        <div style={{ padding: '10px 22px', background: 'rgba(248,184,78,0.09)', borderBottom: '1px solid rgba(248,184,78,0.22)', textAlign: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#fde68a', letterSpacing: '0.08em' }}>
+            SESSION EN PAUSE — reprenez quand le plateau est prêt
           </span>
         </div>
       )}
     </>
   )
 
-  // -- Main layout -------------------------------------------------------
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: T.bg, overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: `radial-gradient(circle at top left, rgba(93,160,255,0.14), transparent 28%), radial-gradient(circle at top right, rgba(46,211,183,0.12), transparent 24%), ${T.bg}`, color: T.text }}>
       {topBar}
       {alertStrip}
 
-      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px] overflow-y-auto lg:overflow-hidden">
-        {/* Left: stage + KPI strip */}
-        <div className="flex flex-col lg:overflow-y-auto">
-          <div style={{ flex: 1 }}>
+      <main style={{ maxWidth: 1480, margin: '0 auto', padding: '22px 18px 32px' }}>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_380px]" style={{ gap: 18, alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <section style={{ ...S.card, padding: 22 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={S.label}>Direction du live</p>
+                  <h1 style={{ margin: '8px 0 0', fontSize: 34, lineHeight: 1.02, letterSpacing: '-0.04em', color: T.text }}>Une régie pensée question par question</h1>
+                  <p style={{ margin: '12px 0 0', maxWidth: 760, fontSize: 14, lineHeight: 1.7, color: T.textMuted }}>
+                    La logique interne peut rester structurée, mais l expérience visible est désormais centrée sur la question orale: ouverture, prise de parole, clôture et attribution immédiate du point.
+                  </p>
+                </div>
+                <div style={{ minWidth: 210, padding: '16px 18px', borderRadius: 20, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}` }}>
+                  <p style={{ ...S.label, marginBottom: 8 }}>Fil conducteur</p>
+                  <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: currentTone }}>{currentPhaseMeta.label}</p>
+                  <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.55, color: T.textMuted }}>{currentPhaseMeta.description}</p>
+                </div>
+              </div>
+            </section>
+
             <MatchScene />
+            <InsightStrip />
           </div>
-          <KpiStrip />
-        </div>
 
-        {/* Right: scoreboard */}
-        <div style={{ borderLeft: `1px solid ${T.border}`, background: T.sidebarBg }} className="flex flex-col lg:overflow-y-auto">
-          <ScoreboardPanel />
+          <CommandCenter />
         </div>
-      </div>
+      </main>
 
-      {/* Global keyframe animations */}
       <style>{`
-        @keyframes spin       { to { transform: rotate(360deg); } }
-        @keyframes liveDot    { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.35; transform:scale(0.65); } }
-        @keyframes timerPulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
-        @keyframes scoreFlash { 0% { transform:scale(1); } 50% { transform:scale(1.15); } 100% { transform:scale(1); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes liveDot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.35; transform:scale(0.68); } }
+        @keyframes timerPulse { 0%,100% { opacity:1; } 50% { opacity:0.48; } }
       `}</style>
     </div>
   )

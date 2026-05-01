@@ -33,8 +33,11 @@ export type ArenaLiveState = {
   type: string
   secondsPerQuestion: number
   currentRoundNumber: number
+  currentQuestionNumber?: number
   totalRounds: number
+  totalQuestions?: number
   currentRound: LiveRound | null
+  currentQuestion?: LiveRound | null
   leaderboard: ArenaLeaderboardRow[]
   participants?: ArenaParticipant[]
   matchParticipants?: ArenaMatchParticipant[]
@@ -136,13 +139,22 @@ export function useArenaSocket(params: {
       setSocketState((s) => ({ ...s, leaderboard: data.leaderboard }))
     })
 
-    socket.on('arena:round-start', (data: { round: LiveRound; leaderboard: ArenaLeaderboardRow[] }) => {
+    socket.on('arena:round-start', (data: { round: LiveRound; question?: LiveRound; leaderboard: ArenaLeaderboardRow[] }) => {
+      const nextQuestion = data.question ?? data.round
       setSocketState((s) => ({
         ...s,
         leaderboard: data.leaderboard,
         roundEnded: null,
         submissionStatuses: {},
-        state: s.state ? { ...s.state, currentRound: data.round, currentRoundNumber: data.round.position } : null,
+        state: s.state
+          ? {
+              ...s.state,
+              currentRound: data.round,
+              currentQuestion: nextQuestion,
+              currentRoundNumber: data.round.position,
+              currentQuestionNumber: nextQuestion.position,
+            }
+          : null,
       }))
     })
 
@@ -159,6 +171,9 @@ export function useArenaSocket(params: {
                 currentRound: s.state.currentRound
                   ? { ...s.state.currentRound, endedAt: new Date().toISOString() }
                   : s.state.currentRound,
+                currentQuestion: s.state.currentQuestion
+                  ? { ...s.state.currentQuestion, endedAt: new Date().toISOString() }
+                  : s.state.currentQuestion,
               }
             : null,
         }))
@@ -185,12 +200,12 @@ export function useArenaSocket(params: {
       }))
     })
 
-    socket.on('arena:answer-submitted', (data: { participantId: string; option: string; at: string }) => {
+    socket.on('arena:answer-submitted', (data: { participantId: string; option: string | null; at: string }) => {
       setSocketState((s) => ({
         ...s,
         submissionStatuses: {
           ...s.submissionStatuses,
-          [data.participantId]: { submitted: true, option: data.option, at: data.at },
+          [data.participantId]: { submitted: true, option: data.option ?? null, at: data.at },
         },
       }))
     })
@@ -248,7 +263,7 @@ export function useArenaSocket(params: {
   }, [params])
 
   const submitAnswer = useCallback(
-    (roundId: string, participantId: string, selectedOption: 'A' | 'B' | 'C' | 'D') => {
+    (roundId: string, participantId: string, selectedOption: 'A' | 'B' | 'C' | 'D' = 'A') => {
       socketRef.current?.emit('arena:participant-answer', { roundId, participantId, selectedOption })
     },
     [],
