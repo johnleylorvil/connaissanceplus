@@ -27,7 +27,6 @@ export default function LandingPage() {
   }
 
   const onDark = !scrolled
-  const initiatorPhotoSrc = ''
 
   return (
     <div id="top" className="landing-shell">
@@ -174,24 +173,11 @@ export default function LandingPage() {
                 "Faire de l'excellence scolaire une expérience visible, motivante et reconnue."
               </blockquote>
               <p style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-2)', fontWeight: 600 }}>
-                — Johnley, Initiateur de Konesans+
+                — Johnley-Roosevelt Lorvil, Fondateur de Konesans+
               </p>
-              <div style={{ marginTop: 28, maxWidth: 360 }}>
-                {initiatorPhotoSrc ? (
-                  <img
-                    src={initiatorPhotoSrc}
-                    alt="Johnley, initiateur de Konesans+"
-                    style={{ width: '100%', aspectRatio: '4 / 5', objectFit: 'cover', borderRadius: 18, display: 'block', border: '1px solid var(--rule)' }}
-                  />
-                ) : (
-                  <div style={{ width: '100%', aspectRatio: '4 / 5', borderRadius: 18, border: '1px solid rgba(22,36,71,0.08)', background: 'linear-gradient(180deg, rgba(201,145,36,0.08), rgba(22,36,71,0.04))', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--cobalt)' }}>Vision Konesans+</p>
-                      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>Une plateforme pensée pour valoriser les élèves, les écoles et la culture de la performance académique en Haïti.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <p style={{ margin: '18px 0 0', maxWidth: 520, fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.8 }}>
+                Konesans+ est porté par une ambition simple: offrir aux élèves haïtiens un espace moderne, lisible et stimulant pour apprendre, se mesurer et faire reconnaître leur progression.
+              </p>
             </div>
             <div className="about-side-panel">
               {[

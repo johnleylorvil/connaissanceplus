@@ -131,6 +131,7 @@
 }
 
 .field-input {
+  box-sizing: border-box;
   width: 100%;
   border: 1px solid var(--rule);
   border-radius: 4px;
@@ -540,6 +541,8 @@
 }
 
 .auth-panel {
+  box-sizing: border-box;
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -557,6 +560,9 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
+}
+.auth-form-grid > * {
+  min-width: 0;
 }
 @media (min-width: 640px) {
   .auth-form-grid {
