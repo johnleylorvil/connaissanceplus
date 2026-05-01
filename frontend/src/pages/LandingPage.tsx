@@ -3,17 +3,32 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SponsorsSection from '../components/SponsorsSection'
 import { userHome } from '../auth/authRules'
+import { apiCall } from '../api/client'
+
+type WeeklyLeaderboardRow = {
+  userId: string
+  studentName: string
+  winCount: number
+  totalCorrectAnswers: number
+}
 
 export default function LandingPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [scrolled, setScrolled] = useState(false)
+  const [topStudents, setTopStudents] = useState<WeeklyLeaderboardRow[]>([])
   const navLinks = [['À propos', '#about'], ['Fonctionnalités', '#features'], ['Parcours', '#how']] as const
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > window.innerHeight - 80)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    apiCall<WeeklyLeaderboardRow[]>('/leaderboard/weekly')
+      .then((rows) => setTopStudents(rows.slice(0, 3)))
+      .catch(() => setTopStudents([]))
   }, [])
 
   const handleStudentCta = () => {
@@ -98,7 +113,7 @@ export default function LandingPage() {
               devient visible.
             </h1>
             <p className="landing-hero-copy" style={{ color: 'rgba(255,255,255,0.58)' }}>
-              Quiz académiques, duels en direct, classements hebdomadaires et récompenses. Pensé pour les élèves haïtiens, de la 7e AF à la Philo.
+              Quiz académiques, duels en direct, classements hebdomadaires et récompenses. Pensé pour les élèves haïtiens, de la 6e AF à la NS4.
             </p>
             <div className="landing-hero-cta">
               <button onClick={handleStudentCta} className="btn btn-gold btn-lg">Créer mon compte</button>
@@ -159,6 +174,80 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section style={{ background: 'var(--paper)', padding: '0 6vw 32px' }}>
+        <div style={{ maxWidth: 1100, margin: '-38px auto 0', position: 'relative', zIndex: 2 }}>
+          <div style={{ borderRadius: 28, background: '#fff', border: '1px solid var(--rule)', boxShadow: '0 24px 60px rgba(15,32,64,0.10)', padding: '24px clamp(18px, 3vw, 30px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap', marginBottom: 20 }}>
+              <div>
+                <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)' }}>
+                  Étudiants de la semaine
+                </p>
+                <p style={{ margin: 0, fontSize: 16, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+                  Les trois meilleurs profils de la semaine, selon les victoires en duel et la qualité des réponses.
+                </p>
+              </div>
+              <a href="/login" style={{ textDecoration: 'none' }}>
+                <span className="btn btn-ghost btn-sm">Voir le classement complet</span>
+              </a>
+            </div>
+
+            {topStudents.length > 0 ? (
+              <div className="responsive-three-col" style={{ gap: 14 }}>
+                {topStudents.map((student, index) => {
+                  const rank = index + 1
+                  const accent = rank === 1 ? 'var(--gold)' : rank === 2 ? 'var(--cobalt)' : '#8A6A43'
+
+                  return (
+                    <div key={student.userId} style={{ background: rank === 1 ? 'linear-gradient(180deg, rgba(201,145,36,0.14), rgba(255,255,255,1))' : '#fff', border: `1px solid ${rank === 1 ? 'rgba(201,145,36,0.28)' : 'var(--rule)'}`, borderRadius: 22, padding: '20px 18px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                          {rank === 1 ? '1re place' : rank === 2 ? '2e place' : '3e place'}
+                        </span>
+                        <span style={{ width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: rank === 1 ? accent : '#fff', border: `1px solid ${accent}`, color: rank === 1 ? '#fff' : accent, fontSize: 15, fontWeight: 800 }}>
+                          {rank}
+                        </span>
+                      </div>
+
+                      <p className="display" style={{ margin: '0 0 8px', fontSize: 24, color: 'var(--ink)', lineHeight: 1.2 }}>
+                        {student.studentName}
+                      </p>
+                      <p style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.6 }}>
+                        Performance hebdomadaire remarquée sur le classement national.
+                      </p>
+
+                      <div style={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', gap: 12 }}>
+                        <div>
+                          <p className="display" style={{ margin: 0, fontSize: 30, color: accent, lineHeight: 1 }}>
+                            {student.winCount}
+                          </p>
+                          <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
+                            Victoires
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
+                            {student.totalCorrectAnswers}
+                          </p>
+                          <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
+                            Bonnes réponses
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ borderRadius: 20, border: '1px solid var(--rule)', background: 'var(--surface)', padding: '22px 18px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.7 }}>
+                  Le podium hebdomadaire apparaîtra ici dès que les premiers résultats de la semaine seront disponibles.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* ── À PROPOS ── */}
       <section id="about" className="landing-section" style={{ background: 'var(--paper)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -183,7 +272,7 @@ export default function LandingPage() {
               {[
                 { n: '01', t: 'Accessible', d: 'Inscription gratuite et accès simplifié pour les élèves haïtiens, où qu’ils se trouvent.' },
                 { n: '02', t: 'Structuré', d: 'Règles claires, parcours lisible et classements hebdomadaires compréhensibles par tous.' },
-                { n: '03', t: 'Ancré localement', d: 'Contenus alignés sur le programme haïtien, du fondamental jusqu’à la Philo.' },
+                { n: '03', t: 'Ancré localement', d: 'Contenus alignés sur le programme haïtien, de la 6e AF à la NS4.' },
               ].map((item, i, arr) => (
                 <div key={item.n} style={{ paddingBottom: i < arr.length - 1 ? 28 : 0, marginBottom: i < arr.length - 1 ? 28 : 0, borderBottom: i < arr.length - 1 ? '1px solid var(--rule)' : 'none' }}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -359,7 +448,7 @@ export default function LandingPage() {
                 Plateforme haïtienne de quiz, duels et concours académiques en ligne pour révéler le mérite scolaire.
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {['7e AF à Philo', 'Classement national', 'Duels live'].map((item) => (
+                {['6e AF à NS4', 'Classement national', 'Duels en direct'].map((item) => (
                   <span key={item} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
                     {item}
                   </span>
