@@ -51,8 +51,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
       <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>
         Vue générale
       </h1>
-      <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28 }}>
-      {/* Live banner */}}
+      {/* Live banner */}
       {liveComp && (
         <div
           style={{
