@@ -52,10 +52,7 @@ export default function ArenaOverview({ onNavigate }: Props) {
         Vue générale
       </h1>
       <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28 }}>
-        Suivez le génie scolaire en direct et repérez les prochaines confrontations.
-      </p>
-
-      {/* Live banner */}
+      {/* Live banner */}}
       {liveComp && (
         <div
           style={{
@@ -161,16 +158,10 @@ export default function ArenaOverview({ onNavigate }: Props) {
       <div className="responsive-two-col" style={{ gap: 12 }}>
         <div className="card">
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Génie scolaire 1v1</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>
-            Consultez les matchs annoncés, repérez les duels confirmés et rejoignez la scène privée si vous êtes compétiteur ou modérateur assigné.
-          </p>
           <button onClick={() => onNavigate('competitions')} className="btn btn-ghost btn-sm">Voir les compétitions →</button>
         </div>
         <div className="card">
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 12 }}>Vue spectateur</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 14, lineHeight: 1.6 }}>
-            Suivez les rencontres de génie scolaire en direct depuis la page publique, avec score et progression en temps réel.
-          </p>
           <button
             onClick={() => navigate('/arena/spectator')}
             className="btn btn-ghost btn-sm"

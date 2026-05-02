@@ -290,22 +290,32 @@ function CompetitorPanel({
   const isSpeaking = (stageParticipant?.participant as { isSpeaking?: boolean } | undefined)?.isSpeaking ?? false
   const initials = getInitials(participant.displayName)
   const slotColor = participant.slot === 'A' ? T.green : T.blue
-  const targetBorderColor = slotColor === T.green ? 'rgba(79,198,106,0.6)' : 'rgba(108,168,245,0.6)'
-  const targetGlowColor  = slotColor === T.green ? 'rgba(79,198,106,0.22)' : 'rgba(108,168,245,0.22)'
+  const targetBorderColor = slotColor === T.green ? 'rgba(79,198,106,0.70)' : 'rgba(108,168,245,0.70)'
+  const spotlightClass = participant.slot === 'A' ? 'arena-spotlight-green' : 'arena-spotlight-blue'
+
+  // Score gain flash
+  const prevScoreRef = useRef(participant.score)
+  const [scoreFlashActive, setScoreFlashActive] = useState(false)
+  useEffect(() => {
+    if (participant.score > prevScoreRef.current) {
+      setScoreFlashActive(true)
+      const t = setTimeout(() => setScoreFlashActive(false), 580)
+      return () => clearTimeout(t)
+    }
+    prevScoreRef.current = participant.score
+  }, [participant.score])
 
   return (
     <article
-      className="arena-competitor-article"
+      className={`arena-competitor-article${isTargeted ? ` ${spotlightClass}` : ''}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 20,
         overflow: 'hidden',
         border: `1px solid ${isTargeted ? targetBorderColor : 'rgba(255,255,255,0.11)'}`,
-        boxShadow: isTargeted
-          ? `0 0 0 1px ${targetGlowColor}, 0 8px 48px ${targetGlowColor}, 0 8px 40px rgba(0,0,0,0.55)`
-          : '0 8px 40px rgba(0,0,0,0.5)',
-        transition: 'box-shadow 0.4s ease, border-color 0.4s ease',
+        ...(isTargeted ? {} : { boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }),
+        transition: 'border-color 0.4s ease',
       }}
     >
       {/* Video area */}
@@ -340,6 +350,9 @@ function CompetitorPanel({
             {participant.displayName}
           </p>
         </div>
+
+        {/* VOUS badge — top-right, only for the local participant */}
+        {isLocal && <div className="arena-you-badge">VOUS</div>}
 
         {/* Right indicator — glow dot if targeted, audio wave if speaking */}
         <div style={{ position: 'absolute', bottom: 18, right: 14 }}>
@@ -378,6 +391,7 @@ function CompetitorPanel({
         {/* Score row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span
+            className={scoreFlashActive ? 'score-flash' : undefined}
             style={{
               fontSize: 44,
               fontWeight: 900,
@@ -386,8 +400,9 @@ function CompetitorPanel({
               flexShrink: 0,
               minWidth: 50,
               textAlign: 'center',
-              textShadow: `0 0 24px ${slotColor}66`,
+              textShadow: `0 0 24px ${slotColor}${scoreFlashActive ? 'cc' : '66'}`,
               fontVariantNumeric: 'tabular-nums',
+              display: 'inline-block',
             }}
           >
             {participant.score}
@@ -420,20 +435,18 @@ function CompetitorPanel({
               type="button"
               onClick={onReply}
               disabled={!canReply}
+              className={canReply ? (participant.slot === 'A' ? 'arena-reply-urgent-green' : 'arena-reply-urgent-blue') : undefined}
               style={{
                 padding: '9px 0',
                 borderRadius: 10,
-                border: `1px solid ${canReply ? `${slotColor}66` : 'rgba(255,255,255,0.08)'}`,
-                background: canReply
-                  ? `linear-gradient(135deg, ${slotColor}22, ${slotColor}0d)`
-                  : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${canReply ? `${slotColor}44` : 'rgba(255,255,255,0.08)'}`,
+                background: canReply ? 'transparent' : 'rgba(255,255,255,0.04)',
                 color: canReply ? slotColor : T.textSoft,
                 fontSize: 13,
                 fontWeight: 800,
                 cursor: canReply ? 'pointer' : 'default',
                 letterSpacing: '0.06em',
                 width: '100%',
-                boxShadow: canReply ? `0 0 16px ${slotColor}22` : 'none',
                 transition: 'all 0.2s ease',
               }}
             >
@@ -909,6 +922,7 @@ export default function ArenaLive() {
   void onlineParticipantIds
 
   const questionPanelText = getQuestionPanelText({ phase, isOralQuestion, questionPrompt, currentQuestionTarget })
+  const spectatorCount = (onlineUsers as Array<{ userId: string; role: string }>).filter((u) => u.role === 'spectator').length
 
   const adminFetch = async (url: string, method = 'PATCH', body?: unknown) => {
     try {
@@ -1082,6 +1096,42 @@ export default function ArenaLive() {
           0%, 100% { color: #ff4d4d; }
           50%       { color: #ff9090; }
         }
+        @keyframes beatSecond {
+          0%   { transform: scale(1); }
+          28%  { transform: scale(1.12); }
+          65%  { transform: scale(0.95); }
+          100% { transform: scale(1); }
+        }
+        @keyframes scoreGain {
+          0%   { transform: scale(1); }
+          26%  { transform: scale(1.38); }
+          60%  { transform: scale(0.93); }
+          100% { transform: scale(1); }
+        }
+        @keyframes spotlightGreen {
+          0%, 100% { box-shadow: 0 0 0 1px rgba(79,198,106,0.22), 0 8px 48px rgba(79,198,106,0.18), 0 8px 36px rgba(0,0,0,0.50); }
+          50%       { box-shadow: 0 0 0 4px rgba(79,198,106,0.40), 0 12px 64px rgba(79,198,106,0.40), 0 8px 40px rgba(0,0,0,0.55); }
+        }
+        @keyframes spotlightBlue {
+          0%, 100% { box-shadow: 0 0 0 1px rgba(108,168,245,0.22), 0 8px 48px rgba(108,168,245,0.18), 0 8px 36px rgba(0,0,0,0.50); }
+          50%       { box-shadow: 0 0 0 4px rgba(108,168,245,0.40), 0 12px 64px rgba(108,168,245,0.40), 0 8px 40px rgba(0,0,0,0.55); }
+        }
+        @keyframes replyPulseGreen {
+          0%, 100% { box-shadow: 0 0 0 0px rgba(79,198,106,0.10); }
+          50%       { box-shadow: 0 0 0 6px rgba(79,198,106,0.26); }
+        }
+        @keyframes replyPulseBlue {
+          0%, 100% { box-shadow: 0 0 0 0px rgba(108,168,245,0.10); }
+          50%       { box-shadow: 0 0 0 6px rgba(108,168,245,0.26); }
+        }
+        @keyframes youBadgeBlink {
+          0%, 75%, 100% { opacity: 1; }
+          88%            { opacity: 0.55; }
+        }
+        @keyframes awaitingPulse {
+          0%, 100% { box-shadow: 0 0 40px rgba(230,194,122,0.08), 0 16px 48px rgba(0,0,0,0.50); }
+          50%       { box-shadow: 0 0 90px rgba(230,194,122,0.32), 0 20px 64px rgba(0,0,0,0.55); }
+        }
 
         /* ─── Arena layout ─── */
         .arena-root { display: flex; flex-direction: column; min-height: 100vh; }
@@ -1213,6 +1263,44 @@ export default function ArenaLive() {
           align-items: center;
         }
 
+        /* ─── Competition effects ─── */
+        .arena-you-badge {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: rgba(255,255,255,0.16);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          color: #fff;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.15em;
+          padding: 4px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.28);
+          z-index: 2;
+          pointer-events: none;
+          animation: youBadgeBlink 3.2s ease-in-out infinite;
+        }
+        .arena-spotlight-green { animation: spotlightGreen 1.8s ease-in-out infinite; border-color: rgba(79,198,106,0.65) !important; }
+        .arena-spotlight-blue  { animation: spotlightBlue  1.8s ease-in-out infinite; border-color: rgba(108,168,245,0.65) !important; }
+        .score-flash { animation: scoreGain 0.52s cubic-bezier(0.34,1.56,0.64,1) both; display: inline-block; }
+        .arena-reply-urgent-green {
+          background: rgba(79,198,106,0.22) !important;
+          border-color: rgba(79,198,106,0.80) !important;
+          color: #4fc66a !important;
+          animation: replyPulseGreen 1.1s ease-in-out infinite;
+        }
+        .arena-reply-urgent-blue {
+          background: rgba(108,168,245,0.22) !important;
+          border-color: rgba(108,168,245,0.80) !important;
+          color: #6ca8f5 !important;
+          animation: replyPulseBlue 1.1s ease-in-out infinite;
+        }
+        .arena-question-card-waiting {
+          animation: awaitingPulse 2.8s ease-in-out infinite !important;
+        }
+
         /* ─── Mobile ─── */
         @media (max-width: 767px) {
           .arena-header {
@@ -1248,6 +1336,8 @@ export default function ArenaLive() {
           }
           .arena-mod-bar  { padding: 12px 12px; }
           .arena-mod-controls { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+          .arena-reply-urgent-green,
+          .arena-reply-urgent-blue { padding: 14px 0 !important; font-size: 16px !important; border-radius: 12px !important; letter-spacing: 0.1em !important; }
         }
         @media (max-width: 420px) {
           .arena-timer-box { font-size: 17px; min-width: 72px; }
@@ -1310,18 +1400,28 @@ export default function ArenaLive() {
             </span>
           </div>
 
+          {spectatorCount > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+              <span style={{ fontSize: 14, lineHeight: 1, color: T.textSoft }}>●</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: T.textMuted, letterSpacing: '0.05em' }}>
+                {spectatorCount} spectateur{spectatorCount > 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+
           <div
             className="arena-timer-box"
-            style={{
-              color: timeLeft !== null && timeLeft <= 10 && isDirectLive
-                ? T.red
-                : T.text,
-              animation: timeLeft !== null && timeLeft <= 5 && isDirectLive
-                ? 'timerWarn 0.6s ease-in-out infinite'
-                : 'none',
-            }}
+            style={{ color: timeLeft !== null && timeLeft <= 10 && isDirectLive ? T.red : T.text }}
           >
-            {formatTimer(timeLeft)}
+            <span
+              key={timeLeft !== null && timeLeft <= 10 && isDirectLive ? `beat-${timeLeft}` : 'idle'}
+              style={{
+                display: 'block',
+                animation: timeLeft !== null && timeLeft <= 10 && isDirectLive ? 'beatSecond 0.38s ease both' : 'none',
+              }}
+            >
+              {formatTimer(timeLeft)}
+            </span>
           </div>
         </div>
       </header>
@@ -1366,7 +1466,11 @@ export default function ArenaLive() {
 
         {/* Question card */}
         <div className="arena-question-wrap">
-          <div className="arena-question-card" style={{ boxShadow: '0 0 80px rgba(230,194,122,0.18), 0 20px 60px rgba(0,0,0,0.5)' }}>
+          <div
+            key={`q-${currentQuestion?.id ?? 'idle'}`}
+            className={`arena-question-card${phase === 'waiting' ? ' arena-question-card-waiting' : ''}`}
+            style={{ boxShadow: phase !== 'waiting' ? '0 0 80px rgba(230,194,122,0.18), 0 20px 60px rgba(0,0,0,0.5)' : undefined }}
+          >
             {/* Phase accent bar at top */}
             <div
               style={{
