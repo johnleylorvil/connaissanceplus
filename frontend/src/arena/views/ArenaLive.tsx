@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { arenaApi, ARENA_API, type ArenaLeaderboardRow, type ArenaPublicStream } from '../arenaApi'
@@ -61,25 +61,22 @@ type SubmissionSnapshot = {
   at?: string | null
 }
 
+// ─── Color tokens ─────────────────────────────────────────────────────────────
 const T = {
-  bg: '#09111d',
-  bgGlow: '#19283d',
-  panel: 'rgba(11, 20, 33, 0.92)',
-  panelSoft: 'rgba(15, 26, 41, 0.82)',
-  panelGlass: 'rgba(18, 28, 45, 0.74)',
-  border: 'rgba(196, 205, 223, 0.14)',
-  borderStrong: 'rgba(226, 232, 240, 0.24)',
+  bg: '#070a12',
+  bgStage: '#080c17',
+  panel: '#0c1120',
+  border: 'rgba(255,255,255,0.10)',
+  borderStrong: 'rgba(255,255,255,0.18)',
   text: '#f8fafc',
-  textMuted: 'rgba(226, 232, 240, 0.72)',
-  textSoft: 'rgba(191, 202, 219, 0.6)',
+  textMuted: 'rgba(255,255,255,0.55)',
+  textSoft: 'rgba(255,255,255,0.38)',
   gold: '#e6c27a',
-  green: '#79e08f',
-  greenSoft: 'rgba(121, 224, 143, 0.18)',
-  blue: '#8fb9ff',
-  red: '#ff6f7d',
-  redSoft: 'rgba(255, 111, 125, 0.16)',
+  green: '#4fc66a',
+  red: '#ff4d4d',
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function getPhase(opts: {
   teamLoaded: boolean
   competitionStatus: string | null | undefined
@@ -103,12 +100,14 @@ function formatTimer(seconds: number | null) {
 }
 
 function getInitials(value: string) {
-  return value
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('') || '?'
+  return (
+    value
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p.charAt(0).toUpperCase())
+      .join('') || '?'
+  )
 }
 
 function getQuestionPanelText(opts: {
@@ -119,7 +118,7 @@ function getQuestionPanelText(opts: {
 }) {
   if (opts.phase === 'waiting') return 'Le modérateur peut lancer la première question.'
   if (opts.phase === 'live-waiting') return 'La prochaine question va commencer.'
-  if (opts.phase === 'paused') return 'Le match est en pause. La scène reste prête pour la reprise.'
+  if (opts.phase === 'paused') return 'Le match est en pause.'
   if (opts.phase === 'live-between') return 'Question clôturée. Le modérateur rend sa décision.'
   if (opts.phase === 'live-question' && opts.questionPrompt) return opts.questionPrompt
   if (opts.phase === 'live-question' && opts.isOralQuestion) {
@@ -130,39 +129,9 @@ function getQuestionPanelText(opts: {
   return 'Préparation du plateau live.'
 }
 
-function getStageStatusLabel(phase: CompetitionPhase) {
-  switch (phase) {
-    case 'paused':
-      return 'EN PAUSE'
-    case 'live-question':
-    case 'live-waiting':
-    case 'live-between':
-      return 'EN DIRECT'
-    default:
-      return 'PRÊT'
-  }
-}
-
-function getStageStatusStyle(phase: CompetitionPhase): CSSProperties {
-  if (phase === 'paused') {
-    return {
-      background: 'rgba(230, 194, 122, 0.16)',
-      border: '1px solid rgba(230, 194, 122, 0.34)',
-      color: '#f7deb0',
-    }
-  }
-  if (phase === 'live-question' || phase === 'live-waiting' || phase === 'live-between') {
-    return {
-      background: T.redSoft,
-      border: '1px solid rgba(255, 111, 125, 0.35)',
-      color: '#ffc4cb',
-    }
-  }
-  return {
-    background: 'rgba(143, 185, 255, 0.12)',
-    border: '1px solid rgba(143, 185, 255, 0.28)',
-    color: '#d7e5ff',
-  }
+function getScoreFill(score: number, totalQuestions: number, bestScore: number) {
+  const denominator = Math.max(totalQuestions, bestScore, 1)
+  return `${Math.min((score / denominator) * 100, 100)}%`
 }
 
 function getStageParticipantForUser(
@@ -172,17 +141,391 @@ function getStageParticipantForUser(
 ) {
   if (!subjectUserId) return null
   if (currentUserId && subjectUserId === currentUserId) {
-    return stageParticipants.find((participant) => participant.isLocal) ?? null
+    return stageParticipants.find((p) => p.isLocal) ?? null
   }
-  return stageParticipants.find((participant) => participant.identity === subjectUserId) ?? null
+  return stageParticipants.find((p) => p.identity === subjectUserId) ?? null
 }
 
-function getScoreFill(score: number, totalQuestions: number, bestScore: number) {
-  const denominator = Math.max(totalQuestions, bestScore, 1)
-  return `${Math.min((score / denominator) * 100, 100)}%`
+// ─── VideoRenderer ────────────────────────────────────────────────────────────
+function VideoRenderer({
+  stageParticipant,
+  isLocal,
+  avatarText,
+  avatarColor,
+}: {
+  stageParticipant: StageParticipant | null
+  isLocal: boolean
+  avatarText: string
+  avatarColor: string
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const cameraTrack = stageParticipant?.cameraPublication?.track ?? null
+  const cameraEnabled = stageParticipant?.isCameraEnabled ?? false
+
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el || !cameraTrack) return
+    cameraTrack.attach(el)
+    return () => {
+      cameraTrack.detach(el)
+    }
+  }, [cameraTrack])
+
+  if (cameraEnabled) {
+    return (
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    )
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: `radial-gradient(circle at 50% 38%, ${avatarColor}1a, #04070e 80%)`,
+      }}
+    >
+      <div
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 26,
+          fontWeight: 900,
+          color: avatarColor,
+          border: `1.5px solid ${avatarColor}55`,
+          background: `${avatarColor}14`,
+          boxShadow: `0 0 50px ${avatarColor}1e`,
+          letterSpacing: '0.04em',
+        }}
+      >
+        {avatarText}
+      </div>
+    </div>
+  )
 }
 
-function PublicStreamPanel({ competitionId, accessToken }: { competitionId: string | undefined; accessToken: string | null }) {
+// ─── AudioRenderer ────────────────────────────────────────────────────────────
+function AudioRenderer({
+  stageParticipant,
+  isLocal,
+}: {
+  stageParticipant: StageParticipant | null
+  isLocal: boolean
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const micTrack = stageParticipant?.micPublication?.track ?? null
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el || !micTrack || isLocal) return
+    micTrack.attach(el)
+    return () => {
+      micTrack.detach(el)
+    }
+  }, [isLocal, micTrack])
+
+  if (isLocal) return null
+  return <audio ref={audioRef} autoPlay />
+}
+
+// ─── AudioWave ────────────────────────────────────────────────────────────────
+function AudioWave() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      {[8, 14, 10, 16, 12].map((h, i) => (
+        <div
+          key={i}
+          style={{
+            width: 3,
+            height: h,
+            borderRadius: 999,
+            background: 'rgba(255,255,255,0.82)',
+            animation: `voiceBars 0.85s ease-in-out infinite ${i * 0.1}s`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ─── CompetitorPanel ──────────────────────────────────────────────────────────
+type CompetitorPanelProps = {
+  participant: MatchParticipant
+  stageParticipant: StageParticipant | null
+  isLocal: boolean
+  isTargeted: boolean
+  canReply: boolean
+  onReply: () => void
+  hasSubmitted: boolean
+  scoreFill: string
+  buttonLabel: string
+}
+
+function CompetitorPanel({
+  participant,
+  stageParticipant,
+  isLocal,
+  isTargeted,
+  canReply,
+  onReply,
+  hasSubmitted,
+  scoreFill,
+  buttonLabel,
+}: CompetitorPanelProps) {
+  const isSpeaking = (stageParticipant?.participant as { isSpeaking?: boolean } | undefined)?.isSpeaking ?? false
+  const initials = getInitials(participant.displayName)
+
+  return (
+    <article
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 20,
+        overflow: 'hidden',
+        border: `1px solid ${isTargeted ? 'rgba(79,198,106,0.55)' : 'rgba(255,255,255,0.12)'}`,
+        boxShadow: isTargeted
+          ? '0 0 0 1px rgba(79,198,106,0.18), 0 8px 48px rgba(79,198,106,0.22), 0 8px 40px rgba(0,0,0,0.55)'
+          : '0 8px 40px rgba(0,0,0,0.55)',
+        transition: 'box-shadow 0.35s ease',
+      }}
+    >
+      {/* Video area */}
+      <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#030610', overflow: 'hidden', flexShrink: 0 }}>
+        <VideoRenderer
+          stageParticipant={stageParticipant}
+          isLocal={isLocal}
+          avatarText={initials}
+          avatarColor={T.green}
+        />
+        <AudioRenderer stageParticipant={stageParticipant} isLocal={isLocal} />
+
+        {/* Bottom gradient for text legibility */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '55%',
+            background: 'linear-gradient(0deg, rgba(3,6,16,0.92) 0%, transparent 100%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Name overlay — bottom left */}
+        <div style={{ position: 'absolute', bottom: 14, left: 14 }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.58)', fontWeight: 600, lineHeight: 1.2 }}>
+            Compétiteur {participant.slot}
+          </p>
+          <p style={{ margin: '3px 0 0', fontSize: 17, color: '#fff', fontWeight: 800, lineHeight: 1.1 }}>
+            {participant.displayName}
+          </p>
+        </div>
+
+        {/* Right indicator — green glow dot if targeted, audio wave if speaking */}
+        <div style={{ position: 'absolute', bottom: 18, right: 14 }}>
+          {isTargeted ? (
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: T.green,
+                boxShadow: `0 0 16px ${T.green}, 0 0 36px rgba(79,198,106,0.55)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+            </div>
+          ) : isSpeaking ? (
+            <AudioWave />
+          ) : null}
+        </div>
+      </div>
+
+      {/* Score / progress bar / reply button */}
+      <div
+        style={{
+          background: T.panel,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 46,
+            fontWeight: 900,
+            color: T.green,
+            lineHeight: 1,
+            flexShrink: 0,
+            minWidth: 54,
+            textAlign: 'center',
+          }}
+        >
+          {participant.score}
+        </span>
+
+        <div
+          style={{
+            flex: 1,
+            height: 10,
+            borderRadius: 999,
+            background: 'rgba(255,255,255,0.12)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              width: scoreFill,
+              height: '100%',
+              borderRadius: 999,
+              background: `linear-gradient(90deg, ${T.green}, rgba(200,255,215,0.88))`,
+              transition: 'width 0.6s ease',
+            }}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={onReply}
+          disabled={!canReply}
+          style={{
+            padding: '11px 22px',
+            borderRadius: 999,
+            border: `1px solid ${canReply ? 'rgba(255,255,255,0.38)' : 'rgba(255,255,255,0.1)'}`,
+            background: canReply
+              ? 'linear-gradient(180deg, rgba(250,252,255,0.97), rgba(218,228,242,0.93))'
+              : 'rgba(255,255,255,0.07)',
+            color: canReply ? '#111827' : T.textMuted,
+            fontSize: 14,
+            fontWeight: 800,
+            cursor: canReply ? 'pointer' : 'default',
+            whiteSpace: 'nowrap',
+            boxShadow: canReply ? '0 6px 22px rgba(255,255,255,0.18)' : 'none',
+            flexShrink: 0,
+          }}
+        >
+          {hasSubmitted ? '✓ Signalé' : buttonLabel}
+        </button>
+      </div>
+    </article>
+  )
+}
+
+// ─── ModeratorPanel ───────────────────────────────────────────────────────────
+function ModeratorPanel({
+  displayName,
+  stageParticipant,
+  isLocal,
+}: {
+  displayName: string
+  stageParticipant: StageParticipant | null
+  isLocal: boolean
+}) {
+  const initials = getInitials(displayName)
+
+  return (
+    <article
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 20,
+        overflow: 'hidden',
+        border: `2px solid ${T.gold}`,
+        boxShadow: `0 0 0 1px rgba(230,194,122,0.10), 0 12px 60px rgba(230,194,122,0.22), 0 8px 40px rgba(0,0,0,0.55)`,
+      }}
+    >
+      {/* Video area — slightly taller aspect ratio so moderator stands out */}
+      <div style={{ position: 'relative', aspectRatio: '4 / 3.3', background: '#040710', overflow: 'hidden', flexShrink: 0 }}>
+        <VideoRenderer
+          stageParticipant={stageParticipant}
+          isLocal={isLocal}
+          avatarText={initials}
+          avatarColor={T.gold}
+        />
+        <AudioRenderer stageParticipant={stageParticipant} isLocal={isLocal} />
+
+        {/* Bottom gradient */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '42%',
+            background: 'linear-gradient(0deg, rgba(4,7,16,0.88) 0%, transparent 100%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* MODÉRATEUR badge — bottom center of video */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 14,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              padding: '7px 18px',
+              borderRadius: 999,
+              background: '#c9a052',
+              color: '#1a0d00',
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: '0.07em',
+            }}
+          >
+            MODÉRATEUR
+          </span>
+        </div>
+      </div>
+
+      {/* Name below */}
+      <div
+        style={{
+          background: T.panel,
+          padding: '15px 12px',
+          textAlign: 'center',
+          borderTop: `1px solid rgba(230,194,122,0.14)`,
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 19, fontWeight: 800, color: T.text }}>{displayName}</p>
+      </div>
+    </article>
+  )
+}
+
+// ─── PublicStreamPanel ────────────────────────────────────────────────────────
+function PublicStreamPanel({
+  competitionId,
+  accessToken,
+}: {
+  competitionId: string | undefined
+  accessToken: string | null
+}) {
   const [stream, setStream] = useState<ArenaPublicStream | null>(null)
   const [statusRequest, setStatusRequest] = useState<'live' | 'stopped' | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -190,17 +533,17 @@ function PublicStreamPanel({ competitionId, accessToken }: { competitionId: stri
   useEffect(() => {
     if (!competitionId) return
     let cancelled = false
-
     const load = () => {
-      arenaApi.getBroadcast(competitionId)
+      arenaApi
+        .getBroadcast(competitionId)
         .then((data) => {
-          if (cancelled) return
-          setStream(data)
-          setErrorMessage(null)
+          if (!cancelled) {
+            setStream(data)
+            setErrorMessage(null)
+          }
         })
         .catch(() => {})
     }
-
     load()
     const interval = window.setInterval(load, 5000)
     return () => {
@@ -215,48 +558,34 @@ function PublicStreamPanel({ competitionId, accessToken }: { competitionId: stri
     setStatusRequest(status)
     setErrorMessage(null)
     try {
-      const updatedCompetition = await arenaApi.setPublicStreamStatus(competitionId, status, accessToken)
-      setStream(updatedCompetition.publicStream ?? null)
-    } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : 'Impossible de mettre à jour la diffusion publique.')
+      const updated = await arenaApi.setPublicStreamStatus(competitionId, status, accessToken)
+      setStream(updated.publicStream ?? null)
+    } catch (e: unknown) {
+      setErrorMessage(e instanceof Error ? e.message : 'Impossible de mettre à jour la diffusion publique.')
     } finally {
       setStatusRequest(null)
     }
   }
 
   const isYoutube = stream?.provider === 'youtube' && Boolean(stream.streamUrl)
+  const btnStyle = {
+    padding: '9px 14px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: 'pointer',
+  } as const
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ padding: '14px 16px', borderRadius: 18, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.03)' }}>
-        <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, color: T.textSoft }}>DIFFUSION PUBLIQUE</p>
-        <p style={{ margin: '8px 0 0', fontSize: 15, fontWeight: 800, color: T.text }}>
-          {isYoutube
-            ? `YouTube Live ${stream?.status === 'live' ? 'actif' : stream?.status === 'stopped' ? 'terminé' : 'prêt'}`
-            : 'Aucun lien public configuré'}
-        </p>
-        <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.5, color: T.textMuted }}>
-          {isYoutube
-            ? 'La page spectateurs reste séparée de la scène privée des compétiteurs.'
-            : 'Ajoutez un lien YouTube depuis l’admin si vous voulez ouvrir ce match aux spectateurs.'}
-        </p>
-      </div>
-
-      {isYoutube && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+    <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: T.textMuted, letterSpacing: '0.1em' }}>DIFFUSION:</span>
+      {isYoutube ? (
+        <>
           <button
             type="button"
             onClick={() => updateStatus('live')}
             disabled={statusRequest !== null}
-            style={{
-              padding: '11px 14px',
-              borderRadius: 999,
-              border: '1px solid rgba(121,224,143,0.32)',
-              background: 'rgba(121,224,143,0.12)',
-              color: '#d2f6db',
-              fontWeight: 800,
-              cursor: statusRequest ? 'default' : 'pointer',
-            }}
+            style={{ ...btnStyle, background: 'rgba(79,198,106,0.15)', color: '#dff7e5', border: '1px solid rgba(79,198,106,0.32)' }}
           >
             {statusRequest === 'live' ? 'OUVERTURE...' : 'OUVRIR AU PUBLIC'}
           </button>
@@ -264,331 +593,59 @@ function PublicStreamPanel({ competitionId, accessToken }: { competitionId: stri
             type="button"
             onClick={() => updateStatus('stopped')}
             disabled={statusRequest !== null}
-            style={{
-              padding: '11px 14px',
-              borderRadius: 999,
-              border: '1px solid rgba(255,111,125,0.3)',
-              background: 'rgba(255,111,125,0.12)',
-              color: '#ffd0d5',
-              fontWeight: 800,
-              cursor: statusRequest ? 'default' : 'pointer',
-            }}
+            style={{ ...btnStyle, background: 'rgba(255,77,77,0.12)', color: '#ffd0d5', border: '1px solid rgba(255,77,77,0.28)' }}
           >
-            {statusRequest === 'stopped' ? 'FERMETURE...' : 'FERMER LE PUBLIC'}
+            {statusRequest === 'stopped' ? 'FERMETURE...' : 'FERMER'}
           </button>
           <a
             href={`/arena/watch/${competitionId}`}
             target="_blank"
             rel="noreferrer"
-            style={{
-              padding: '11px 14px',
-              borderRadius: 999,
-              border: `1px solid ${T.borderStrong}`,
-              color: T.text,
-              fontWeight: 800,
-              textDecoration: 'none',
-            }}
+            style={{ ...btnStyle, background: 'rgba(255,255,255,0.07)', color: T.text, border: `1px solid ${T.border}`, textDecoration: 'none' }}
           >
             PAGE SPECTATEURS
           </a>
-        </div>
-      )}
-
-      {errorMessage && <p style={{ margin: 0, fontSize: 12, color: '#ffd0d5' }}>{errorMessage}</p>}
-    </div>
-  )
-}
-
-type MediaFrameProps = {
-  stageParticipant: StageParticipant | null
-  isLocal: boolean
-  accent: string
-  children?: ReactNode
-}
-
-function MediaFrame({ stageParticipant, isLocal, accent, children }: MediaFrameProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const cameraTrack = stageParticipant?.cameraPublication?.track ?? null
-  const micTrack = stageParticipant?.micPublication?.track ?? null
-  const cameraEnabled = stageParticipant?.isCameraEnabled ?? false
-  const displayName = stageParticipant?.displayName ?? stageParticipant?.identity ?? 'Participant'
-
-  useEffect(() => {
-    const element = videoRef.current
-    if (!element || !cameraTrack) return
-    cameraTrack.attach(element)
-    return () => {
-      cameraTrack.detach(element)
-    }
-  }, [cameraTrack])
-
-  useEffect(() => {
-    const element = audioRef.current
-    if (!element || !micTrack || isLocal) return
-    micTrack.attach(element)
-    return () => {
-      micTrack.detach(element)
-    }
-  }, [isLocal, micTrack])
-
-  return (
-    <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', background: '#050a12' }}>
-      {cameraEnabled ? (
-        <video ref={videoRef} autoPlay playsInline muted={isLocal} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </>
       ) : (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.08), rgba(5,10,18,0.98))',
-          }}
-        >
-          <div
-            style={{
-              width: 78,
-              height: 78,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 24,
-              fontWeight: 900,
-              color: accent,
-              border: `1px solid ${accent}66`,
-              background: `${accent}12`,
-              boxShadow: `0 0 40px ${accent}24`,
-            }}
-          >
-            {getInitials(displayName)}
-          </div>
-        </div>
+        <span style={{ fontSize: 12, color: T.textSoft }}>Aucun lien public configuré</span>
       )}
-
-      {!isLocal && <audio ref={audioRef} autoPlay />}
-
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'linear-gradient(180deg, rgba(5,10,18,0.08) 0%, rgba(5,10,18,0.3) 58%, rgba(5,10,18,0.84) 100%)',
-        }}
-      />
-      {children}
+      {errorMessage && <span style={{ fontSize: 12, color: '#ffd0d5' }}>{errorMessage}</span>}
     </div>
   )
 }
 
-type CompetitorCardProps = {
-  participant: MatchParticipant
-  stageParticipant: StageParticipant | null
-  isLocal: boolean
-  isOnline: boolean
-  isTargeted: boolean
-  canReplyHere: boolean
-  onReply: () => void
-  buttonLabel: string
-  scoreFill: string
-  accent: string
-  hasSubmitted: boolean
-  statusLabel: string
-}
-
-function CompetitorCard({
-  participant,
-  stageParticipant,
-  isLocal,
-  isOnline,
-  isTargeted,
-  canReplyHere,
-  onReply,
-  buttonLabel,
-  scoreFill,
-  accent,
-  hasSubmitted,
-  statusLabel,
-}: CompetitorCardProps) {
-  const micActive = stageParticipant?.isMicEnabled ?? false
-
+// ─── LogoMark ─────────────────────────────────────────────────────────────────
+function LogoMark() {
   return (
-    <article
+    <div
       style={{
-        borderRadius: 24,
-        overflow: 'hidden',
-        border: `1px solid ${isTargeted ? 'rgba(121,224,143,0.45)' : T.borderStrong}`,
-        background: T.panelGlass,
-        boxShadow: isTargeted ? '0 0 0 1px rgba(121,224,143,0.2), 0 18px 60px rgba(121,224,143,0.16)' : '0 18px 60px rgba(2, 6, 13, 0.46)',
-        backdropFilter: 'blur(16px)',
+        width: 52,
+        height: 52,
+        borderRadius: '50%',
+        border: '1.5px solid rgba(230,194,122,0.38)',
+        background: 'radial-gradient(circle at 35% 30%, rgba(230,194,122,0.18), rgba(10,14,24,0.95))',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
       }}
     >
-      <MediaFrame stageParticipant={stageParticipant} isLocal={isLocal} accent={accent}>
-        <div style={{ position: 'absolute', top: 14, left: 14 }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '6px 10px',
-              borderRadius: 999,
-              background: 'rgba(8,15,27,0.55)',
-              border: `1px solid ${T.border}`,
-              color: T.text,
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-            }}
-          >
-            Compétiteur {participant.slot}
-          </span>
-        </div>
-
-        {micActive && (
-          <div style={{ position: 'absolute', right: 14, bottom: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 3, height: 10, borderRadius: 999, background: '#ffd8dc', animation: 'voiceBars 0.85s ease-in-out infinite' }} />
-            <span style={{ width: 3, height: 16, borderRadius: 999, background: '#ffd8dc', animation: 'voiceBars 0.9s ease-in-out infinite 0.08s' }} />
-            <span style={{ width: 3, height: 12, borderRadius: 999, background: '#ffd8dc', animation: 'voiceBars 0.75s ease-in-out infinite 0.15s' }} />
-          </div>
-        )}
-
-        {isTargeted && (
-          <div style={{ position: 'absolute', left: 14, bottom: 14 }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 10px',
-                borderRadius: 999,
-                background: T.greenSoft,
-                border: '1px solid rgba(121,224,143,0.35)',
-                color: '#dff7e5',
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-              }}
-            >
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.green, boxShadow: '0 0 14px rgba(121,224,143,0.8)' }} />
-              À SON TOUR
-            </span>
-          </div>
-        )}
-      </MediaFrame>
-
-      <div style={{ padding: '16px 18px 18px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 12, color: T.textMuted, fontWeight: 700 }}>
-              {isOnline ? 'En ligne' : 'Hors ligne'}
-            </p>
-            <h3
-              style={{
-                margin: '6px 0 0',
-                fontSize: 18,
-                lineHeight: 1.05,
-                color: T.text,
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {participant.displayName}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={onReply}
-            disabled={!canReplyHere}
-            style={{
-              padding: '12px 20px',
-              borderRadius: 999,
-              border: `1px solid ${canReplyHere ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.1)'}`,
-              background: canReplyHere ? 'linear-gradient(180deg, rgba(245,248,255,0.94), rgba(217,225,239,0.88))' : 'rgba(255,255,255,0.08)',
-              color: canReplyHere ? '#111827' : T.textMuted,
-              fontSize: 14,
-              fontWeight: 800,
-              cursor: canReplyHere ? 'pointer' : 'default',
-              whiteSpace: 'nowrap',
-              boxShadow: canReplyHere ? '0 10px 28px rgba(255,255,255,0.18)' : 'none',
-            }}
-          >
-            {buttonLabel}
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: 14, alignItems: 'center', marginTop: 14 }}>
-          <div style={{ fontSize: 48, lineHeight: 0.92, color: accent, fontWeight: 900 }}>{participant.score}</div>
-          <div>
-            <div style={{ height: 14, borderRadius: 999, background: 'rgba(255,255,255,0.11)', overflow: 'hidden' }}>
-              <div
-                style={{
-                  width: scoreFill,
-                  height: '100%',
-                  borderRadius: 999,
-                  background: `linear-gradient(90deg, ${accent}, rgba(255,255,255,0.88))`,
-                }}
-              />
-            </div>
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: hasSubmitted ? '#dff7e5' : T.textMuted, fontWeight: 700 }}>
-              {statusLabel}
-            </p>
-          </div>
-        </div>
-      </div>
-    </article>
+      <span
+        style={{
+          fontSize: 18,
+          fontWeight: 900,
+          color: T.gold,
+          letterSpacing: '-0.02em',
+          fontFamily: 'system-ui, sans-serif',
+        }}
+      >
+        K+
+      </span>
+    </div>
   )
 }
 
-type ModeratorCardProps = {
-  displayName: string
-  stageParticipant: StageParticipant | null
-  isLocal: boolean
-  isOnline: boolean
-}
-
-function ModeratorCard({ displayName, stageParticipant, isLocal, isOnline }: ModeratorCardProps) {
-  return (
-    <article
-      style={{
-        borderRadius: 24,
-        overflow: 'hidden',
-        border: '1px solid rgba(230,194,122,0.42)',
-        background: T.panelGlass,
-        boxShadow: '0 18px 60px rgba(2, 6, 13, 0.46), 0 0 0 1px rgba(230,194,122,0.15)',
-        backdropFilter: 'blur(16px)',
-      }}
-    >
-      <MediaFrame stageParticipant={stageParticipant} isLocal={isLocal} accent={T.gold}>
-        <div style={{ position: 'absolute', top: 14, left: 14 }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '6px 10px',
-              borderRadius: 999,
-              background: 'rgba(230,194,122,0.15)',
-              border: '1px solid rgba(230,194,122,0.28)',
-              color: '#f7deb0',
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-            }}
-          >
-            MODÉRATEUR
-          </span>
-        </div>
-      </MediaFrame>
-
-      <div style={{ padding: '18px 18px 20px', textAlign: 'center' }}>
-        <p style={{ margin: 0, fontSize: 12, color: T.textMuted, fontWeight: 700 }}>{isOnline ? 'En ligne' : 'Connexion en attente'}</p>
-        <h3 style={{ margin: '8px 0 0', fontSize: 20, color: T.text, fontWeight: 800 }}>{displayName}</h3>
-      </div>
-    </article>
-  )
-}
-
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function ArenaLive() {
   const { id: competitionId } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -615,10 +672,11 @@ export default function ArenaLive() {
       setTeamLoaded(true)
       return
     }
-    arenaApi.getLiveState(competitionId)
+    arenaApi
+      .getLiveState(competitionId)
       .then((liveState) => {
         const live = liveState as { participants?: Array<{ userId: string }> }
-        setIsRegisteredCompetitor(Boolean(live.participants?.some((participant) => participant.userId === user.id)))
+        setIsRegisteredCompetitor(Boolean(live.participants?.some((p) => p.userId === user.id)))
       })
       .catch(() => setIsRegisteredCompetitor(false))
       .finally(() => setTeamLoaded(true))
@@ -627,40 +685,26 @@ export default function ArenaLive() {
   const canControlLocalMedia = isModerator || isRegisteredCompetitor
 
   const socketParams = useMemo(
-    () => (
+    () =>
       competitionId && user?.id && teamLoaded && accessToken
         ? isModerator
           ? { competitionId, userId: user.id, participantId: '__admin__', role: 'admin', token: accessToken }
           : isRegisteredCompetitor
             ? { competitionId, userId: user.id, participantId: user.id, role: 'competitor', token: accessToken }
             : { competitionId, userId: user.id, participantId: '__spectator__', role: 'spectator', token: accessToken }
-        : null
-    ),
+        : null,
     [accessToken, competitionId, isModerator, isRegisteredCompetitor, teamLoaded, user?.id],
   )
 
   const { socketState, submitAnswer } = useArenaSocket(socketParams)
-  const {
-    state,
-    leaderboard,
-    roundEnded,
-    competitionResult,
-    error,
-    isPaused,
-    onlineParticipantIds,
-    onlineUsers,
-    submissionStatuses,
-  } = socketState
+  const { state, leaderboard, roundEnded, competitionResult, error, isPaused, onlineParticipantIds, onlineUsers, submissionStatuses } =
+    socketState
 
   useEffect(() => {
     if (!competitionId || socketParams) return
-
     let cancelled = false
     const load = () => {
-      Promise.all([
-        arenaApi.getLiveState(competitionId),
-        arenaApi.getLiveLeaderboard(competitionId),
-      ])
+      Promise.all([arenaApi.getLiveState(competitionId), arenaApi.getLiveLeaderboard(competitionId)])
         .then(([liveState, liveBoard]) => {
           if (cancelled) return
           setPolledState(liveState as LiveStateSnapshot)
@@ -668,7 +712,6 @@ export default function ArenaLive() {
         })
         .catch(() => {})
     }
-
     load()
     const interval = window.setInterval(load, 3000)
     return () => {
@@ -686,24 +729,20 @@ export default function ArenaLive() {
   const currentQuestionEndTime = currentQuestion?.endTime ?? null
 
   const participants = useMemo<MatchParticipant[]>(() => {
-    const fromState = (liveState?.participants ?? []).map((participant) => {
-      const row = liveLeaderboard.find((entry) => entry.participantUserId === participant.userId)
-      return {
-        participantUserId: participant.userId,
-        displayName: participant.displayName,
-        score: row?.score ?? 0,
-        slot: participant.slot,
-      }
+    const fromState = (liveState?.participants ?? []).map((p) => {
+      const row = liveLeaderboard.find((e) => e.participantUserId === p.userId)
+      return { participantUserId: p.userId, displayName: p.displayName, score: row?.score ?? 0, slot: p.slot }
     })
 
-    const seeded = fromState.length > 0
-      ? fromState
-      : liveLeaderboard.slice(0, 2).map((row, index) => ({
-          participantUserId: row.participantUserId,
-          displayName: row.displayName,
-          score: row.score,
-          slot: (index === 0 ? 'A' : 'B') as 'A' | 'B',
-        }))
+    const seeded =
+      fromState.length > 0
+        ? fromState
+        : liveLeaderboard.slice(0, 2).map((row, i) => ({
+            participantUserId: row.participantUserId,
+            displayName: row.displayName,
+            score: row.score,
+            slot: (i === 0 ? 'A' : 'B') as 'A' | 'B',
+          }))
 
     while (seeded.length < 2) {
       seeded.push({
@@ -713,28 +752,24 @@ export default function ArenaLive() {
         slot: seeded.length === 0 ? 'A' : 'B',
       })
     }
-
     return seeded
   }, [liveLeaderboard, liveState?.participants])
 
   const currentQuestionTarget = useMemo<QuestionTarget | null>(() => {
     if (liveState?.currentQuestionTarget) return liveState.currentQuestionTarget
     if (!currentQuestion) return null
-    const slot = currentQuestion.position % 2 === 1 ? 'A' as const : 'B' as const
-    const participant = participants.find((entry) => entry.slot === slot)
-    return participant
-      ? { participantUserId: participant.participantUserId, displayName: participant.displayName, slot }
-      : null
+    const slot = currentQuestion.position % 2 === 1 ? ('A' as const) : ('B' as const)
+    const p = participants.find((e) => e.slot === slot)
+    return p ? { participantUserId: p.participantUserId, displayName: p.displayName, slot } : null
   }, [currentQuestion, liveState?.currentQuestionTarget, participants])
 
   const userMode: UserMode = useMemo(() => {
     if (isModerator) return 'moderator'
-    if (isRegisteredCompetitor && user?.id && participants.some((participant) => participant.participantUserId === user.id)) {
-      return 'competitor'
-    }
+    if (isRegisteredCompetitor && user?.id && participants.some((p) => p.participantUserId === user.id)) return 'competitor'
     return 'spectator'
   }, [isModerator, isRegisteredCompetitor, participants, user?.id])
 
+  // Timer
   useEffect(() => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current)
@@ -744,53 +779,47 @@ export default function ArenaLive() {
       setTimeLeft(null)
       return
     }
-
     const computeRemaining = () => {
       if (currentQuestionEndTime) {
         return Math.max(0, Math.round((new Date(currentQuestionEndTime).getTime() - Date.now()) / 1000))
       }
       const startedAt = currentQuestionStartedAt ? new Date(currentQuestionStartedAt).getTime() : Date.now()
-      return Math.max(0, Math.round((startedAt + (secondsPerQuestion * 1000) - Date.now()) / 1000))
+      return Math.max(0, Math.round((startedAt + secondsPerQuestion * 1000 - Date.now()) / 1000))
     }
-
     setTimeLeft(computeRemaining())
     timerRef.current = window.setInterval(() => {
-      setTimeLeft((value) => {
-        if (value === null || value <= 0) return 0
-        return value - 1
-      })
+      setTimeLeft((v) => (v === null || v <= 0 ? 0 : v - 1))
     }, 1000)
-
     return () => {
-      if (timerRef.current) {
-        window.clearInterval(timerRef.current)
-      }
+      if (timerRef.current) window.clearInterval(timerRef.current)
     }
   }, [currentQuestion, currentQuestionEndTime, currentQuestionStartedAt, questionIsClosed, secondsPerQuestion])
 
+  // Question prompt
   useEffect(() => {
     if (!currentQuestion?.questionId || !accessToken) {
       setQuestionPrompt(null)
       return
     }
-
     let cancelled = false
-    arenaApi.getArenaQuestion(currentQuestion.questionId, accessToken)
-      .then((question) => {
-        if (!cancelled) setQuestionPrompt(question.prompt)
+    arenaApi
+      .getArenaQuestion(currentQuestion.questionId, accessToken)
+      .then((q) => {
+        if (!cancelled) setQuestionPrompt(q.prompt)
       })
       .catch(() => {
         if (!cancelled) setQuestionPrompt(null)
       })
-
     return () => {
       cancelled = true
     }
   }, [accessToken, currentQuestion?.questionId])
 
+  // RTC token
   useEffect(() => {
     if (!competitionId || !accessToken || userMode === 'spectator' || !canControlLocalMedia) return
-    arenaApi.getRtcToken(competitionId, accessToken)
+    arenaApi
+      .getRtcToken(competitionId, accessToken)
       .then((data) => {
         setRtcUrl(data.url)
         setRtcToken(data.token)
@@ -799,7 +828,6 @@ export default function ArenaLive() {
   }, [accessToken, canControlLocalMedia, competitionId, userMode])
 
   const {
-    roomConnected: stageConnected,
     participants: stageParticipants,
     localCameraEnabled,
     localMicEnabled,
@@ -807,11 +835,7 @@ export default function ArenaLive() {
     permissionError: stagePermissionError,
     toggleCamera,
     toggleMic,
-  } = useLiveKitStage({
-    url: rtcUrl,
-    token: rtcToken,
-    canPublish: canControlLocalMedia,
-  })
+  } = useLiveKitStage({ url: rtcUrl, token: rtcToken, canPublish: canControlLocalMedia })
 
   const phase = getPhase({
     teamLoaded,
@@ -825,8 +849,8 @@ export default function ArenaLive() {
   const isLive = liveState?.status === 'live'
   const questionNumber = liveState?.currentQuestionNumber ?? liveState?.currentRoundNumber ?? 0
   const totalQuestions = liveState?.totalQuestions ?? liveState?.totalRounds ?? 0
-  const bestScore = participants.length > 0 ? Math.max(...participants.map((participant) => participant.score)) : 0
-  const leaders = participants.filter((participant) => participant.score === bestScore)
+  const bestScore = participants.length > 0 ? Math.max(...participants.map((p) => p.score)) : 0
+  const leaders = participants.filter((p) => p.score === bestScore)
   const uniqueWinner = leaders.length === 1 ? leaders[0] : null
   const isOralQuestion = currentQuestion?.questionId == null
   const mySubmission = user?.id ? (submissionStatuses[user.id] as SubmissionSnapshot | undefined) ?? null : null
@@ -840,55 +864,47 @@ export default function ArenaLive() {
     !mySubmission?.submitted
 
   const moderatorProfile = useMemo(() => {
-    const moderatorMatch = liveState?.matchParticipants?.find((entry) => entry.role === 'moderator')
-    if (moderatorMatch) {
-      return { userId: moderatorMatch.userId, displayName: moderatorMatch.displayName }
-    }
-    if (isModerator && user) {
-      return { userId: user.id, displayName: `${user.firstName} ${user.lastName}`.trim() }
-    }
+    const m = liveState?.matchParticipants?.find((e) => e.role === 'moderator')
+    if (m) return { userId: m.userId, displayName: m.displayName }
+    if (isModerator && user) return { userId: user.id, displayName: `${user.firstName} ${user.lastName}`.trim() }
     return { userId: null, displayName: 'Modérateur' }
   }, [isModerator, liveState?.matchParticipants, user])
 
-  const competitorA = participants.find((participant) => participant.slot === 'A') ?? participants[0]
-  const competitorB = participants.find((participant) => participant.slot === 'B') ?? participants[1]
+  const competitorA = participants.find((p) => p.slot === 'A') ?? participants[0]
+  const competitorB = participants.find((p) => p.slot === 'B') ?? participants[1]
 
   const competitorAStage = getStageParticipantForUser(stageParticipants, competitorA?.participantUserId, user?.id)
   const competitorBStage = getStageParticipantForUser(stageParticipants, competitorB?.participantUserId, user?.id)
   const moderatorStage = getStageParticipantForUser(stageParticipants, moderatorProfile.userId, user?.id)
 
-  const competitorAOnline = Boolean(competitorA && (onlineParticipantIds.includes(competitorA.participantUserId) || competitorAStage))
-  const competitorBOnline = Boolean(competitorB && (onlineParticipantIds.includes(competitorB.participantUserId) || competitorBStage))
-  const moderatorOnline = Boolean(
-    moderatorProfile.userId
-      ? onlineUsers.some((entry: { userId: string; role: string }) => entry.userId === moderatorProfile.userId)
-      : false,
-  ) || Boolean(moderatorStage) || (isModerator && stageConnected)
+  const moderatorOnline =
+    Boolean(
+      moderatorProfile.userId
+        ? onlineUsers.some((e: { userId: string; role: string }) => e.userId === moderatorProfile.userId)
+        : false,
+    ) ||
+    Boolean(moderatorStage) ||
+    (isModerator && Boolean(stageParticipants.find((p) => p.isLocal)))
 
-  const questionPanelText = getQuestionPanelText({
-    phase,
-    isOralQuestion,
-    questionPrompt,
-    currentQuestionTarget,
-  })
+  void moderatorOnline
+  void onlineParticipantIds
+
+  const questionPanelText = getQuestionPanelText({ phase, isOralQuestion, questionPrompt, currentQuestionTarget })
 
   const adminFetch = async (url: string, method = 'PATCH', body?: unknown) => {
     try {
       const init: RequestInit = {
         method,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       }
       if (body) init.body = JSON.stringify(body)
-      const response = await fetch(url, init)
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
+      const res = await fetch(url, init)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         alert(data.message || 'Erreur')
       }
-    } catch (requestError) {
-      alert((requestError as Error).message)
+    } catch (e) {
+      alert((e as Error).message)
     }
   }
 
@@ -897,30 +913,68 @@ export default function ArenaLive() {
   const canOpenNextQuestion = isLive && (phase === 'live-waiting' || phase === 'live-between') && questionNumber < totalQuestions
   const canCloseQuestion = isLive && phase === 'live-question' && Boolean(currentQuestion)
   const canScoreQuestion = isLive && phase === 'live-between' && Boolean(currentQuestion)
+  const isDirectLive = phase === 'live-question' || phase === 'live-waiting' || phase === 'live-between'
 
+  // ── Loading ─────────────────────────────────────────────────────────────────
   if (phase === 'loading') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `radial-gradient(circle at top, ${T.bgGlow}, ${T.bg} 46%)` }}>
+      <div
+        style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.bg }}
+      >
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 46, height: 46, borderRadius: '50%', border: `3px solid ${T.border}`, borderTopColor: T.gold, animation: 'spin 0.8s linear infinite' }} />
-          <p style={{ margin: 0, color: T.textMuted, fontWeight: 800, letterSpacing: '0.14em' }}>CONNEXION À LA SCÈNE...</p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              border: `3px solid ${T.border}`,
+              borderTopColor: T.gold,
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          <p style={{ margin: 0, color: T.textMuted, fontWeight: 800, fontSize: 13, letterSpacing: '0.16em' }}>
+            CONNEXION À LA SCÈNE...
+          </p>
         </div>
       </div>
     )
   }
 
+  // ── Finished ────────────────────────────────────────────────────────────────
   if (phase === 'finished') {
     const podium = (competitionResult as { podium?: ArenaLeaderboardRow[] } | null)?.podium ?? liveLeaderboard.slice(0, 3)
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `radial-gradient(circle at top, rgba(230,194,122,0.18), ${T.bg} 42%)`, padding: 24 }}>
-        <div style={{ width: '100%', maxWidth: 560, borderRadius: 28, border: `1px solid ${T.borderStrong}`, background: T.panel, padding: 30, boxShadow: '0 22px 70px rgba(2, 6, 13, 0.52)' }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: T.textSoft, letterSpacing: '0.16em' }}>MATCH TERMINÉ</p>
-          <h1 style={{ margin: '10px 0 0', fontSize: 38, lineHeight: 0.98, color: T.gold }}>Fin de rencontre</h1>
-          {podium[0] && <p style={{ margin: '10px 0 0', color: T.text, fontSize: 16 }}>Vainqueur: {podium[0].displayName}</p>}
-
+      <div
+        style={{
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: `radial-gradient(circle at top, rgba(230,194,122,0.16), ${T.bg} 42%)`,
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 560,
+            borderRadius: 28,
+            border: `1px solid ${T.borderStrong}`,
+            background: T.panel,
+            padding: 32,
+            boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: T.textSoft, letterSpacing: '0.16em' }}>
+            MATCH TERMINÉ
+          </p>
+          <h1 style={{ margin: '10px 0 0', fontSize: 40, lineHeight: 0.98, color: T.gold }}>Fin de rencontre</h1>
+          {podium[0] && (
+            <p style={{ margin: '10px 0 0', color: T.text, fontSize: 16 }}>Vainqueur : {podium[0].displayName}</p>
+          )}
           <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {podium.slice(0, 3).map((entry, index) => (
+            {podium.slice(0, 3).map((entry, i) => (
               <div
                 key={entry.participantUserId}
                 style={{
@@ -929,27 +983,38 @@ export default function ArenaLive() {
                   alignItems: 'center',
                   padding: '16px 18px',
                   borderRadius: 18,
-                  border: `1px solid ${index === 0 ? 'rgba(230,194,122,0.38)' : T.border}`,
-                  background: index === 0 ? 'rgba(230,194,122,0.08)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${i === 0 ? 'rgba(230,194,122,0.38)' : T.border}`,
+                  background: i === 0 ? 'rgba(230,194,122,0.08)' : 'rgba(255,255,255,0.03)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <span style={{ width: 34, height: 34, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: index === 0 ? 'rgba(230,194,122,0.18)' : 'rgba(255,255,255,0.06)', color: index === 0 ? T.gold : T.text, fontWeight: 900 }}>
-                    {index + 1}
+                  <span
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '50%',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: i === 0 ? 'rgba(230,194,122,0.18)' : 'rgba(255,255,255,0.06)',
+                      color: i === 0 ? T.gold : T.text,
+                      fontWeight: 900,
+                    }}
+                  >
+                    {i + 1}
                   </span>
                   <span style={{ color: T.text, fontSize: 16, fontWeight: 800 }}>{entry.displayName}</span>
                 </div>
-                <span style={{ color: index === 0 ? T.gold : T.text, fontSize: 24, fontWeight: 900 }}>{entry.score}</span>
+                <span style={{ color: i === 0 ? T.gold : T.text, fontSize: 24, fontWeight: 900 }}>{entry.score}</span>
               </div>
             ))}
           </div>
-
           <button
             type="button"
             onClick={() => navigate('/arena')}
             style={{
               marginTop: 24,
-              padding: '14px 20px',
+              padding: '14px 22px',
               borderRadius: 999,
               border: 'none',
               background: 'linear-gradient(135deg, #f0d59a, #d7ab4f)',
@@ -958,403 +1023,540 @@ export default function ArenaLive() {
               cursor: 'pointer',
             }}
           >
-            RETOUR À L’ARENA
+            RETOUR À L'ARENA
           </button>
         </div>
       </div>
     )
   }
 
+  // ── Main stage ──────────────────────────────────────────────────────────────
   return (
     <div
       style={{
         minHeight: '100vh',
-        padding: '20px 14px 40px',
-        background: `radial-gradient(circle at top, ${T.bgGlow}, ${T.bg} 48%)`,
+        display: 'flex',
+        flexDirection: 'column',
+        background: T.bg,
         color: T.text,
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
       }}
     >
       <style>{`
         @keyframes pulseDot {
           0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.45; transform: scale(0.82); }
+          50% { opacity: 0.38; transform: scale(0.78); }
         }
         @keyframes voiceBars {
-          0%, 100% { transform: scaleY(0.55); opacity: 0.65; }
+          0%, 100% { transform: scaleY(0.48); opacity: 0.58; }
           50% { transform: scaleY(1); opacity: 1; }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      <div style={{ width: '100%', maxWidth: 1320, margin: '0 auto' }}>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header
+        style={{
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 28px',
+          height: 78,
+          background: '#0a0e18',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          gap: 16,
+          zIndex: 10,
+        }}
+      >
+        {/* Left: Logo + name */}
+        <button
+          type="button"
+          onClick={() => navigate('/arena')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'inherit',
+            padding: 0,
+            flexShrink: 0,
+          }}
+        >
+          <LogoMark />
+          <div style={{ textAlign: 'left' }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: T.text, lineHeight: 1.2 }}>Konesans+</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: T.textMuted, lineHeight: 1.2 }}>Competition</p>
+          </div>
+        </button>
+
+        {/* Center: Question pill */}
+        <div
+          style={{
+            padding: '13px 32px',
+            borderRadius: 999,
+            background: '#141c2e',
+            border: '1px solid rgba(255,255,255,0.13)',
+            fontSize: 16,
+            fontWeight: 700,
+            color: T.text,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {questionNumber > 0
+            ? `Question ${questionNumber}${totalQuestions > 0 ? ` / ${totalQuestions}` : ''}`
+            : 'En attente du match'}
+        </div>
+
+        {/* Right: EN DIRECT + timer */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                background: isDirectLive ? T.red : isPaused ? T.gold : '#555',
+                boxShadow: isDirectLive ? `0 0 8px ${T.red}` : 'none',
+                animation: isDirectLive ? 'pulseDot 1.4s ease-in-out infinite' : 'none',
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 17,
+                fontWeight: 900,
+                color: isDirectLive ? T.red : isPaused ? T.gold : T.textMuted,
+                letterSpacing: '0.05em',
+              }}
+            >
+              {isPaused ? 'EN PAUSE' : isDirectLive ? 'EN DIRECT' : 'PRÊT'}
+            </span>
+          </div>
+
+          <div
+            style={{
+              padding: '10px 22px',
+              borderRadius: 14,
+              background: '#181f30',
+              border: '1px solid rgba(255,255,255,0.14)',
+              fontSize: 30,
+              fontWeight: 900,
+              fontVariantNumeric: 'tabular-nums',
+              color: T.text,
+              minWidth: 128,
+              textAlign: 'center',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {formatTimer(timeLeft)}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Stage ──────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'radial-gradient(ellipse at 50% 26%, #142030 0%, #080e1a 48%, #040812 100%)',
+          position: 'relative',
+        }}
+      >
+        {/* Alerts */}
         {(error || isPaused) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+          <div style={{ padding: '10px 20px 0', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {error && (
-              <div style={{ padding: '12px 16px', borderRadius: 16, background: 'rgba(255,111,125,0.12)', border: '1px solid rgba(255,111,125,0.25)', color: '#ffd0d5', fontWeight: 700 }}>
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(255,77,77,0.12)',
+                  border: '1px solid rgba(255,77,77,0.25)',
+                  color: '#ffd0d5',
+                  fontWeight: 700,
+                  fontSize: 13,
+                }}
+              >
                 {error}
               </div>
             )}
             {isPaused && (
-              <div style={{ padding: '12px 16px', borderRadius: 16, background: 'rgba(230,194,122,0.12)', border: '1px solid rgba(230,194,122,0.25)', color: '#f7deb0', fontWeight: 700 }}>
-                Match en pause. La scène reste figée jusqu’à reprise du modérateur.
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(230,194,122,0.12)',
+                  border: '1px solid rgba(230,194,122,0.25)',
+                  color: '#f7deb0',
+                  fontWeight: 700,
+                  fontSize: 13,
+                }}
+              >
+                Match en pause — la scène reste figée jusqu'à la reprise.
               </div>
             )}
           </div>
         )}
 
-        <header
+        {/* Question card */}
+        <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+            flex: 1,
+            display: 'flex',
             alignItems: 'center',
-            gap: 16,
-            padding: '18px 18px',
-            borderRadius: 28,
-            border: `1px solid ${T.border}`,
-            background: 'linear-gradient(180deg, rgba(10,16,27,0.96), rgba(12,18,31,0.88))',
-            boxShadow: '0 20px 60px rgba(2, 6, 13, 0.45)',
-            backdropFilter: 'blur(18px)',
+            justifyContent: 'center',
+            padding: '28px 32px 18px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 870,
+              minHeight: 200,
+              borderRadius: 24,
+              background: 'linear-gradient(170deg, #ffffff 0%, #f2f6ff 100%)',
+              boxShadow: '0 0 100px rgba(230,194,122,0.26), 0 24px 80px rgba(0,0,0,0.55)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '36px 48px',
+              position: 'relative',
+              textAlign: 'center',
+            }}
+          >
+            {currentQuestionTarget && phase === 'live-question' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 18,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '6px 14px',
+                    borderRadius: 999,
+                    background: 'rgba(0,0,0,0.07)',
+                    color: '#2f3a4d',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '0.1em',
+                  }}
+                >
+                  POUR {currentQuestionTarget.displayName?.toUpperCase() ?? `COMPÉTITEUR ${currentQuestionTarget.slot}`}
+                </span>
+              </div>
+            )}
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 'clamp(1.5rem, 3vw, 2.8rem)',
+                fontWeight: 700,
+                color: '#111827',
+                lineHeight: 1.2,
+                maxWidth: 720,
+              }}
+            >
+              {questionPanelText}
+            </h1>
+          </div>
+        </div>
+
+        {/* 3-panel video grid */}
+        <div
+          style={{
+            padding: '0 16px 18px',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: 10,
+            alignItems: 'end',
+          }}
+        >
+          <CompetitorPanel
+            participant={competitorA}
+            stageParticipant={competitorAStage}
+            isLocal={user?.id === competitorA.participantUserId}
+            isTargeted={
+              currentQuestionTarget?.participantUserId === competitorA.participantUserId &&
+              phase === 'live-question'
+            }
+            canReply={Boolean(user?.id === competitorA.participantUserId && canSignalAnswer)}
+            onReply={() => {
+              if (!currentQuestion || !user?.id) return
+              submitAnswer(currentQuestion.id, user.id)
+            }}
+            hasSubmitted={Boolean(
+              (submissionStatuses[competitorA.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
+            )}
+            scoreFill={getScoreFill(competitorA.score, totalQuestions, bestScore)}
+            buttonLabel="Répondre"
+          />
+
+          <ModeratorPanel
+            displayName={moderatorProfile.displayName}
+            stageParticipant={moderatorStage}
+            isLocal={user?.id === moderatorProfile.userId}
+          />
+
+          <CompetitorPanel
+            participant={competitorB}
+            stageParticipant={competitorBStage}
+            isLocal={user?.id === competitorB.participantUserId}
+            isTargeted={
+              currentQuestionTarget?.participantUserId === competitorB.participantUserId &&
+              phase === 'live-question'
+            }
+            canReply={Boolean(user?.id === competitorB.participantUserId && canSignalAnswer)}
+            onReply={() => {
+              if (!currentQuestion || !user?.id) return
+              submitAnswer(currentQuestion.id, user.id)
+            }}
+            hasSubmitted={Boolean(
+              (submissionStatuses[competitorB.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
+            )}
+            scoreFill={getScoreFill(competitorB.score, totalQuestions, bestScore)}
+            buttonLabel="Répondre"
+          />
+        </div>
+      </div>
+
+      {/* ── Camera / mic controls ───────────────────────────────────────── */}
+      {canControlLocalMedia && (
+        <div
+          style={{
+            flexShrink: 0,
+            background: '#090d18',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            padding: '12px 20px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 10,
+            alignItems: 'center',
           }}
         >
           <button
             type="button"
-            onClick={() => navigate('/arena')}
-            style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', minWidth: 0, textAlign: 'left' }}
-          >
-            <div
-              style={{
-                width: 62,
-                height: 62,
-                borderRadius: '50%',
-                border: '1px solid rgba(230,194,122,0.35)',
-                background: 'radial-gradient(circle at 30% 30%, rgba(230,194,122,0.22), rgba(12,18,31,0.92))',
-                color: T.gold,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: 18,
-                flexShrink: 0,
-              }}
-            >
-              K+
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', color: T.textSoft }}>ARENA LIVE</p>
-              <p style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 800, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {liveState?.competitionName ?? 'Match Arena'}
-              </p>
-            </div>
-          </button>
-
-          <div style={{ justifySelf: 'center', padding: '14px 26px', borderRadius: 999, border: `1px solid ${T.borderStrong}`, background: 'linear-gradient(180deg, rgba(38,47,62,0.84), rgba(28,37,52,0.84))', color: T.text, fontSize: 18, fontWeight: 800, textAlign: 'center', minWidth: 240 }}>
-            {questionNumber > 0 ? `Question ${questionNumber}` : 'En attente du match'}
-          </div>
-
-          <div style={{ justifySelf: 'end', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '12px 18px',
-                borderRadius: 999,
-                fontWeight: 900,
-                letterSpacing: '0.05em',
-                ...getStageStatusStyle(phase),
-              }}
-            >
-              <span style={{ width: 12, height: 12, borderRadius: '50%', background: phase === 'paused' ? T.gold : T.red, animation: phase === 'waiting' ? 'none' : 'pulseDot 1.4s ease-in-out infinite' }} />
-              {getStageStatusLabel(phase)}
-            </span>
-
-            <div style={{ minWidth: 116, textAlign: 'center', padding: '10px 18px', borderRadius: 18, border: `1px solid ${T.borderStrong}`, background: 'rgba(255,255,255,0.06)', fontSize: 26, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
-              {formatTimer(timeLeft)}
-            </div>
-          </div>
-        </header>
-
-        <main style={{ marginTop: 18 }}>
-          <section
+            onClick={toggleCamera}
+            disabled={isCameraLoading}
             style={{
-              borderRadius: 34,
-              padding: '44px 28px 34px',
-              border: `1px solid ${T.border}`,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
-              boxShadow: '0 24px 80px rgba(2, 6, 13, 0.48)',
+              padding: '9px 16px',
+              borderRadius: 999,
+              border: `1px solid ${localCameraEnabled ? T.borderStrong : 'rgba(79,198,106,0.35)'}`,
+              background: localCameraEnabled ? 'rgba(255,255,255,0.08)' : 'rgba(79,198,106,0.12)',
+              color: localCameraEnabled ? T.text : '#dff7e5',
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: isCameraLoading ? 'default' : 'pointer',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: 760,
-                  minHeight: 210,
-                  borderRadius: 30,
-                  border: '1px solid rgba(235, 241, 255, 0.75)',
-                  background: 'linear-gradient(180deg, rgba(247,250,255,0.98), rgba(232,238,248,0.96))',
-                  color: '#121a29',
-                  boxShadow: '0 0 0 1px rgba(255,255,255,0.25), 0 0 55px rgba(230,194,122,0.34)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  padding: '30px 34px',
-                  position: 'relative',
-                }}
-              >
-                {currentQuestionTarget && (
-                  <div style={{ position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)' }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 14px',
-                        borderRadius: 999,
-                        background: 'rgba(17,24,39,0.08)',
-                        color: '#2f3a4d',
-                        fontSize: 12,
-                        fontWeight: 800,
-                        letterSpacing: '0.08em',
-                      }}
-                    >
-                      POUR {currentQuestionTarget.displayName ?? `COMPÉTITEUR ${currentQuestionTarget.slot}`}
-                    </span>
-                  </div>
-                )}
-                <h1 style={{ margin: 0, fontSize: 'clamp(2rem, 4vw, 4rem)', lineHeight: 1.08, fontWeight: 700, maxWidth: 620 }}>
-                  {questionPanelText}
-                </h1>
-              </div>
-            </div>
+            {isCameraLoading ? '...' : localCameraEnabled ? '📷 Couper caméra' : '📷 Caméra'}
+          </button>
+          <button
+            type="button"
+            onClick={toggleMic}
+            style={{
+              padding: '9px 16px',
+              borderRadius: 999,
+              border: `1px solid ${localMicEnabled ? T.borderStrong : 'rgba(79,198,106,0.35)'}`,
+              background: localMicEnabled ? 'rgba(255,255,255,0.08)' : 'rgba(79,198,106,0.12)',
+              color: localMicEnabled ? T.text : '#dff7e5',
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            {localMicEnabled ? '🎙️ Couper micro' : '🎙️ Micro'}
+          </button>
+          {stagePermissionError && (
+            <span style={{ fontSize: 12, color: '#ffd0d5', fontWeight: 700 }}>{stagePermissionError}</span>
+          )}
+        </div>
+      )}
 
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.05fr_0.86fr_1.05fr] lg:items-end">
-              <CompetitorCard
-                participant={competitorA}
-                stageParticipant={competitorAStage}
-                isLocal={user?.id === competitorA.participantUserId}
-                isOnline={competitorAOnline}
-                isTargeted={currentQuestionTarget?.participantUserId === competitorA.participantUserId && phase === 'live-question'}
-                canReplyHere={Boolean(user?.id === competitorA.participantUserId && canSignalAnswer)}
-                onReply={() => {
-                  if (!currentQuestion || !user?.id) return
-                  submitAnswer(currentQuestion.id, user.id)
-                }}
-                buttonLabel={(submissionStatuses[competitorA.participantUserId] as SubmissionSnapshot | undefined)?.submitted ? 'Signalé' : 'Répondre'}
-                scoreFill={getScoreFill(competitorA.score, totalQuestions, bestScore)}
-                accent={T.green}
-                hasSubmitted={Boolean((submissionStatuses[competitorA.participantUserId] as SubmissionSnapshot | undefined)?.submitted)}
-                statusLabel={
-                  (submissionStatuses[competitorA.participantUserId] as SubmissionSnapshot | undefined)?.submitted
-                    ? 'Réponse signalée'
-                    : currentQuestionTarget?.participantUserId === competitorA.participantUserId && phase === 'live-question'
-                      ? 'Question en cours pour lui'
-                      : competitorAOnline
-                        ? 'Prêt à intervenir'
-                        : 'Connexion en attente'
-                }
-              />
-
-              <ModeratorCard
-                displayName={moderatorProfile.displayName}
-                stageParticipant={moderatorStage}
-                isLocal={user?.id === moderatorProfile.userId}
-                isOnline={moderatorOnline}
-              />
-
-              <CompetitorCard
-                participant={competitorB}
-                stageParticipant={competitorBStage}
-                isLocal={user?.id === competitorB.participantUserId}
-                isOnline={competitorBOnline}
-                isTargeted={currentQuestionTarget?.participantUserId === competitorB.participantUserId && phase === 'live-question'}
-                canReplyHere={Boolean(user?.id === competitorB.participantUserId && canSignalAnswer)}
-                onReply={() => {
-                  if (!currentQuestion || !user?.id) return
-                  submitAnswer(currentQuestion.id, user.id)
-                }}
-                buttonLabel={(submissionStatuses[competitorB.participantUserId] as SubmissionSnapshot | undefined)?.submitted ? 'Signalé' : 'Répondre'}
-                scoreFill={getScoreFill(competitorB.score, totalQuestions, bestScore)}
-                accent={T.blue}
-                hasSubmitted={Boolean((submissionStatuses[competitorB.participantUserId] as SubmissionSnapshot | undefined)?.submitted)}
-                statusLabel={
-                  (submissionStatuses[competitorB.participantUserId] as SubmissionSnapshot | undefined)?.submitted
-                    ? 'Réponse signalée'
-                    : currentQuestionTarget?.participantUserId === competitorB.participantUserId && phase === 'live-question'
-                      ? 'Question en cours pour lui'
-                      : competitorBOnline
-                        ? 'Prêt à intervenir'
-                        : 'Connexion en attente'
-                }
-              />
-            </div>
-
-            {canControlLocalMedia && (
-              <div style={{ marginTop: 18, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 12 }}>
-                <button
-                  type="button"
-                  onClick={toggleCamera}
-                  disabled={isCameraLoading}
-                  style={{
-                    padding: '12px 18px',
-                    borderRadius: 999,
-                    border: `1px solid ${localCameraEnabled ? T.borderStrong : 'rgba(121,224,143,0.3)'}`,
-                    background: localCameraEnabled ? 'rgba(255,255,255,0.08)' : 'rgba(121,224,143,0.12)',
-                    color: localCameraEnabled ? T.text : '#dff7e5',
-                    fontWeight: 800,
-                    cursor: isCameraLoading ? 'default' : 'pointer',
-                  }}
-                >
-                  {isCameraLoading ? 'Caméra...' : localCameraEnabled ? 'Couper la caméra' : 'Activer la caméra'}
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleMic}
-                  style={{
-                    padding: '12px 18px',
-                    borderRadius: 999,
-                    border: `1px solid ${localMicEnabled ? T.borderStrong : 'rgba(121,224,143,0.3)'}`,
-                    background: localMicEnabled ? 'rgba(255,255,255,0.08)' : 'rgba(121,224,143,0.12)',
-                    color: localMicEnabled ? T.text : '#dff7e5',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {localMicEnabled ? 'Couper le micro' : 'Activer le micro'}
-                </button>
-              </div>
-            )}
-
-            {stagePermissionError && (
-              <p style={{ margin: '14px 0 0', textAlign: 'center', color: '#ffd0d5', fontSize: 13, fontWeight: 700 }}>
-                {stagePermissionError}
-              </p>
-            )}
-          </section>
-
-          {isModerator && (
-            <section
+      {/* ── Moderator command center ────────────────────────────────────── */}
+      {isModerator && (
+        <div
+          style={{
+            flexShrink: 0,
+            background: '#08111e',
+            borderTop: '1px solid rgba(255,255,255,0.07)',
+            padding: '18px 24px',
+          }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <span
               style={{
-                marginTop: 18,
-                padding: '22px 20px',
-                borderRadius: 28,
-                border: `1px solid ${T.border}`,
-                background: 'linear-gradient(180deg, rgba(12,18,31,0.92), rgba(9,15,26,0.88))',
-                boxShadow: '0 18px 60px rgba(2, 6, 13, 0.42)',
+                fontSize: 11,
+                fontWeight: 800,
+                color: T.textMuted,
+                letterSpacing: '0.12em',
+                marginRight: 4,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.14em', fontWeight: 800, color: T.textSoft }}>COMMANDES MODÉRATEUR</p>
-                  <h2 style={{ margin: '8px 0 0', fontSize: 28, lineHeight: 1, color: T.text }}>Régie du match</h2>
-                  <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.55, color: T.textMuted }}>
-                    Question {questionNumber || 0}/{totalQuestions || 0}
-                    {currentQuestionTarget ? ` · Pour ${currentQuestionTarget.displayName ?? `Compétiteur ${currentQuestionTarget.slot}`}` : ''}
-                  </p>
-                </div>
+              RÉGIE — Q{questionNumber}/{totalQuestions}
+              {currentQuestionTarget
+                ? ` · ${currentQuestionTarget.displayName ?? `C${currentQuestionTarget.slot}`}`
+                : ''}
+            </span>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' }}>
-                  {(canOpenFirstQuestion || canOpenNextQuestion) && (
-                    <button
-                      type="button"
-                      onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
-                      style={{ padding: '12px 16px', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, #c7defe, #7bb9ff)', color: '#0b1626', fontWeight: 900, cursor: 'pointer' }}
-                    >
-                      {canOpenFirstQuestion ? 'LANCER LE MATCH' : `OUVRIR LA QUESTION ${nextQuestionNumber}`}
-                    </button>
-                  )}
+            {(canOpenFirstQuestion || canOpenNextQuestion) && (
+              <button
+                type="button"
+                onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 999,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #c7defe, #7bb9ff)',
+                  color: '#0b1626',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                {canOpenFirstQuestion ? 'LANCER LE MATCH' : `OUVRIR Q${nextQuestionNumber}`}
+              </button>
+            )}
 
-                  {canCloseQuestion && currentQuestion && (
-                    <button
-                      type="button"
-                      onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/end`)}
-                      style={{ padding: '12px 16px', borderRadius: 999, border: '1px solid rgba(255,111,125,0.28)', background: 'rgba(255,111,125,0.12)', color: '#ffd0d5', fontWeight: 900, cursor: 'pointer' }}
-                    >
-                      CLÔTURER
-                    </button>
-                  )}
+            {canCloseQuestion && currentQuestion && (
+              <button
+                type="button"
+                onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/end`)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,77,77,0.3)',
+                  background: 'rgba(255,77,77,0.12)',
+                  color: '#ffd0d5',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                CLÔTURER
+              </button>
+            )}
 
-                  {isLive && (
-                    <button
-                      type="button"
-                      onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/${isPaused ? 'resume' : 'pause'}`)}
-                      style={{ padding: '12px 16px', borderRadius: 999, border: `1px solid ${T.borderStrong}`, background: 'rgba(255,255,255,0.08)', color: T.text, fontWeight: 900, cursor: 'pointer' }}
-                    >
-                      {isPaused ? 'REPRENDRE' : 'PAUSE'}
-                    </button>
-                  )}
-                </div>
-              </div>
+            {canScoreQuestion && currentQuestion && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'correct' })
+                  }
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: 999,
+                    border: '1px solid rgba(79,198,106,0.35)',
+                    background: 'rgba(79,198,106,0.14)',
+                    color: '#dff7e5',
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                  }}
+                >
+                  ✓ BONNE RÉPONSE
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'incorrect' })
+                  }
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: 999,
+                    border: '1px solid rgba(255,77,77,0.28)',
+                    background: 'rgba(255,77,77,0.12)',
+                    color: '#ffd0d5',
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                  }}
+                >
+                  ✗ MAUVAISE RÉPONSE
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'cancelled' })
+                  }
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: 999,
+                    border: `1px solid ${T.border}`,
+                    background: 'rgba(255,255,255,0.07)',
+                    color: T.text,
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                  }}
+                >
+                  ANNULÉE
+                </button>
+              </>
+            )}
 
-              {canScoreQuestion && currentQuestion && (
-                <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'correct' })}
-                    style={{ padding: '12px 16px', borderRadius: 999, border: '1px solid rgba(121,224,143,0.3)', background: 'rgba(121,224,143,0.12)', color: '#dff7e5', fontWeight: 900, cursor: 'pointer' }}
-                  >
-                    BONNE RÉPONSE
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'incorrect' })}
-                    style={{ padding: '12px 16px', borderRadius: 999, border: '1px solid rgba(255,111,125,0.28)', background: 'rgba(255,111,125,0.12)', color: '#ffd0d5', fontWeight: 900, cursor: 'pointer' }}
-                  >
-                    MAUVAISE RÉPONSE
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'cancelled' })}
-                    style={{ padding: '12px 16px', borderRadius: 999, border: `1px solid ${T.borderStrong}`, background: 'rgba(255,255,255,0.08)', color: T.text, fontWeight: 900, cursor: 'pointer' }}
-                  >
-                    QUESTION ANNULÉE
-                  </button>
-                </div>
-              )}
+            {isLive && (
+              <button
+                type="button"
+                onClick={() =>
+                  adminFetch(`${ARENA_API}/competitions/${competitionId}/${isPaused ? 'resume' : 'pause'}`)
+                }
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 999,
+                  border: `1px solid ${T.border}`,
+                  background: 'rgba(255,255,255,0.07)',
+                  color: T.text,
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                {isPaused ? 'REPRENDRE' : 'PAUSE'}
+              </button>
+            )}
 
-              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ padding: '14px 16px', borderRadius: 20, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.03)' }}>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.textMuted }}>
-                    {currentQuestionTarget
-                      ? `Décision attendue pour ${currentQuestionTarget.displayName ?? `Compétiteur ${currentQuestionTarget.slot}`}. Une bonne réponse vaut 1 point.`
-                      : 'Le vainqueur est déterminé au nombre de bonnes réponses.'}
-                  </p>
-                </div>
+            <button
+              type="button"
+              disabled={!uniqueWinner}
+              onClick={async () => {
+                if (!uniqueWinner) {
+                  alert('Égalité en tête : départagez avant de terminer.')
+                  return
+                }
+                if (!window.confirm(`Déclarer ${uniqueWinner.displayName} vainqueur ?`)) return
+                await adminFetch(`${ARENA_API}/competitions/${competitionId}/complete`, 'PATCH', {
+                  participantUserId: uniqueWinner.participantUserId,
+                })
+              }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 999,
+                border: '1px solid rgba(230,194,122,0.32)',
+                background: 'rgba(230,194,122,0.14)',
+                color: '#f7deb0',
+                fontWeight: 900,
+                cursor: uniqueWinner ? 'pointer' : 'default',
+                opacity: uniqueWinner ? 1 : 0.5,
+                fontSize: 13,
+              }}
+            >
+              TERMINER LE MATCH
+            </button>
+          </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    disabled={!uniqueWinner}
-                    onClick={async () => {
-                      if (!uniqueWinner) {
-                        alert('Impossible de terminer le match: il y a une égalité en tête.')
-                        return
-                      }
-                      if (!window.confirm(`Déclarer ${uniqueWinner.displayName} vainqueur et terminer le match ?`)) return
-                      await adminFetch(`${ARENA_API}/competitions/${competitionId}/complete`, 'PATCH', { participantUserId: uniqueWinner.participantUserId })
-                    }}
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: 999,
-                      border: '1px solid rgba(230,194,122,0.32)',
-                      background: 'rgba(230,194,122,0.14)',
-                      color: '#f7deb0',
-                      fontWeight: 900,
-                      cursor: uniqueWinner ? 'pointer' : 'default',
-                      opacity: uniqueWinner ? 1 : 0.58,
-                    }}
-                  >
-                    TERMINER LE MATCH
-                  </button>
-                  {!uniqueWinner && <span style={{ fontSize: 12, color: '#ffd0d5' }}>Égalité en tête: départagez avant de clôturer.</span>}
-                </div>
-
-                <PublicStreamPanel competitionId={competitionId} accessToken={accessToken} />
-              </div>
-            </section>
-          )}
-        </main>
-      </div>
+          <PublicStreamPanel competitionId={competitionId} accessToken={accessToken} />
+        </div>
+      )}
     </div>
   )
 }
