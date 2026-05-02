@@ -1295,6 +1295,17 @@ export default function AdminDashboard() {
                                   Mettre en direct
                                 </button>
                               )}
+                              {(comp.status === 'pending' || comp.status === 'approved') && (
+                                <a
+                                  href={`/arena/live/${comp.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ textDecoration: 'none' }}
+                                >
+                                  🎙️ Préparer la scène
+                                </a>
+                              )}
                               {comp.status === 'live' && (
                                 <>
                                   <a
