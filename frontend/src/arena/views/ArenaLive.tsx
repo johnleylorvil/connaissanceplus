@@ -72,7 +72,9 @@ const T = {
   textMuted: 'rgba(255,255,255,0.55)',
   textSoft: 'rgba(255,255,255,0.38)',
   gold: '#e6c27a',
+  goldLight: '#f5d9a0',
   green: '#4fc66a',
+  blue: '#6ca8f5',
   red: '#ff4d4d',
 }
 
@@ -287,19 +289,23 @@ function CompetitorPanel({
 }: CompetitorPanelProps) {
   const isSpeaking = (stageParticipant?.participant as { isSpeaking?: boolean } | undefined)?.isSpeaking ?? false
   const initials = getInitials(participant.displayName)
+  const slotColor = participant.slot === 'A' ? T.green : T.blue
+  const targetBorderColor = slotColor === T.green ? 'rgba(79,198,106,0.6)' : 'rgba(108,168,245,0.6)'
+  const targetGlowColor  = slotColor === T.green ? 'rgba(79,198,106,0.22)' : 'rgba(108,168,245,0.22)'
 
   return (
     <article
+      className="arena-competitor-article"
       style={{
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 20,
         overflow: 'hidden',
-        border: `1px solid ${isTargeted ? 'rgba(79,198,106,0.55)' : 'rgba(255,255,255,0.12)'}`,
+        border: `1px solid ${isTargeted ? targetBorderColor : 'rgba(255,255,255,0.11)'}`,
         boxShadow: isTargeted
-          ? '0 0 0 1px rgba(79,198,106,0.18), 0 8px 48px rgba(79,198,106,0.22), 0 8px 40px rgba(0,0,0,0.55)'
-          : '0 8px 40px rgba(0,0,0,0.55)',
-        transition: 'box-shadow 0.35s ease',
+          ? `0 0 0 1px ${targetGlowColor}, 0 8px 48px ${targetGlowColor}, 0 8px 40px rgba(0,0,0,0.55)`
+          : '0 8px 40px rgba(0,0,0,0.5)',
+        transition: 'box-shadow 0.4s ease, border-color 0.4s ease',
       }}
     >
       {/* Video area */}
@@ -308,7 +314,7 @@ function CompetitorPanel({
           stageParticipant={stageParticipant}
           isLocal={isLocal}
           avatarText={initials}
-          avatarColor={T.green}
+          avatarColor={slotColor}
         />
         <AudioRenderer stageParticipant={stageParticipant} isLocal={isLocal} />
 
@@ -335,7 +341,7 @@ function CompetitorPanel({
           </p>
         </div>
 
-        {/* Right indicator — green glow dot if targeted, audio wave if speaking */}
+        {/* Right indicator — glow dot if targeted, audio wave if speaking */}
         <div style={{ position: 'absolute', bottom: 18, right: 14 }}>
           {isTargeted ? (
             <div
@@ -343,8 +349,8 @@ function CompetitorPanel({
                 width: 26,
                 height: 26,
                 borderRadius: '50%',
-                background: T.green,
-                boxShadow: `0 0 16px ${T.green}, 0 0 36px rgba(79,198,106,0.55)`,
+                background: slotColor,
+                boxShadow: `0 0 16px ${slotColor}, 0 0 36px ${slotColor}88`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -358,73 +364,83 @@ function CompetitorPanel({
         </div>
       </div>
 
-      {/* Score / progress bar / reply button */}
+      {/* Score + bar + reply */}
       <div
         style={{
-          background: T.panel,
-          padding: '14px 16px',
+          background: `linear-gradient(180deg, #0e1626 0%, ${T.panel} 100%)`,
+          padding: '12px 14px 14px',
           display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          borderTop: '1px solid rgba(255,255,255,0.07)',
+          flexDirection: 'column',
+          gap: 10,
+          borderTop: `1px solid ${slotColor}22`,
         }}
       >
-        <span
-          style={{
-            fontSize: 46,
-            fontWeight: 900,
-            color: T.green,
-            lineHeight: 1,
-            flexShrink: 0,
-            minWidth: 54,
-            textAlign: 'center',
-          }}
-        >
-          {participant.score}
-        </span>
-
-        <div
-          style={{
-            flex: 1,
-            height: 10,
-            borderRadius: 999,
-            background: 'rgba(255,255,255,0.12)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
+        {/* Score row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
             style={{
-              width: scoreFill,
-              height: '100%',
-              borderRadius: 999,
-              background: `linear-gradient(90deg, ${T.green}, rgba(200,255,215,0.88))`,
-              transition: 'width 0.6s ease',
+              fontSize: 44,
+              fontWeight: 900,
+              color: slotColor,
+              lineHeight: 1,
+              flexShrink: 0,
+              minWidth: 50,
+              textAlign: 'center',
+              textShadow: `0 0 24px ${slotColor}66`,
+              fontVariantNumeric: 'tabular-nums',
             }}
-          />
-        </div>
+          >
+            {participant.score}
+          </span>
 
-        <button
-          type="button"
-          onClick={onReply}
-          disabled={!canReply}
-          style={{
-            padding: '11px 22px',
-            borderRadius: 999,
-            border: `1px solid ${canReply ? 'rgba(255,255,255,0.38)' : 'rgba(255,255,255,0.1)'}`,
-            background: canReply
-              ? 'linear-gradient(180deg, rgba(250,252,255,0.97), rgba(218,228,242,0.93))'
-              : 'rgba(255,255,255,0.07)',
-            color: canReply ? '#111827' : T.textMuted,
-            fontSize: 14,
-            fontWeight: 800,
-            cursor: canReply ? 'pointer' : 'default',
-            whiteSpace: 'nowrap',
-            boxShadow: canReply ? '0 6px 22px rgba(255,255,255,0.18)' : 'none',
-            flexShrink: 0,
-          }}
-        >
-          {hasSubmitted ? '✓ Signalé' : buttonLabel}
-        </button>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Progress track */}
+            <div
+              style={{
+                height: 6,
+                borderRadius: 999,
+                background: 'rgba(255,255,255,0.09)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: scoreFill,
+                  height: '100%',
+                  borderRadius: 999,
+                  background: `linear-gradient(90deg, ${slotColor}cc, ${slotColor})`,
+                  boxShadow: `0 0 8px ${slotColor}66`,
+                  transition: 'width 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              />
+            </div>
+
+            {/* Reply button — full-width in its column */}
+            <button
+              type="button"
+              onClick={onReply}
+              disabled={!canReply}
+              style={{
+                padding: '9px 0',
+                borderRadius: 10,
+                border: `1px solid ${canReply ? `${slotColor}66` : 'rgba(255,255,255,0.08)'}`,
+                background: canReply
+                  ? `linear-gradient(135deg, ${slotColor}22, ${slotColor}0d)`
+                  : 'rgba(255,255,255,0.04)',
+                color: canReply ? slotColor : T.textSoft,
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: canReply ? 'pointer' : 'default',
+                letterSpacing: '0.06em',
+                width: '100%',
+                boxShadow: canReply ? `0 0 16px ${slotColor}22` : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {hasSubmitted ? '✓ SIGNALÉ' : buttonLabel.toUpperCase()}
+            </button>
+          </div>
+        </div>
       </div>
     </article>
   )
@@ -488,14 +504,17 @@ function ModeratorPanel({
         >
           <span
             style={{
-              display: 'inline-block',
-              padding: '7px 18px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 16px',
               borderRadius: 999,
-              background: '#c9a052',
-              color: '#1a0d00',
-              fontSize: 12,
+              background: 'linear-gradient(135deg, #d4a84b, #c9a052)',
+              color: '#1a0c00',
+              fontSize: 11,
               fontWeight: 900,
-              letterSpacing: '0.07em',
+              letterSpacing: '0.09em',
+              boxShadow: '0 2px 14px rgba(201,160,82,0.45)',
             }}
           >
             MODÉRATEUR
@@ -1033,13 +1052,11 @@ export default function ArenaLive() {
   // ── Main stage ──────────────────────────────────────────────────────────────
   return (
     <div
+      className="arena-root"
       style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
         background: T.bg,
         color: T.text,
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+        fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
       }}
     >
       <style>{`
@@ -1052,31 +1069,202 @@ export default function ArenaLive() {
           50% { transform: scaleY(1); opacity: 1; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes questionIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scoreFlash {
+          0%   { transform: scale(1); }
+          35%  { transform: scale(1.18); }
+          100% { transform: scale(1); }
+        }
+        @keyframes timerWarn {
+          0%, 100% { color: #ff4d4d; }
+          50%       { color: #ff9090; }
+        }
+
+        /* ─── Arena layout ─── */
+        .arena-root { display: flex; flex-direction: column; min-height: 100vh; }
+
+        .arena-header {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 28px;
+          height: 72px;
+          background: #08101e;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          gap: 16px;
+          z-index: 10;
+          position: sticky;
+          top: 0;
+        }
+        .arena-brand-text { display: flex; flex-direction: column; }
+        .arena-brand-sub  { }
+
+        .arena-header-center {
+          padding: 10px 28px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.11);
+          font-size: 15px;
+          font-weight: 700;
+          color: #f8fafc;
+          white-space: nowrap;
+          letter-spacing: 0.01em;
+        }
+        .arena-status-row   { display: flex; align-items: center; gap: 18px; flex-shrink: 0; }
+        .arena-status-badge { display: flex; align-items: center; gap: 8px; }
+        .arena-status-label { font-size: 15px; font-weight: 900; letter-spacing: 0.06em; }
+        .arena-timer-box {
+          padding: 8px 20px;
+          border-radius: 12px;
+          background: #111928;
+          border: 1px solid rgba(255,255,255,0.13);
+          font-size: 28px;
+          font-weight: 900;
+          font-variant-numeric: tabular-nums;
+          color: #f8fafc;
+          min-width: 118px;
+          text-align: center;
+          letter-spacing: 0.04em;
+        }
+
+        /* ─── Stage ─── */
+        .arena-stage {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          background: radial-gradient(ellipse at 50% 22%, #16263a 0%, #070e1c 50%, #030810 100%);
+          position: relative;
+        }
+
+        /* ─── Question ─── */
+        .arena-question-wrap {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px 28px 16px;
+        }
+        .arena-question-card {
+          width: 100%;
+          max-width: 900px;
+          border-radius: 22px;
+          background: #ffffff;
+          overflow: hidden;
+          animation: questionIn 0.4s ease both;
+        }
+        .arena-question-inner {
+          padding: 30px 44px 28px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: 14px;
+        }
+        .arena-question-text {
+          margin: 0;
+          font-size: clamp(1.35rem, 2.8vw, 2.5rem);
+          font-weight: 700;
+          color: #0f1a2e;
+          line-height: 1.22;
+          max-width: 740px;
+          letter-spacing: -0.015em;
+        }
+
+        /* ─── Video grid ─── */
+        .arena-stage-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          grid-template-areas: "compA mod compB";
+          gap: 10px;
+          padding: 0 14px 16px;
+          align-items: end;
+        }
+        .arena-cell-a   { grid-area: compA; }
+        .arena-cell-mod { grid-area: mod;   }
+        .arena-cell-b   { grid-area: compB; }
+        .arena-cell-a   .arena-competitor-article { border-color: rgba(79,198,106,0.18); }
+        .arena-cell-b   .arena-competitor-article { border-color: rgba(108,168,245,0.18); }
+
+        /* ─── Media / mod bars ─── */
+        .arena-media-bar {
+          flex-shrink: 0;
+          background: #07101a;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          padding: 11px 20px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          align-items: center;
+        }
+        .arena-mod-bar {
+          flex-shrink: 0;
+          background: #06101c;
+          border-top: 1px solid rgba(255,255,255,0.07);
+          padding: 16px 22px;
+        }
+        .arena-mod-controls {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          align-items: center;
+        }
+
+        /* ─── Mobile ─── */
+        @media (max-width: 767px) {
+          .arena-header {
+            padding: 0 14px;
+            height: 56px;
+            gap: 10px;
+          }
+          .arena-header-center { display: none; }
+          .arena-brand-sub     { display: none; }
+          .arena-timer-box {
+            font-size: 20px;
+            padding: 6px 14px;
+            min-width: 82px;
+            border-radius: 10px;
+          }
+          .arena-status-label { font-size: 12px; letter-spacing: 0.04em; }
+          .arena-status-row   { gap: 10px; }
+
+          .arena-question-wrap { padding: 12px 10px 10px; flex: none; }
+          .arena-question-card { border-radius: 16px; }
+          .arena-question-inner { padding: 20px 18px 18px; gap: 10px; }
+          .arena-question-text { font-size: clamp(1rem, 4.5vw, 1.4rem); }
+
+          .arena-stage-grid {
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas: "compA compB" "mod mod";
+            gap: 8px;
+            padding: 0 8px 12px;
+          }
+          .arena-media-bar {
+            padding: 10px 12px;
+            overflow-x: auto;
+          }
+          .arena-mod-bar  { padding: 12px 12px; }
+          .arena-mod-controls { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+        }
+        @media (max-width: 420px) {
+          .arena-timer-box { font-size: 17px; min-width: 72px; }
+          .arena-question-inner { padding: 16px 14px; }
+        }
       `}</style>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header
-        style={{
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 28px',
-          height: 78,
-          background: '#0a0e18',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-          gap: 16,
-          zIndex: 10,
-        }}
-      >
-        {/* Left: Logo + name */}
+      <header className="arena-header">
+        {/* Left: Logo + brand */}
         <button
           type="button"
           onClick={() => navigate('/arena')}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 14,
+            gap: 12,
             background: 'none',
             border: 'none',
             cursor: 'pointer',
@@ -1086,69 +1274,51 @@ export default function ArenaLive() {
           }}
         >
           <LogoMark />
-          <div style={{ textAlign: 'left' }}>
+          <div className="arena-brand-text">
             <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: T.text, lineHeight: 1.2 }}>Konesans+</p>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: T.textMuted, lineHeight: 1.2 }}>Competition</p>
+            <p className="arena-brand-sub" style={{ margin: 0, fontSize: 12, fontWeight: 600, color: T.textMuted, lineHeight: 1.2 }}>Competition</p>
           </div>
         </button>
 
         {/* Center: Question pill */}
-        <div
-          style={{
-            padding: '13px 32px',
-            borderRadius: 999,
-            background: '#141c2e',
-            border: '1px solid rgba(255,255,255,0.13)',
-            fontSize: 16,
-            fontWeight: 700,
-            color: T.text,
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <div className="arena-header-center">
           {questionNumber > 0
-            ? `Question ${questionNumber}${totalQuestions > 0 ? ` / ${totalQuestions}` : ''}`
+            ? `Q ${String(questionNumber).padStart(2, '0')}${totalQuestions > 0 ? ` — ${String(totalQuestions).padStart(2, '0')}` : ''}`
             : 'En attente du match'}
         </div>
 
-        {/* Right: EN DIRECT + timer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Right: status + timer */}
+        <div className="arena-status-row">
+          <div className="arena-status-badge">
             <span
               style={{
-                width: 12,
-                height: 12,
+                width: 10,
+                height: 10,
                 borderRadius: '50%',
-                background: isDirectLive ? T.red : isPaused ? T.gold : '#555',
-                boxShadow: isDirectLive ? `0 0 8px ${T.red}` : 'none',
+                background: isDirectLive ? T.red : isPaused ? T.gold : 'rgba(255,255,255,0.22)',
+                boxShadow: isDirectLive ? `0 0 10px ${T.red}` : 'none',
                 animation: isDirectLive ? 'pulseDot 1.4s ease-in-out infinite' : 'none',
                 flexShrink: 0,
+                display: 'inline-block',
               }}
             />
             <span
-              style={{
-                fontSize: 17,
-                fontWeight: 900,
-                color: isDirectLive ? T.red : isPaused ? T.gold : T.textMuted,
-                letterSpacing: '0.05em',
-              }}
+              className="arena-status-label"
+              style={{ color: isDirectLive ? T.red : isPaused ? T.gold : T.textMuted }}
             >
-              {isPaused ? 'EN PAUSE' : isDirectLive ? 'EN DIRECT' : 'PRÊT'}
+              {isPaused ? 'PAUSE' : isDirectLive ? 'EN DIRECT' : 'PRÊT'}
             </span>
           </div>
 
           <div
+            className="arena-timer-box"
             style={{
-              padding: '10px 22px',
-              borderRadius: 14,
-              background: '#181f30',
-              border: '1px solid rgba(255,255,255,0.14)',
-              fontSize: 30,
-              fontWeight: 900,
-              fontVariantNumeric: 'tabular-nums',
-              color: T.text,
-              minWidth: 128,
-              textAlign: 'center',
-              letterSpacing: '0.02em',
+              color: timeLeft !== null && timeLeft <= 10 && isDirectLive
+                ? T.red
+                : T.text,
+              animation: timeLeft !== null && timeLeft <= 5 && isDirectLive
+                ? 'timerWarn 0.6s ease-in-out infinite'
+                : 'none',
             }}
           >
             {formatTimer(timeLeft)}
@@ -1157,15 +1327,7 @@ export default function ArenaLive() {
       </header>
 
       {/* ── Stage ──────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'radial-gradient(ellipse at 50% 26%, #142030 0%, #080e1a 48%, #040812 100%)',
-          position: 'relative',
-        }}
-      >
+      <div className="arena-stage">
         {/* Alerts */}
         {(error || isPaused) && (
           <div style={{ padding: '10px 20px 0', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -1203,145 +1365,108 @@ export default function ArenaLive() {
         )}
 
         {/* Question card */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '28px 32px 18px',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 870,
-              minHeight: 200,
-              borderRadius: 24,
-              background: 'linear-gradient(170deg, #ffffff 0%, #f2f6ff 100%)',
-              boxShadow: '0 0 100px rgba(230,194,122,0.26), 0 24px 80px rgba(0,0,0,0.55)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '36px 48px',
-              position: 'relative',
-              textAlign: 'center',
-            }}
-          >
-            {currentQuestionTarget && phase === 'live-question' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 18,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+        <div className="arena-question-wrap">
+          <div className="arena-question-card" style={{ boxShadow: '0 0 80px rgba(230,194,122,0.18), 0 20px 60px rgba(0,0,0,0.5)' }}>
+            {/* Phase accent bar at top */}
+            <div
+              style={{
+                height: 4,
+                background:
+                  phase === 'live-question'
+                    ? `linear-gradient(90deg, ${T.gold}, ${T.goldLight}, ${T.gold}99)`
+                    : phase === 'live-between'
+                    ? `linear-gradient(90deg, ${T.green}, #88ffb0, ${T.green}99)`
+                    : phase === 'paused'
+                    ? `linear-gradient(90deg, ${T.red}88, ${T.red}44)`
+                    : 'rgba(0,0,0,0.06)',
+                transition: 'background 0.6s ease',
+              }}
+            />
+            <div className="arena-question-inner">
+              {currentQuestionTarget && phase === 'live-question' && (
                 <span
                   style={{
-                    display: 'inline-block',
-                    padding: '6px 14px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 14px',
                     borderRadius: 999,
-                    background: 'rgba(0,0,0,0.07)',
-                    color: '#2f3a4d',
+                    background: 'rgba(0,0,0,0.06)',
+                    color: '#5a6a82',
                     fontSize: 11,
                     fontWeight: 800,
-                    letterSpacing: '0.1em',
+                    letterSpacing: '0.11em',
                   }}
                 >
-                  POUR {currentQuestionTarget.displayName?.toUpperCase() ?? `COMPÉTITEUR ${currentQuestionTarget.slot}`}
+                  POUR {(currentQuestionTarget.displayName ?? `COMPÉTITEUR ${currentQuestionTarget.slot}`).toUpperCase()}
                 </span>
-              </div>
-            )}
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 'clamp(1.5rem, 3vw, 2.8rem)',
-                fontWeight: 700,
-                color: '#111827',
-                lineHeight: 1.2,
-                maxWidth: 720,
-              }}
-            >
-              {questionPanelText}
-            </h1>
+              )}
+              <h1 className="arena-question-text">
+                {questionPanelText}
+              </h1>
+            </div>
           </div>
         </div>
 
         {/* 3-panel video grid */}
-        <div
-          style={{
-            padding: '0 16px 18px',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
-            gap: 10,
-            alignItems: 'end',
-          }}
-        >
-          <CompetitorPanel
-            participant={competitorA}
-            stageParticipant={competitorAStage}
-            isLocal={user?.id === competitorA.participantUserId}
-            isTargeted={
-              currentQuestionTarget?.participantUserId === competitorA.participantUserId &&
-              phase === 'live-question'
-            }
-            canReply={Boolean(user?.id === competitorA.participantUserId && canSignalAnswer)}
-            onReply={() => {
-              if (!currentQuestion || !user?.id) return
-              submitAnswer(currentQuestion.id, user.id)
-            }}
-            hasSubmitted={Boolean(
-              (submissionStatuses[competitorA.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
-            )}
-            scoreFill={getScoreFill(competitorA.score, totalQuestions, bestScore)}
-            buttonLabel="Répondre"
-          />
+        <div className="arena-stage-grid">
+          <div className="arena-cell-a">
+            <CompetitorPanel
+              participant={competitorA}
+              stageParticipant={competitorAStage}
+              isLocal={user?.id === competitorA.participantUserId}
+              isTargeted={
+                currentQuestionTarget?.participantUserId === competitorA.participantUserId &&
+                phase === 'live-question'
+              }
+              canReply={Boolean(user?.id === competitorA.participantUserId && canSignalAnswer)}
+              onReply={() => {
+                if (!currentQuestion || !user?.id) return
+                submitAnswer(currentQuestion.id, user.id)
+              }}
+              hasSubmitted={Boolean(
+                (submissionStatuses[competitorA.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
+              )}
+              scoreFill={getScoreFill(competitorA.score, totalQuestions, bestScore)}
+              buttonLabel="Répondre"
+            />
+          </div>
 
-          <ModeratorPanel
-            displayName={moderatorProfile.displayName}
-            stageParticipant={moderatorStage}
-            isLocal={user?.id === moderatorProfile.userId}
-          />
+          <div className="arena-cell-mod">
+            <ModeratorPanel
+              displayName={moderatorProfile.displayName}
+              stageParticipant={moderatorStage}
+              isLocal={user?.id === moderatorProfile.userId}
+            />
+          </div>
 
-          <CompetitorPanel
-            participant={competitorB}
-            stageParticipant={competitorBStage}
-            isLocal={user?.id === competitorB.participantUserId}
-            isTargeted={
-              currentQuestionTarget?.participantUserId === competitorB.participantUserId &&
-              phase === 'live-question'
-            }
-            canReply={Boolean(user?.id === competitorB.participantUserId && canSignalAnswer)}
-            onReply={() => {
-              if (!currentQuestion || !user?.id) return
-              submitAnswer(currentQuestion.id, user.id)
-            }}
-            hasSubmitted={Boolean(
-              (submissionStatuses[competitorB.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
-            )}
-            scoreFill={getScoreFill(competitorB.score, totalQuestions, bestScore)}
-            buttonLabel="Répondre"
-          />
+          <div className="arena-cell-b">
+            <CompetitorPanel
+              participant={competitorB}
+              stageParticipant={competitorBStage}
+              isLocal={user?.id === competitorB.participantUserId}
+              isTargeted={
+                currentQuestionTarget?.participantUserId === competitorB.participantUserId &&
+                phase === 'live-question'
+              }
+              canReply={Boolean(user?.id === competitorB.participantUserId && canSignalAnswer)}
+              onReply={() => {
+                if (!currentQuestion || !user?.id) return
+                submitAnswer(currentQuestion.id, user.id)
+              }}
+              hasSubmitted={Boolean(
+                (submissionStatuses[competitorB.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
+              )}
+              scoreFill={getScoreFill(competitorB.score, totalQuestions, bestScore)}
+              buttonLabel="Répondre"
+            />
+          </div>
         </div>
       </div>
 
       {/* ── Camera / mic controls ───────────────────────────────────────── */}
       {canControlLocalMedia && (
-        <div
-          style={{
-            flexShrink: 0,
-            background: '#090d18',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            padding: '12px 20px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 10,
-            alignItems: 'center',
-          }}
-        >
+        <div className="arena-media-bar">
           <button
             type="button"
             onClick={toggleCamera}
@@ -1383,15 +1508,8 @@ export default function ArenaLive() {
 
       {/* ── Moderator command center ────────────────────────────────────── */}
       {isModerator && (
-        <div
-          style={{
-            flexShrink: 0,
-            background: '#08111e',
-            borderTop: '1px solid rgba(255,255,255,0.07)',
-            padding: '18px 24px',
-          }}
-        >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+        <div className="arena-mod-bar">
+          <div className="arena-mod-controls">
             <span
               style={{
                 fontSize: 11,
