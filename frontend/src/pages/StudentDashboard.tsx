@@ -276,7 +276,7 @@ export default function StudentDashboard() {
 
   const navItems: { key: Tab; label: string }[] = [
     { key: 'home', label: 'Accueil' },
-    { key: 'quiz', label: 'Quiz' },
+    { key: 'quiz', label: 'Challenge' },
     { key: 'history', label: 'Historique' },
     { key: 'leaderboard', label: 'Classement' },
     { key: 'notifications', label: 'Notifications' },
@@ -376,7 +376,7 @@ export default function StudentDashboard() {
 
               <div className="responsive-three-col" style={{ border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 }}>
                 {[
-                  { label: 'Quiz joués', value: history.length, accent: 'var(--cobalt)' },
+                  { label: 'Challenges joués', value: history.length, accent: 'var(--cobalt)' },
                   { label: 'Meilleur score', value: bestScore, accent: 'var(--cobalt)' },
                   { label: 'Score moyen', value: avgScore, accent: 'var(--cobalt)' },
                 ].map((stat) => (
@@ -414,7 +414,7 @@ export default function StudentDashboard() {
           {/* ── QUIZ ── */}
           {tab === 'quiz' && (
             <div>
-              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 22 }}>Session</h1>
+              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 22 }}>Challenge</h1>
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <div className="card" style={{ marginBottom: 0 }}>
