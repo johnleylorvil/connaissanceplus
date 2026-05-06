@@ -271,6 +271,13 @@ export class MvpController {
     return this.mvpService.joinDuelMatchmaking(request.user.id, dto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Delete('duels/matchmaking/cancel')
+  cancelDuelMatchmaking(@Req() request: AuthenticatedRequest) {
+    return this.mvpService.cancelMatchmaking(request.user.id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('duels/:duelId/state')
   async getDuelState(@Req() request: AuthenticatedRequest, @Param('duelId') duelId: string) {

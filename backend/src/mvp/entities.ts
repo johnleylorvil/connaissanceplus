@@ -47,6 +47,7 @@ export enum DuelStatus {
   WAITING = 'waiting',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
 }
 
 export enum DuelMode {
@@ -393,6 +394,9 @@ export class DuelMatch {
 
   @Column('uuid', { nullable: true })
   winnerUserId: string | null;
+
+  @Column({ type: dateTimeColumnType, nullable: true })
+  waitingExpiresAt: Date | null;
 
   @Column({ type: dateTimeColumnType, nullable: true })
   startedAt: Date | null;

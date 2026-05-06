@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiCall } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -35,7 +35,7 @@ type DuelState = {
   joinCode: string
   competitionId: string
   competitionName: string
-  status: 'waiting' | 'in_progress' | 'completed'
+  status: 'waiting' | 'in_progress' | 'completed' | 'cancelled'
   mode?: 'qcm' | 'oral_live'
   questionCount: number
   winnerUserId: string | null
@@ -122,6 +122,20 @@ export default function DuelPage() {
   const duelCanAnswer = duelState?.canAnswer
   const myAnsweredCount = duelState?.myAnsweredCount
 
+  // Track latest status for cleanup without re-registering the unmount effect
+  const duelStatusRef = useRef(duelStatus)
+  useEffect(() => { duelStatusRef.current = duelStatus }, [duelStatus])
+
+  // Cancel matchmaking when the player leaves the waiting screen
+  useEffect(() => {
+    return () => {
+      if (duelStatusRef.current === 'waiting' && duelId && accessToken) {
+        void apiCall('/duels/matchmaking/cancel', { method: 'DELETE' }, accessToken)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duelId, accessToken])
+
   const currentQuestion = useMemo(() => {
     if (!duelState || !myParticipant) return null
     return duelState.questions[myParticipant.answeredCount] ?? null
@@ -183,12 +197,13 @@ export default function DuelPage() {
 
   useEffect(() => {
     if (!duelId || isOralLive) return
+    if (duelStatus === 'cancelled' || duelStatus === 'completed') return
     const interval = setInterval(() => {
       void loadState(true)
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [duelId, isOralLive, loadState])
+  }, [duelId, isOralLive, loadState, duelStatus])
 
   useEffect(() => {
     if (duelStatus !== 'in_progress' || !duelCanAnswer) return
@@ -401,6 +416,16 @@ export default function DuelPage() {
             <p className="overline" style={{ marginBottom: 8 }}>Matchmaking</p>
             <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Recherche d'un adversaire</h2>
             <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Nous recherchons un adversaire disponible pour cette confrontation de génie scolaire: {duelState.competitionName}.<br/>Restez sur cette page.</p>
+          </div>
+        )}
+
+        {/* Cancelled / expired matchmaking */}
+        {duelState.status === 'cancelled' && (
+          <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <p className="overline" style={{ marginBottom: 8 }}>Matchmaking expiré</p>
+            <h2 className="display" style={{ fontSize: 30, color: 'var(--ink-3)', marginBottom: 10 }}>Aucun adversaire trouvé</h2>
+            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Le délai de 15 minutes a expiré sans qu'un adversaire ait rejoint. Relancez une recherche depuis le tableau de bord.</p>
+            <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm" style={{ marginTop: 20 }}>Retour au tableau de bord</button>
           </div>
         )}
 

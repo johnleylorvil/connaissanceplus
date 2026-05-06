@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, Repository } from 'typeorm';
+import { In, LessThan, MoreThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
@@ -60,6 +60,7 @@ import { MailService } from './mail.service';
 
 const QUIZ_QUESTION_COUNT = 10;
 const DUEL_QUESTION_COUNT = 10;
+const MATCHMAKING_EXPIRE_MINUTES = 15;
 const ACCOUNT_OTP_TTL_MINUTES = 10;
 const ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS = 60;
 const ACCOUNT_OTP_MAX_SENDS = 5;
@@ -549,7 +550,9 @@ export class MvpService {
 
     const competitionId = `subject-duel:${subject.id}`;
     const competitionName = `Concours de ${subject.name}`;
+    const now = new Date();
 
+    // --- Check if user already has an active duel ---
     const activeDuel = await this.duelMatchRepo.findOne({
       where: [
         { playerOneId: userId, status: DuelStatus.WAITING },
@@ -565,8 +568,18 @@ export class MvpService {
         !activeDuel.playerTwoId &&
         (!activeDuel.subjectId || !activeDuel.classId)
       ) {
-        activeDuel.status = DuelStatus.COMPLETED;
-        activeDuel.completedAt = new Date();
+        // Legacy data quality fix: cancel old incomplete duel
+        activeDuel.status = DuelStatus.CANCELLED;
+        activeDuel.completedAt = now;
+        await this.duelMatchRepo.save(activeDuel);
+      } else if (
+        activeDuel.status === DuelStatus.WAITING &&
+        !activeDuel.playerTwoId &&
+        (!activeDuel.waitingExpiresAt || activeDuel.waitingExpiresAt < now)
+      ) {
+        // User's own waiting duel has expired — cancel it and allow re-joining
+        activeDuel.status = DuelStatus.CANCELLED;
+        activeDuel.completedAt = now;
         await this.duelMatchRepo.save(activeDuel);
       } else if (
         activeDuel.status === DuelStatus.WAITING &&
@@ -593,72 +606,9 @@ export class MvpService {
       }
     }
 
-    const waitingDuel = await this.duelMatchRepo.findOne({
-      where: {
-        status: DuelStatus.WAITING,
-        subjectId: subject.id,
-        classId: student.classId,
-        mode: DuelMode.QCM,
-      },
-      order: { createdAt: 'ASC' },
-    });
-
-    if (waitingDuel && waitingDuel.playerOneId === userId) {
-      return {
-        duelId: waitingDuel.id,
-        status: waitingDuel.status,
-        competitionId: waitingDuel.competitionId,
-      };
-    }
-
-    if (waitingDuel && waitingDuel.playerOneId !== userId) {
-      const now = new Date();
-      waitingDuel.playerTwoId = userId;
-      waitingDuel.status = DuelStatus.IN_PROGRESS;
-      waitingDuel.startedAt = now;
-      await this.duelMatchRepo.save(waitingDuel);
-
-      await this.duelProgressRepo.save(
-        this.duelProgressRepo.create({
-          duelMatchId: waitingDuel.id,
-          userId,
-          answeredCount: 0,
-          score: 0,
-          startedAt: now,
-          submittedAt: null,
-          totalTimeSeconds: null,
-        }),
-      );
-
-      const playerOneProgress = await this.duelProgressRepo.findOne({
-        where: { duelMatchId: waitingDuel.id, userId: waitingDuel.playerOneId },
-      });
-      if (!playerOneProgress) {
-        throw new NotFoundException('Duel progress not found for creator');
-      }
-
-      playerOneProgress.startedAt = now;
-      await this.duelProgressRepo.save(playerOneProgress);
-
-      await this.createNotification(
-        waitingDuel.playerOneId,
-        '⚔️ Match trouvé',
-        `Un adversaire a été trouvé pour ${competitionName}.`,
-        'duel',
-      );
-
-      return {
-        duelId: waitingDuel.id,
-        status: waitingDuel.status,
-        competitionId: waitingDuel.competitionId,
-      };
-    }
-
+    // --- Pre-fetch questions for potential duel creation (outside transaction) ---
     const allQuestions = await this.questionRepo.find({
-      where: {
-        classId: student.classId,
-        subjectId: subject.id,
-      },
+      where: { classId: student.classId, subjectId: subject.id },
     });
 
     if (allQuestions.length < DUEL_QUESTION_COUNT) {
@@ -668,51 +618,150 @@ export class MvpService {
     }
 
     const joinCode = await this.generateUniqueJoinCode();
-    const createdDuel = await this.duelMatchRepo.save(
-      this.duelMatchRepo.create({
-        joinCode,
-        competitionId,
-        competitionName,
-        subjectId: subject.id,
-        classId: student.classId,
-        playerOneId: userId,
-        playerTwoId: null,
-        status: DuelStatus.WAITING,
-        questionCount: DUEL_QUESTION_COUNT,
-        winnerUserId: null,
-        startedAt: null,
-        completedAt: null,
-      }),
-    );
+    const expiresAt = new Date(now.getTime() + MATCHMAKING_EXPIRE_MINUTES * 60_000);
 
-    const selectedQuestions = this.shuffle(allQuestions).slice(0, DUEL_QUESTION_COUNT);
-    await this.duelMatchQuestionRepo.save(
-      selectedQuestions.map((question, index) =>
-        this.duelMatchQuestionRepo.create({
-          duelMatchId: createdDuel.id,
-          questionId: question.id,
-          position: index + 1,
+    // --- Critical section: find-or-create with pessimistic lock to prevent race conditions ---
+    let notifyPlayerOneId: string | null = null;
+    let notifyCompetitionName = competitionName;
+
+    const result = await this.duelMatchRepo.manager.transaction(async (manager) => {
+      const txDuelRepo = manager.getRepository(DuelMatch);
+      const txProgressRepo = manager.getRepository(DuelProgress);
+      const txDuelQRepo = manager.getRepository(DuelMatchQuestion);
+      const txNow = new Date();
+
+      const waitingDuel = await txDuelRepo.findOne({
+        where: {
+          status: DuelStatus.WAITING,
+          subjectId: subject.id,
+          classId: student.classId,
+          mode: DuelMode.QCM,
+          waitingExpiresAt: MoreThan(txNow),
+        },
+        order: { createdAt: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (waitingDuel && waitingDuel.playerOneId === userId) {
+        // This user's own duel somehow made it to the waitingDuel query — just return it
+        return { duelId: waitingDuel.id, status: waitingDuel.status, competitionId: waitingDuel.competitionId };
+      }
+
+      if (waitingDuel) {
+        // Join the existing waiting duel
+        waitingDuel.playerTwoId = userId;
+        waitingDuel.status = DuelStatus.IN_PROGRESS;
+        waitingDuel.startedAt = txNow;
+        await txDuelRepo.save(waitingDuel);
+
+        await txProgressRepo.save(
+          txProgressRepo.create({
+            duelMatchId: waitingDuel.id,
+            userId,
+            answeredCount: 0,
+            score: 0,
+            startedAt: txNow,
+            submittedAt: null,
+            totalTimeSeconds: null,
+          }),
+        );
+
+        const playerOneProgress = await txProgressRepo.findOne({
+          where: { duelMatchId: waitingDuel.id, userId: waitingDuel.playerOneId },
+        });
+        if (!playerOneProgress) {
+          throw new NotFoundException('Duel progress not found for creator');
+        }
+
+        playerOneProgress.startedAt = txNow;
+        await txProgressRepo.save(playerOneProgress);
+
+        // Schedule notification after transaction (using outer scope variable)
+        notifyPlayerOneId = waitingDuel.playerOneId;
+        notifyCompetitionName = waitingDuel.competitionName;
+
+        return {
+          duelId: waitingDuel.id,
+          status: waitingDuel.status,
+          competitionId: waitingDuel.competitionId,
+        };
+      }
+
+      // No valid waiting duel found — create a new one
+      const createdDuel = await txDuelRepo.save(
+        txDuelRepo.create({
+          joinCode,
+          competitionId,
+          competitionName,
+          subjectId: subject.id,
+          classId: student.classId,
+          playerOneId: userId,
+          playerTwoId: null,
+          status: DuelStatus.WAITING,
+          questionCount: DUEL_QUESTION_COUNT,
+          winnerUserId: null,
+          startedAt: null,
+          completedAt: null,
+          waitingExpiresAt: expiresAt,
         }),
-      ),
-    );
+      );
 
-    await this.duelProgressRepo.save(
-      this.duelProgressRepo.create({
-        duelMatchId: createdDuel.id,
-        userId,
-        answeredCount: 0,
-        score: 0,
-        startedAt: null,
-        submittedAt: null,
-        totalTimeSeconds: null,
-      }),
-    );
+      const selectedQuestions = this.shuffle(allQuestions).slice(0, DUEL_QUESTION_COUNT);
+      await txDuelQRepo.save(
+        selectedQuestions.map((question, index) =>
+          txDuelQRepo.create({
+            duelMatchId: createdDuel.id,
+            questionId: question.id,
+            position: index + 1,
+          }),
+        ),
+      );
 
-    return {
-      duelId: createdDuel.id,
-      status: createdDuel.status,
-      competitionId: createdDuel.competitionId,
-    };
+      await txProgressRepo.save(
+        txProgressRepo.create({
+          duelMatchId: createdDuel.id,
+          userId,
+          answeredCount: 0,
+          score: 0,
+          startedAt: null,
+          submittedAt: null,
+          totalTimeSeconds: null,
+        }),
+      );
+
+      return {
+        duelId: createdDuel.id,
+        status: createdDuel.status,
+        competitionId: createdDuel.competitionId,
+      };
+    });
+
+    // Notify player one outside the transaction to avoid holding locks
+    if (notifyPlayerOneId) {
+      await this.createNotification(
+        notifyPlayerOneId,
+        '⚔️ Match trouvé',
+        `Un adversaire a été trouvé pour ${notifyCompetitionName}.`,
+        'duel',
+      );
+    }
+
+    return result;
+  }
+
+  async cancelMatchmaking(userId: string) {
+    const waitingDuel = await this.duelMatchRepo.findOne({
+      where: { playerOneId: userId, status: DuelStatus.WAITING },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!waitingDuel) return { cancelled: false };
+
+    waitingDuel.status = DuelStatus.CANCELLED;
+    waitingDuel.completedAt = new Date();
+    await this.duelMatchRepo.save(waitingDuel);
+
+    return { cancelled: true };
   }
 
   async getDuelState(userId: string, duelId: string) {
@@ -726,6 +775,17 @@ export class MvpService {
     }
     if (duelMatch.playerOneId !== userId && duelMatch.playerTwoId !== userId) {
       throw new UnauthorizedException('You are not part of this duel');
+    }
+
+    // Lazily expire stale waiting duels
+    if (
+      duelMatch.status === DuelStatus.WAITING &&
+      duelMatch.waitingExpiresAt &&
+      duelMatch.waitingExpiresAt < new Date()
+    ) {
+      duelMatch.status = DuelStatus.CANCELLED;
+      duelMatch.completedAt = new Date();
+      await this.duelMatchRepo.save(duelMatch);
     }
 
     const [duelQuestions, progresses] = await Promise.all([
