@@ -653,37 +653,204 @@
 .data-table tbody tr:last-child { border-bottom: none; }
 .data-table tbody td { padding: 14px 18px; color: var(--ink-2); vertical-align: middle; }
 
+/* ── Keyframe animations ── */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideOutLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-32px); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.88); }
+  70%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes timerPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
+}
+@keyframes correctFlash {
+  0%   { background: var(--ok-bg); border-color: var(--ok); }
+  100% { background: var(--ok-bg); border-color: var(--ok); }
+}
+@keyframes wrongFlash {
+  0%   { background: var(--error-bg); border-color: var(--error); }
+  100% { background: var(--error-bg); border-color: var(--error); }
+}
+@keyframes selectBounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes winnerGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(176,121,26,0.4); }
+  50%       { box-shadow: 0 0 0 12px rgba(176,121,26,0); }
+}
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Utility animation classes ── */
+.anim-slide-in  { animation: slideInRight 0.32s cubic-bezier(0.22,1,0.36,1) both; }
+.anim-fade-up   { animation: fadeInUp 0.28s ease both; }
+.anim-pop-in    { animation: popIn 0.32s cubic-bezier(0.22,1,0.36,1) both; }
+
 /* ── Quiz option button ── */
 .quiz-option {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px 22px;
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  background: var(--surface);
+  padding: 18px 22px;
+  border: 1.5px solid var(--rule);
+  border-radius: 12px;
+  background: #fff;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color 0.18s, background 0.18s, transform 0.15s, box-shadow 0.18s;
   font-family: inherit;
-  font-size: 18px;
+  font-size: 17px;
   color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  position: relative;
+  overflow: hidden;
 }
-.quiz-option:hover { border-color: var(--cobalt); background: rgba(27,53,99,0.03); }
-.quiz-option.selected { border-color: var(--cobalt); background: rgba(27,53,99,0.06); color: var(--cobalt); }
+.quiz-option::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+  background: linear-gradient(135deg, rgba(176,121,26,0.06) 0%, rgba(15,32,64,0.04) 100%);
+  border-radius: 12px;
+}
+.quiz-option:hover {
+  border-color: var(--cobalt);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15,32,64,0.1);
+}
+.quiz-option:hover::before { opacity: 1; }
+.quiz-option:active { transform: scale(0.98); }
+.quiz-option.selected {
+  border-color: var(--cobalt);
+  background: rgba(15,32,64,0.05);
+  color: var(--cobalt);
+  box-shadow: 0 2px 10px rgba(15,32,64,0.14);
+  animation: selectBounce 0.22s ease;
+}
+.quiz-option.selected::before { opacity: 1; }
+.quiz-option.flash-correct {
+  border-color: var(--ok) !important;
+  background: var(--ok-bg) !important;
+  animation: correctFlash 0.35s ease forwards;
+}
+.quiz-option.flash-wrong {
+  border-color: var(--error) !important;
+  background: var(--error-bg) !important;
+  animation: wrongFlash 0.35s ease forwards;
+}
+
+/* Colour-coded key badges: A=cobalt, B=gold, C=green, D=red */
 .quiz-option .opt-key {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
-  background: var(--stone);
-  color: var(--ink-3);
-  transition: background 0.12s, color 0.12s;
+  transition: background 0.18s, color 0.18s, transform 0.18s;
+  color: #fff;
 }
-.quiz-option.selected .opt-key { background: var(--cobalt); color: #fff; }
+.quiz-option .opt-key[data-key="A"] { background: #1B3A6B; }
+.quiz-option .opt-key[data-key="B"] { background: #9A6310; }
+.quiz-option .opt-key[data-key="C"] { background: #1B6343; }
+.quiz-option .opt-key[data-key="D"] { background: #7A2020; }
+.quiz-option.selected .opt-key { transform: rotate(-6deg) scale(1.1); }
+
+/* ── Timer bar ── */
+.quiz-timer-bar-wrap {
+  height: 6px;
+  background: var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.quiz-timer-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.95s linear, background 0.4s;
+}
+.quiz-timer-bar.urgent { animation: timerPulse 0.5s ease infinite; }
+
+/* ── Progress bar (quiz) ── */
+.quiz-progress-bar-wrap {
+  height: 4px;
+  background: var(--rule);
+}
+.quiz-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cobalt) 0%, var(--gold) 100%);
+  transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Matchmaking waiting dots ── */
+.waiting-dots span {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cobalt);
+  margin: 0 4px;
+  animation: dotPulse 1.4s ease-in-out infinite both;
+}
+.waiting-dots span:nth-child(2) { animation-delay: 0.16s; }
+.waiting-dots span:nth-child(3) { animation-delay: 0.32s; }
+
+/* ── Score result card (quiz end) ── */
+.result-score-ring {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 38px;
+  font-weight: 700;
+  border: 5px solid;
+  animation: popIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+/* ── Winner glow ── */
+.winner-glow {
+  animation: winnerGlow 1.6s ease-in-out infinite;
+  border-color: var(--gold) !important;
+}
+
+/* ── Duel scorecard ── */
+.duel-scorecard {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.duel-scorecard.mine {
+  border-color: var(--cobalt) !important;
+  box-shadow: 0 2px 12px rgba(15,32,64,0.1);
+}
