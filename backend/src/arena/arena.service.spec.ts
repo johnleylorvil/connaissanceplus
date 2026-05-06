@@ -73,7 +73,7 @@ type MockRepo = {
   save: jest.Mock;
   findOneOrFail?: jest.Mock;
   count?: jest.Mock;
-  create?: jest.Mock;
+  create: jest.Mock;
 };
 
 function mockRepo(): MockRepo {

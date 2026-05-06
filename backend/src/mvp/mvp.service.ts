@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, MoreThan, Repository } from 'typeorm';
+import { In, IsNull, LessThan, MoreThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
@@ -634,7 +634,7 @@ export class MvpService {
         where: {
           status: DuelStatus.WAITING,
           subjectId: subject.id,
-          classId: student.classId,
+          classId: student.classId ?? IsNull(),
           mode: DuelMode.QCM,
           waitingExpiresAt: MoreThan(txNow),
         },
