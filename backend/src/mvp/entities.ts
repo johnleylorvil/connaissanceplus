@@ -477,6 +477,9 @@ export class DuelProgress {
 
   @Column({ type: 'int', nullable: true })
   totalTimeSeconds: number | null;
+
+  @Column({ type: dateTimeColumnType, nullable: true })
+  lastActivityAt: Date | null;
 }
 
 @Entity('duel_answers')

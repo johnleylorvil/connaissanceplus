@@ -60,7 +60,8 @@ import { MailService } from './mail.service';
 
 const QUIZ_QUESTION_COUNT = 10;
 const DUEL_QUESTION_COUNT = 10;
-const MATCHMAKING_EXPIRE_SECONDS = 90;
+const MATCHMAKING_EXPIRE_MINUTES = 15;
+const FORFEIT_INACTIVE_SECONDS = 60; // if a player has no activity for 60s during a match, they forfeit
 const ACCOUNT_OTP_TTL_MINUTES = 10;
 const ACCOUNT_OTP_RESEND_COOLDOWN_SECONDS = 60;
 const ACCOUNT_OTP_MAX_SENDS = 5;
@@ -618,7 +619,7 @@ export class MvpService {
     }
 
     const joinCode = await this.generateUniqueJoinCode();
-    const expiresAt = new Date(now.getTime() + MATCHMAKING_EXPIRE_SECONDS * 1000);
+    const expiresAt = new Date(now.getTime() + MATCHMAKING_EXPIRE_MINUTES * 60_000);
 
     // --- Critical section: find-or-create with pessimistic lock to prevent race conditions ---
     let notifyPlayerOneId: string | null = null;
@@ -764,19 +765,6 @@ export class MvpService {
     return { cancelled: true };
   }
 
-  async heartbeatMatchmaking(userId: string) {
-    const waitingDuel = await this.duelMatchRepo.findOne({
-      where: { playerOneId: userId, status: DuelStatus.WAITING, playerTwoId: IsNull() },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (!waitingDuel) return { ok: false };
-
-    waitingDuel.waitingExpiresAt = new Date(Date.now() + MATCHMAKING_EXPIRE_SECONDS * 1000);
-    await this.duelMatchRepo.save(waitingDuel);
-    return { ok: true };
-  }
-
   async getDuelState(userId: string, duelId: string) {
     const duelMatch = await this.duelMatchRepo.findOne({
       where: { id: duelId },
@@ -812,6 +800,31 @@ export class MvpService {
         relations: ['user'],
       }),
     ]);
+
+    // Lazy forfeit: if in_progress and a player has had no activity for FORFEIT_INACTIVE_SECONDS, forfeit them
+    if (duelMatch.status === DuelStatus.IN_PROGRESS) {
+      const now = new Date();
+      const forfeitThreshold = new Date(now.getTime() - FORFEIT_INACTIVE_SECONDS * 1000);
+      let anyForfeited = false;
+      for (const progress of progresses) {
+        if (progress.submittedAt) continue;
+        const lastSeen: Date | null = progress.lastActivityAt ?? duelMatch.startedAt;
+        if (!lastSeen || lastSeen > forfeitThreshold) continue;
+        // Forfeit this player — they stopped responding
+        progress.submittedAt = now;
+        const refTime = progress.startedAt ?? duelMatch.startedAt ?? now;
+        progress.totalTimeSeconds = Math.max(1, Math.round((now.getTime() - refTime.getTime()) / 1000));
+        await this.duelProgressRepo.save(progress);
+        anyForfeited = true;
+      }
+      if (anyForfeited && progresses.length === 2 && progresses.every((p) => !!p.submittedAt)) {
+        const [left, right] = progresses as [typeof progresses[0], typeof progresses[1]];
+        duelMatch.winnerUserId = this.resolveDuelWinner(left, right);
+        duelMatch.status = DuelStatus.COMPLETED;
+        duelMatch.completedAt = now;
+        await this.duelMatchRepo.save(duelMatch);
+      }
+    }
 
     const duelQuestionIds = duelQuestions.map((question) => question.id);
     const answers =
@@ -941,6 +954,7 @@ export class MvpService {
       progress.startedAt = duelMatch.startedAt ?? new Date();
     }
     progress.answeredCount += 1;
+    progress.lastActivityAt = new Date();
     if (isCorrect) {
       progress.score += 1;
     }
