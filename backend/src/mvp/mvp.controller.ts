@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Put,
   Query,
   Req,
   Res,
@@ -277,13 +276,6 @@ export class MvpController {
   @Delete('duels/matchmaking/cancel')
   cancelDuelMatchmaking(@Req() request: AuthenticatedRequest) {
     return this.mvpService.cancelMatchmaking(request.user.id);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STUDENT)
-  @Put('duels/matchmaking/heartbeat')
-  heartbeatMatchmaking(@Req() request: AuthenticatedRequest) {
-    return this.mvpService.heartbeatMatchmaking(request.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
