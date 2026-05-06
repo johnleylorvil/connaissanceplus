@@ -136,6 +136,16 @@ export default function DuelPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duelId, accessToken])
 
+  // Heartbeat while waiting — keeps the slot alive (chess.com style: only active players are matchable)
+  // Sends PUT /duels/matchmaking/heartbeat every 30s; slot TTL is 90s, so missing 2 beats in a row = expired
+  useEffect(() => {
+    if (duelStatus !== 'waiting' || !duelId || !accessToken) return
+    const interval = setInterval(() => {
+      void apiCall('/duels/matchmaking/heartbeat', { method: 'PUT' }, accessToken)
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [duelStatus, duelId, accessToken])
+
   const currentQuestion = useMemo(() => {
     if (!duelState || !myParticipant) return null
     return duelState.questions[myParticipant.answeredCount] ?? null
