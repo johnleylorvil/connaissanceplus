@@ -34,11 +34,11 @@ const difficultyLabel: Record<string, string> = {
 }
 
 const resultMessage = (pct: number) => {
-  if (pct === 100) return '🔥 Parfait — vrai génie !'
-  if (pct >= 80)  return '🌟 Excellent travail !'
-  if (pct >= 60)  return '👍 Bien joué !'
-  if (pct >= 40)  return '📚 Continue à t\'entraîner !'
-  return '💪 Tu peux mieux faire — relance une manche !'
+  if (pct === 100) return 'Parfait — vrai génie !'
+  if (pct >= 80)  return 'Excellent travail !'
+  if (pct >= 60)  return 'Bien joué !'
+  if (pct >= 40)  return 'Continue à t\'entraîner !'
+  return 'Tu peux mieux faire — relance une manche !'
 }
 
 function useCountUp(target: number, duration = 900) {

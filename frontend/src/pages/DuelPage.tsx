@@ -364,43 +364,71 @@ export default function DuelPage() {
   }
   // ── End ORAL_LIVE branch ────────────────────────────────────────────────
 
+  // Timer bar values
+  const timerPct = (timeLeft / QUESTION_TIME_SECONDS) * 100
+  const timerBarColor = timeLeft <= 3 ? 'var(--error)' : timeLeft <= 5 ? 'var(--gold)' : 'var(--ok)'
+  const questionKey = myParticipant?.answeredCount ?? 0
+  const isMine = (uid: string) => uid === duelState.currentUserId
+  const isWinner = duelState.winnerUserId === duelState.currentUserId
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button onClick={() => navigate(homePath)} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Retour</button>
         <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Génie scolaire</p>
-          <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{duelState.competitionName}</p>
+          <p style={{ fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>Génie scolaire</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{duelState.competitionName}</p>
         </div>
-        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, padding: '4px 12px', borderRadius: 4, background: timeLeft <= 3 ? 'var(--error)' : 'var(--stone)', color: timeLeft <= 3 ? '#fff' : 'var(--cobalt)' }}>
+        <span style={{
+          fontFamily: 'monospace', fontWeight: 800, fontSize: 17,
+          padding: '4px 14px', borderRadius: 6, minWidth: 52, textAlign: 'center',
+          background: duelState.canAnswer
+            ? (timeLeft <= 3 ? 'var(--error)' : timeLeft <= 5 ? 'var(--gold)' : 'var(--cobalt)')
+            : 'var(--stone)',
+          color: duelState.canAnswer ? '#fff' : 'var(--ink-3)',
+          transition: 'background 0.3s',
+          animation: (duelState.canAnswer && timeLeft <= 3) ? 'timerPulse 0.5s ease infinite' : 'none',
+        }}>
           {duelState.canAnswer ? `${timeLeft}s` : '—'}
         </span>
       </div>
 
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {error && <div className="alert alert-error">{error}</div>}
 
         {/* Participant scorecards */}
         <div className="responsive-two-col" style={{ gap: 12 }}>
           {duelState.participants.map((participant) => (
-            <div key={participant.userId} className="card" style={{ border: participant.userId === duelState.currentUserId ? '1.5px solid var(--cobalt)' : '1px solid var(--rule)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>
+            <div
+              key={participant.userId}
+              className={`card duel-scorecard${isMine(participant.userId) ? ' mine' : ''}${duelState.status === 'completed' && duelState.winnerUserId === participant.userId ? ' winner-glow' : ''}`}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
                   {participant.name}
-                  {participant.userId === duelState.currentUserId && <span style={{ marginLeft: 6, fontSize: 14, color: 'var(--cobalt)' }}>Vous</span>}
+                  {isMine(participant.userId) && (
+                    <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600, color: 'var(--cobalt)', background: 'rgba(15,32,64,0.08)', padding: '2px 7px', borderRadius: 20 }}>Vous</span>
+                  )}
                 </p>
-                <p className="display" style={{ fontSize: 26, color: 'var(--cobalt)' }}>{participant.score}</p>
+                <p className="display" style={{ fontSize: 30, color: 'var(--cobalt)', lineHeight: 1 }}>{participant.score}</p>
               </div>
-              <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 12 }}>
-                {participant.answeredCount}/{duelState.questionCount}
+              <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 10 }}>
+                {participant.answeredCount}/{duelState.questionCount} questions
                 {participant.isFinished && participant.totalTimeSeconds ? ` · ${participant.totalTimeSeconds}s` : ''}
+                {participant.isFinished && <span style={{ marginLeft: 6, color: 'var(--ok)', fontWeight: 600 }}>✓ Terminé</span>}
               </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {participant.answers.map((answer) => (
                   <span
                     key={`${participant.userId}-${answer.duelQuestionId}`}
-                    style={{ width: 22, height: 22, borderRadius: '50%', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, background: answer.isCorrect === null ? 'var(--rule)' : answer.isCorrect ? 'var(--ok)' : 'var(--error)', color: answer.isCorrect === null ? 'var(--ink-3)' : '#fff' }}
+                    style={{
+                      width: 24, height: 24, borderRadius: 6, fontSize: 11,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
+                      background: answer.isCorrect === null ? 'var(--rule)' : answer.isCorrect ? 'var(--ok)' : 'var(--error)',
+                      color: answer.isCorrect === null ? 'var(--ink-3)' : '#fff',
+                      transition: 'background 0.3s',
+                    }}
                   >
                     {answer.position}
                   </span>
@@ -410,75 +438,113 @@ export default function DuelPage() {
           ))}
         </div>
 
-        {/* Waiting */}
+        {/* Waiting matchmaking */}
         {duelState.status === 'waiting' && (
-          <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <p className="overline" style={{ marginBottom: 8 }}>Matchmaking</p>
-            <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Recherche d'un adversaire</h2>
-            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Nous recherchons un adversaire disponible pour cette confrontation de génie scolaire: {duelState.competitionName}.<br/>Restez sur cette page.</p>
+          <div className="card anim-fade-up" style={{ padding: '52px 24px', textAlign: 'center' }}>
+            <p className="overline" style={{ marginBottom: 12 }}>Matchmaking en cours</p>
+            <h2 className="display" style={{ fontSize: 28, color: 'var(--cobalt)', marginBottom: 16 }}>Recherche d’un adversaire</h2>
+            <div className="waiting-dots" style={{ marginBottom: 20 }}>
+              <span /><span /><span />
+            </div>
+            <p style={{ fontSize: 16, color: 'var(--ink-3)', lineHeight: 1.7, maxWidth: 380, margin: '0 auto' }}>
+              {duelState.competitionName} — Restez sur cette page, le match démarre automatiquement dès qu’un adversaire est trouvé.
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 14, opacity: 0.7 }}>Expiration dans 15 minutes</p>
           </div>
         )}
 
-        {/* Cancelled / expired matchmaking */}
+        {/* Cancelled */}
         {duelState.status === 'cancelled' && (
-          <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <p className="overline" style={{ marginBottom: 8 }}>Matchmaking expiré</p>
-            <h2 className="display" style={{ fontSize: 30, color: 'var(--ink-3)', marginBottom: 10 }}>Aucun adversaire trouvé</h2>
-            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Le délai de 15 minutes a expiré sans qu'un adversaire ait rejoint. Relancez une recherche depuis le tableau de bord.</p>
-            <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm" style={{ marginTop: 20 }}>Retour au tableau de bord</button>
+          <div className="card anim-fade-up" style={{ padding: '52px 24px', textAlign: 'center' }}>
+            <p className="overline" style={{ marginBottom: 12, color: 'var(--ink-3)' }}>Matchmaking expiré</p>
+            <h2 className="display" style={{ fontSize: 28, color: 'var(--ink-3)', marginBottom: 14 }}>Aucun adversaire trouvé</h2>
+            <p style={{ fontSize: 16, color: 'var(--ink-3)', lineHeight: 1.7, marginBottom: 24 }}>Le délai de 15 minutes a expiré. Relancez une recherche depuis le tableau de bord.</p>
+            <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
           </div>
         )}
 
-        {/* Questions (can answer) */}
+        {/* Active question */}
         {duelState.status === 'in_progress' && duelState.canAnswer && currentQuestion && (
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <p style={{ fontSize: 14, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Question {currentQuestion.position}/{duelState.questionCount}</p>
+          <>
+            <div className="quiz-timer-bar-wrap" style={{ marginBottom: 0 }}>
+              <div
+                className={`quiz-timer-bar${timeLeft <= 3 ? ' urgent' : ''}`}
+                style={{ width: `${timerPct}%`, background: timerBarColor }}
+              />
             </div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 18, lineHeight: 1.55 }}>{currentQuestion.prompt}</p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-              {(Object.entries(currentQuestion.options) as ['A' | 'B' | 'C' | 'D', string][]).map(([key, value]) => (
+            <div key={questionKey} className="card anim-slide-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--cobalt)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 20, background: 'rgba(15,32,64,0.08)' }}>
+                  Question {currentQuestion.position}/{duelState.questionCount}
+                </span>
+                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{duelState.competitionName}</span>
+              </div>
+              <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 20, lineHeight: 1.6 }}>{currentQuestion.prompt}</p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+                {(Object.entries(currentQuestion.options) as ['A' | 'B' | 'C' | 'D', string][]).map(([key, value], i) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedOption(key)}
+                    className={`quiz-option anim-fade-up${selectedOption === key ? ' selected' : ''}`}
+                    style={{ animationDelay: `${i * 0.06}s` }}
+                  >
+                    <span className="opt-key" data-key={key}>{key}</span>
+                    <span>{value}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button onClick={() => void submitAnswer()} disabled={submitting} className="btn btn-ghost btn-sm">Passer</button>
                 <button
-                  key={key}
-                  onClick={() => setSelectedOption(key)}
-                  className={`quiz-option${selectedOption === key ? ' selected' : ''}`}
+                  onClick={() => void submitAnswer(selectedOption ?? undefined)}
+                  disabled={submitting || !selectedOption}
+                  className="btn btn-primary btn-sm"
+                  style={{ minWidth: 100 }}
                 >
-                  <span className="opt-key">{key}</span>
-                  <span>{value}</span>
+                  {submitting ? '…' : 'Valider →'}
                 </button>
-              ))}
+              </div>
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => void submitAnswer()} disabled={submitting} className="btn btn-ghost btn-sm">Passer</button>
-              <button onClick={() => void submitAnswer(selectedOption ?? undefined)} disabled={submitting || !selectedOption} className="btn btn-primary btn-sm">Valider</button>
-            </div>
-          </div>
+          </>
         )}
 
-        {/* Waiting for opponent */}
+        {/* Waiting for opponent to finish */}
         {duelState.status === 'in_progress' && !duelState.canAnswer && (
-          <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
-            <h2 className="display" style={{ fontSize: 28, color: 'var(--cobalt)', marginBottom: 10 }}>En attente de l'adversaire</h2>
-            <p style={{ fontSize: 17, color: 'var(--ink-3)', lineHeight: 1.7 }}>Votre série est terminée. Le résultat final s’affichera dès que l’autre joueur aura terminé.</p>
+          <div className="card anim-fade-up" style={{ padding: '44px 24px', textAlign: 'center' }}>
+            <p className="overline" style={{ marginBottom: 12 }}>En attente</p>
+            <h2 className="display" style={{ fontSize: 26, color: 'var(--cobalt)', marginBottom: 14 }}>Vous avez terminé votre série !</h2>
+            <div className="waiting-dots" style={{ marginBottom: 16 }}>
+              <span /><span /><span />
+            </div>
+            <p style={{ fontSize: 16, color: 'var(--ink-3)', lineHeight: 1.7 }}>
+              Le résultat final s’affichera dès que votre adversaire aura terminé.
+            </p>
           </div>
         )}
 
         {/* Completed */}
         {duelState.status === 'completed' && (
-          <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
-            <p className="overline" style={{ marginBottom: 8 }}>Résultat final</p>
-            <h2 className="display" style={{ fontSize: 34, color: 'var(--cobalt)', marginBottom: 14 }}>Confrontation terminée</h2>
+          <div className="card anim-pop-in" style={{ padding: '44px 24px', textAlign: 'center' }}>
+            <p className="overline" style={{ marginBottom: 12 }}>Résultat final</p>
+            <h2 className="display" style={{ fontSize: 36, color: isWinner ? 'var(--ok)' : 'var(--cobalt)', marginBottom: 18 }}>
+              {duelState.winnerUserId ? (isWinner ? 'Victoire' : 'Défaite') : 'Égalité'}
+            </h2>
             {duelState.winnerUserId ? (
-              <p style={{ fontSize: 18, color: 'var(--ink)', marginBottom: 8 }}>
-                Gagnant : <span style={{ fontWeight: 700, color: 'var(--cobalt)' }}>{winner?.name}</span>
-                {duelState.winnerUserId === duelState.currentUserId && <span style={{ marginLeft: 8, fontSize: 15, color: 'var(--ok)' }}>— Félicitations !</span>}
-              </p>
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 17, color: 'var(--ink)', marginBottom: 6 }}>
+                  Gagnant : <span style={{ fontWeight: 700, color: isWinner ? 'var(--ok)' : 'var(--cobalt)' }}>{winner?.name}</span>
+                </p>
+                {isWinner && (
+                  <p style={{ fontSize: 15, color: 'var(--ok)', fontWeight: 600 }}>Félicitations — votre classement hebdomadaire va progresser !</p>
+                )}
+              </div>
             ) : (
-              <p style={{ fontSize: 17, color: 'var(--ink-3)', marginBottom: 8 }}>Égalité parfaite — même score, même temps.</p>
+              <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 16 }}>Même score, même temps — égalité parfaite.</p>
             )}
-            <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 22 }}>Départage : score, puis temps total le plus court, selon les règles du génie scolaire.</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>Départage : score, puis temps total le plus court.</p>
             <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour</button>
           </div>
         )}
