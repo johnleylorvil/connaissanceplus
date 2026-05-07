@@ -997,8 +997,24 @@ export class MvpService {
   }
 
   async getWeeklyLeaderboard(classId?: string) {
-    const weekStart = this.getStartOfWeek();
+    const thisWeekStart = this.getStartOfWeek(0);
+    let rows = await this.runWeeklyLeaderboardQuery(thisWeekStart, null, classId);
 
+    if (rows.length === 0) {
+      // No matches yet this week — fall back to last week's results so the
+      // "Étudiants phare" section is never empty at the start of a new week.
+      const lastWeekStart = this.getStartOfWeek(1);
+      rows = await this.runWeeklyLeaderboardQuery(lastWeekStart, thisWeekStart, classId);
+    }
+
+    return rows;
+  }
+
+  private async runWeeklyLeaderboardQuery(
+    weekStart: Date,
+    weekEnd: Date | null,
+    classId?: string,
+  ) {
     const qb = this.duelProgressRepo
       .createQueryBuilder('progress')
       .innerJoin('duel_matches', 'match', 'match.id = progress.duelMatchId')
@@ -1027,8 +1043,17 @@ export class MvpService {
       .where('match.status = :status', { status: DuelStatus.COMPLETED })
       .andWhere('match.mode = :mode', { mode: DuelMode.QCM })
       .andWhere('match.playerTwoId IS NOT NULL')
-      .andWhere('match.completedAt >= :weekStart', { weekStart })
-      .groupBy('progress.userId')
+      .andWhere('match.completedAt >= :weekStart', { weekStart });
+
+    if (weekEnd) {
+      qb.andWhere('match.completedAt < :weekEnd', { weekEnd });
+    }
+
+    if (classId) {
+      qb.andWhere('user.levelId = :classId', { classId });
+    }
+
+    qb.groupBy('progress.userId')
       .addGroupBy('user.firstName')
       .addGroupBy('user.lastName')
       .orderBy('winCount', 'DESC')
@@ -1036,10 +1061,6 @@ export class MvpService {
       .addOrderBy('winTimeSeconds', 'ASC')
       .addOrderBy('lossCount', 'ASC')
       .addOrderBy('lastWinAt', 'DESC');
-
-    if (classId) {
-      qb.andWhere('user.levelId = :classId', { classId });
-    }
 
     const rows = await qb.getRawMany<{
       userId: string;
@@ -1788,13 +1809,23 @@ export class MvpService {
     return null;
   }
 
-  private getStartOfWeek() {
+  /**
+   * Returns the UTC timestamp that corresponds to Monday 00:00:00 in Haiti's
+   * timezone (UTC-5), going back `weeksAgo` complete weeks.
+   * Using Haiti's local timezone prevents the leaderboard week from resetting
+   * at 19:00 Haiti-time (midnight UTC) instead of the correct midnight.
+   */
+  private getStartOfWeek(weeksAgo = 0): Date {
+    const HAITI_OFFSET_MS = -5 * 60 * 60 * 1000; // Haiti is UTC-5
     const now = new Date();
-    const day = now.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const start = new Date(now);
-    start.setDate(now.getDate() + diffToMonday);
-    start.setHours(0, 0, 0, 0);
-    return start;
+    // Shift current UTC instant into Haiti local time (expressed as UTC date object)
+    const haitiNow = new Date(now.getTime() + HAITI_OFFSET_MS);
+    const dayOfWeek = haitiNow.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStartHaiti = new Date(haitiNow);
+    weekStartHaiti.setUTCDate(haitiNow.getUTCDate() + diffToMonday - weeksAgo * 7);
+    weekStartHaiti.setUTCHours(0, 0, 0, 0);
+    // Shift back to UTC so the result can be compared with DB timestamps
+    return new Date(weekStartHaiti.getTime() - HAITI_OFFSET_MS);
   }
 }
