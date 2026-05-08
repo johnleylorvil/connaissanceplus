@@ -91,8 +91,7 @@ export class CorrespondenceService {
   }
 
   private isReplyOpen(session: ContestSession): boolean {
-    const rules = this.effectiveRules(session);
-    const deadline = new Date(session.endAt.getTime() + rules.gracePeriodHours * 3_600_000);
+    const deadline = new Date(session.endAt.getTime() + (session.gracePeriodHours ?? 48) * 3_600_000);
     return new Date() <= deadline;
   }
 

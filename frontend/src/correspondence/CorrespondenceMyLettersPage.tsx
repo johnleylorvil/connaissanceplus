@@ -6,7 +6,7 @@ import type { Letter } from './types'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Brouillon',
-  submitted: 'Soumise — en attente d'assignation',
+  submitted: "Soumise \u2014 en attente d'assignation",
   assigned: 'Assignée — destinataire notifié',
   delivered: 'Lue par le destinataire',
   archived: 'Archivée',

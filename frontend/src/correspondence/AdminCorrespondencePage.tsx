@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
   adminCreateSession,
@@ -99,7 +99,7 @@ export default function AdminCorrespondencePage() {
       const result = await adminTriggerAssign(sessionId, accessToken)
       setAssignResult((prev) => ({ ...prev, [sessionId]: result }))
     } catch (e: unknown) {
-      setSessionError(e instanceof Error ? e.message : 'Erreur lors de l'assignation')
+      setSessionError(e instanceof Error ? e.message : "Erreur lors de l'assignation")
     } finally {
       setAssigning(null)
     }
