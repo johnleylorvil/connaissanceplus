@@ -8,6 +8,7 @@ import { extname, join } from 'path';
 import { MvpModule } from './mvp/mvp.module';
 import { ArenaModule } from './arena/arena.module';
 import { SponsorsModule } from './sponsors/sponsors.module';
+import { CorrespondenceModule } from './correspondence/correspondence.module';
 import { createTypeOrmOptions } from './database/typeorm.config';
 
 @Module({
@@ -54,6 +55,7 @@ import { createTypeOrmOptions } from './database/typeorm.config';
     MvpModule,
     ArenaModule,
     SponsorsModule,
+    CorrespondenceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

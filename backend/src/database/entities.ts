@@ -24,6 +24,15 @@ import {
   ArenaRound,
 } from '../arena/arena.entities';
 import { Sponsor } from '../sponsors/sponsor.entity';
+import {
+  Assignment,
+  ContestSession,
+  CorrespondenceMessage,
+  CorrespondenceThread,
+  CorrespondenceVote,
+  Letter,
+  ModerationCase,
+} from '../correspondence/correspondence.entities';
 
 export const databaseEntities = [
   AcademicClass,
@@ -48,4 +57,11 @@ export const databaseEntities = [
   ArenaParticipantMessage,
   ArenaParticipantScoreAdjustment,
   Sponsor,
+  ContestSession,
+  Letter,
+  Assignment,
+  CorrespondenceThread,
+  CorrespondenceMessage,
+  CorrespondenceVote,
+  ModerationCase,
 ];

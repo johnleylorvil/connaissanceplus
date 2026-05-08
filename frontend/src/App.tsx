@@ -18,6 +18,12 @@ import ArenaLive from './arena/views/ArenaLive'
 import ArenaWatchPage from './arena/views/ArenaWatchPage'
 import ArenaSpectator from './arena/ArenaSpectator'
 import ModeratorArenaPage from './pages/ModeratorArenaPage'
+import CorrespondenceSessionsPage from './correspondence/CorrespondenceSessionsPage'
+import CorrespondenceSessionDetailPage from './correspondence/CorrespondenceSessionDetailPage'
+import CorrespondenceInboxPage from './correspondence/CorrespondenceInboxPage'
+import CorrespondenceThreadPage from './correspondence/CorrespondenceThreadPage'
+import CorrespondenceMyLettersPage from './correspondence/CorrespondenceMyLettersPage'
+import AdminCorrespondencePage from './correspondence/AdminCorrespondencePage'
 import { needsStudentProfileCompletion, userHome } from './auth/authRules'
 import { getPortalUrl, portalAllowsRole, portalForRole, resolvePortalMode } from './auth/portal'
 
@@ -186,6 +192,56 @@ export default function App() {
         element={
           <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
             <ArenaLive />
+          </RequireRole>
+        }
+      />
+
+      {/* ── Correspondence contest routes ── */}
+      <Route
+        path="/correspondence"
+        element={
+          <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
+            <CorrespondenceSessionsPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/correspondence/sessions/:id"
+        element={
+          <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
+            <CorrespondenceSessionDetailPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/correspondence/inbox"
+        element={
+          <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
+            <CorrespondenceInboxPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/correspondence/threads/:id"
+        element={
+          <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
+            <CorrespondenceThreadPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/correspondence/my-letters"
+        element={
+          <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
+            <CorrespondenceMyLettersPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/admin/correspondence"
+        element={
+          <RequireRole allowedRoles={['admin']}>
+            <AdminCorrespondencePage />
           </RequireRole>
         }
       />
