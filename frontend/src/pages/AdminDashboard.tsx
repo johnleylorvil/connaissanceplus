@@ -518,6 +518,13 @@ export default function AdminDashboard() {
               {item.label}
             </button>
           ))}
+          <a
+            href="/admin/correspondence"
+            className="nav-item"
+            style={{ display: 'block', textDecoration: 'none', marginBottom: 2 }}
+          >
+            Correspondance ✉️
+          </a>
         </nav>
 
         <div style={{ padding: '10px 8px', borderTop: '1px solid var(--rule)' }}>
@@ -1919,6 +1926,13 @@ export default function AdminDashboard() {
             <span>{item.label}</span>
           </button>
         ))}
+        <a
+          href="/admin/correspondence"
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 4px', fontSize: 10, fontWeight: 500, color: 'var(--ink-3)', textDecoration: 'none' }}
+        >
+          <span style={{ display: 'block', width: 16, height: 2, borderRadius: 1, background: 'transparent', marginBottom: 5 }} />
+          <span>Corresp.</span>
+        </a>
       </nav>
     </div>
   )
