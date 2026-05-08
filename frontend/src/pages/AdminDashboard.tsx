@@ -3,6 +3,11 @@ import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
 import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type VerifyModeratorOtpResponse, type ModeratorOtpRequestResponse } from '../arena/arenaApi'
 import { HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
+import {
+  adminCreateSession, adminHandleReport, adminListReports,
+  adminListSessions, adminTriggerAssign, adminUpdateSession,
+} from '../correspondence/correspondenceApi'
+import type { ContestSession, ContestSessionStatus, ModerationCase } from '../correspondence/types'
 
 function getOtpErrorMessage(error: unknown, fallback: string) {
   const message = (error as { message?: string })?.message?.trim()
@@ -13,7 +18,12 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   return message
 }
 
-type Tab = 'overview' | 'levels' | 'subjects' | 'questions' | 'students' | 'messages' | 'sponsors' | 'arena'
+type Tab = 'overview' | 'levels' | 'subjects' | 'questions' | 'students' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
+type CorrSubTab = 'sessions' | 'moderation'
+const CORR_STATUS_OPTIONS: ContestSessionStatus[] = ['draft', 'open', 'closed', 'scoring', 'published']
+const CORR_STATUS_FR: Record<ContestSessionStatus, string> = {
+  draft: 'Brouillon', open: 'Ouvert', closed: 'Fermé', scoring: 'Vote', published: 'Publié',
+}
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
 type Question = {
@@ -115,6 +125,25 @@ export default function AdminDashboard() {
   const [createModPending, setCreateModPending] = useState<ModeratorOtpRequestResponse | null>(null)
   const [createModOtpCode, setCreateModOtpCode] = useState('')
   const [createModResendCountdown, setCreateModResendCountdown] = useState(0)
+
+  // ── Correspondence state ─────────────────────────────────────────────────────
+  const [corrSubTab, setCorrSubTab] = useState<CorrSubTab>('sessions')
+  const [corrSessions, setCorrSessions] = useState<ContestSession[]>([])
+  const [loadingCorrSessions, setLoadingCorrSessions] = useState(false)
+  const [corrSessionError, setCorrSessionError] = useState('')
+  const [corrShowCreate, setCorrShowCreate] = useState(false)
+  const [corrCreating, setCorrCreating] = useState(false)
+  const [corrCreateForm, setCorrCreateForm] = useState({
+    title: '', themePrompt: '', startAt: '', endAt: '',
+    gracePeriodHours: '48', maxLettersPerUser: '1', maxLettersReceived: '1',
+    minBodyLength: '500', maxBodyLength: '5000', allowVoting: false,
+  })
+  const [corrAssignResult, setCorrAssignResult] = useState<Record<string, { assigned: number; skipped: number }>>({})
+  const [corrAssigning, setCorrAssigning] = useState<string | null>(null)
+  const [corrReports, setCorrReports] = useState<ModerationCase[]>([])
+  const [loadingCorrReports, setLoadingCorrReports] = useState(false)
+  const [corrReportFilter, setCorrReportFilter] = useState('pending')
+  const [corrReportError, setCorrReportError] = useState('')
 
   useEffect(() => {
     if (createModResendCountdown <= 0) return
@@ -252,6 +281,71 @@ export default function AdminDashboard() {
     }
   }, [accessToken, callApi])
 
+  // ── Correspondence handlers ─────────────────────────────────────────────────
+  const loadCorrSessions = useCallback(async () => {
+    if (!accessToken) return
+    setLoadingCorrSessions(true)
+    setCorrSessionError('')
+    try { setCorrSessions(await adminListSessions(accessToken)) }
+    catch (e: unknown) { setCorrSessionError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setLoadingCorrSessions(false) }
+  }, [accessToken])
+
+  const handleCorrCreate = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!accessToken) return
+    setCorrCreating(true); setCorrSessionError('')
+    try {
+      await adminCreateSession({
+        title: corrCreateForm.title, themePrompt: corrCreateForm.themePrompt,
+        startAt: corrCreateForm.startAt, endAt: corrCreateForm.endAt,
+        gracePeriodHours: Number(corrCreateForm.gracePeriodHours),
+        rules: {
+          maxLettersPerUser: Number(corrCreateForm.maxLettersPerUser),
+          maxLettersReceived: Number(corrCreateForm.maxLettersReceived),
+          minBodyLength: Number(corrCreateForm.minBodyLength),
+          maxBodyLength: Number(corrCreateForm.maxBodyLength),
+          allowVoting: corrCreateForm.allowVoting,
+        },
+      }, accessToken)
+      setCorrShowCreate(false)
+      await loadCorrSessions()
+    } catch (e: unknown) { setCorrSessionError(e instanceof Error ? e.message : 'Erreur de création') }
+    finally { setCorrCreating(false) }
+  }
+
+  const handleCorrStatusChange = async (s: ContestSession, newStatus: ContestSessionStatus) => {
+    if (!accessToken) return
+    try { await adminUpdateSession(s.id, { status: newStatus }, accessToken); await loadCorrSessions() }
+    catch (e: unknown) { setCorrSessionError(e instanceof Error ? e.message : 'Erreur') }
+  }
+
+  const handleCorrTriggerAssign = async (sessionId: string) => {
+    if (!accessToken) return
+    setCorrAssigning(sessionId)
+    try {
+      const result = await adminTriggerAssign(sessionId, accessToken)
+      setCorrAssignResult((prev) => ({ ...prev, [sessionId]: result }))
+    } catch (e: unknown) { setCorrSessionError(e instanceof Error ? e.message : "Erreur lors de l'assignation") }
+    finally { setCorrAssigning(null) }
+  }
+
+  const loadCorrReports = useCallback(async () => {
+    if (!accessToken) return
+    setLoadingCorrReports(true); setCorrReportError('')
+    try { setCorrReports(await adminListReports(accessToken, corrReportFilter)) }
+    catch (e: unknown) { setCorrReportError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setLoadingCorrReports(false) }
+  }, [accessToken, corrReportFilter])
+
+  useEffect(() => { if (tab === 'correspondence' && corrSubTab === 'moderation') void loadCorrReports() }, [tab, corrSubTab, loadCorrReports])
+
+  const handleCorrReport = async (caseId: string, action: 'handle' | 'dismiss') => {
+    if (!accessToken) return
+    try { await adminHandleReport(caseId, action, accessToken); await loadCorrReports() }
+    catch (e: unknown) { setCorrReportError(e instanceof Error ? e.message : 'Erreur') }
+  }
+
   useEffect(() => { loadAll() }, [loadAll])
 
   useEffect(() => {
@@ -265,7 +359,10 @@ export default function AdminDashboard() {
     if (tab === 'arena') {
       loadArenaTabData()
     }
-  }, [callApi, loadArenaTabData, loadQuestions, loadSponsors, tab])
+    if (tab === 'correspondence') {
+      void loadCorrSessions()
+    }
+  }, [callApi, loadArenaTabData, loadQuestions, loadSponsors, tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const createClass = async (e: FormEvent) => {
     e.preventDefault()
@@ -491,7 +588,8 @@ export default function AdminDashboard() {
     { key: 'students', label: 'Étudiants' },
     { key: 'messages', label: 'Messages' },
     { key: 'sponsors', label: 'Sponsors' },
-    { key: 'arena', label: 'Arena ⚔️' },
+    { key: 'arena', label: 'Arena' },
+    { key: 'correspondence', label: 'Correspondance' },
   ]
 
   return (
@@ -518,13 +616,6 @@ export default function AdminDashboard() {
               {item.label}
             </button>
           ))}
-          <a
-            href="/admin/correspondence"
-            className="nav-item"
-            style={{ display: 'block', textDecoration: 'none', marginBottom: 2 }}
-          >
-            Correspondance ✉️
-          </a>
         </nav>
 
         <div style={{ padding: '10px 8px', borderTop: '1px solid var(--rule)' }}>
@@ -1911,6 +2002,183 @@ export default function AdminDashboard() {
         </div>
       )}
 
+          {/* -- CORRESPONDANCE -- */}
+          {tab === 'correspondence' && (
+            <div>
+              <p className="overline" style={{ marginBottom: 8 }}>Correspondance</p>
+              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Concours de Correspondance</h1>
+
+              {/* Internal sub-tabs */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--rule)' }}>
+                {([{ key: 'sessions' as const, label: 'Sessions' }, { key: 'moderation' as const, label: 'Modération' }]).map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setCorrSubTab(t.key)}
+                    style={{ padding: '8px 20px', border: 'none', background: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: corrSubTab === t.key ? 'var(--cobalt)' : 'var(--ink-3)', borderBottom: corrSubTab === t.key ? '2px solid var(--cobalt)' : '2px solid transparent', marginBottom: -2 }}
+                  >{t.label}</button>
+                ))}
+              </div>
+
+              {/* Sessions */}
+              {corrSubTab === 'sessions' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', margin: 0 }}>Sessions ({corrSessions.length})</p>
+                    <button onClick={() => setCorrShowCreate(!corrShowCreate)} className="btn btn-primary btn-sm">+ Nouvelle session</button>
+                  </div>
+
+                  {corrSessionError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{corrSessionError}</div>}
+
+                  {corrShowCreate && (
+                    <div className="card" style={{ marginBottom: 24 }}>
+                      <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 16 }}>Créer une session</p>
+                      <form onSubmit={handleCorrCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div>
+                          <label className="field-label">Titre</label>
+                          <input className="field-input" value={corrCreateForm.title} onChange={(e) => setCorrCreateForm(f => ({ ...f, title: e.target.value }))} required />
+                        </div>
+                        <div>
+                          <label className="field-label">Thème / Consigne</label>
+                          <textarea className="field-input" rows={3} style={{ resize: 'none' }} value={corrCreateForm.themePrompt} onChange={(e) => setCorrCreateForm(f => ({ ...f, themePrompt: e.target.value }))} required />
+                        </div>
+                        <div className="responsive-two-col" style={{ gap: 12 }}>
+                          <div>
+                            <label className="field-label">Date de début</label>
+                            <input type="datetime-local" className="field-input" value={corrCreateForm.startAt} onChange={(e) => setCorrCreateForm(f => ({ ...f, startAt: e.target.value }))} required />
+                          </div>
+                          <div>
+                            <label className="field-label">Date de fin</label>
+                            <input type="datetime-local" className="field-input" value={corrCreateForm.endAt} onChange={(e) => setCorrCreateForm(f => ({ ...f, endAt: e.target.value }))} required />
+                          </div>
+                          <div>
+                            <label className="field-label">Délai de réponse (h après fin)</label>
+                            <input type="number" className="field-input" value={corrCreateForm.gracePeriodHours} onChange={(e) => setCorrCreateForm(f => ({ ...f, gracePeriodHours: e.target.value }))} min={0} max={168} />
+                          </div>
+                          <div>
+                            <label className="field-label">Max lettres / étudiant</label>
+                            <input type="number" className="field-input" value={corrCreateForm.maxLettersPerUser} onChange={(e) => setCorrCreateForm(f => ({ ...f, maxLettersPerUser: e.target.value }))} min={1} />
+                          </div>
+                          <div>
+                            <label className="field-label">Longueur min (car.)</label>
+                            <input type="number" className="field-input" value={corrCreateForm.minBodyLength} onChange={(e) => setCorrCreateForm(f => ({ ...f, minBodyLength: e.target.value }))} min={50} />
+                          </div>
+                          <div>
+                            <label className="field-label">Longueur max (car.)</label>
+                            <input type="number" className="field-input" value={corrCreateForm.maxBodyLength} onChange={(e) => setCorrCreateForm(f => ({ ...f, maxBodyLength: e.target.value }))} max={50000} />
+                          </div>
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ink-2)' }}>
+                          <input type="checkbox" checked={corrCreateForm.allowVoting} onChange={(e) => setCorrCreateForm(f => ({ ...f, allowVoting: e.target.checked }))} />
+                          Activer le vote à la fermeture
+                        </label>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button type="submit" disabled={corrCreating} className="btn btn-primary btn-sm">{corrCreating ? 'Création…' : 'Créer'}</button>
+                          <button type="button" onClick={() => setCorrShowCreate(false)} className="btn btn-ghost btn-sm">Annuler</button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {loadingCorrSessions && <p style={{ color: 'var(--ink-3)' }}>Chargement…</p>}
+
+                  {!loadingCorrSessions && corrSessions.length === 0 && !corrShowCreate && (
+                    <div className="card" style={{ textAlign: 'center', padding: 32 }}>
+                      <p style={{ color: 'var(--ink-3)' }}>Aucune session. Créez la première.</p>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {corrSessions.map((s) => (
+                      <div key={s.id} className="card" style={{ padding: '16px 20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                          <div>
+                            <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>{s.title}</p>
+                            <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>
+                              {new Date(s.startAt).toLocaleDateString('fr-FR')} — {new Date(s.endAt).toLocaleDateString('fr-FR')}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                            <select
+                              value={s.status}
+                              onChange={(e) => handleCorrStatusChange(s, e.target.value as ContestSessionStatus)}
+                              className="field-input"
+                              style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
+                            >
+                              {CORR_STATUS_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>{CORR_STATUS_FR[opt]}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleCorrTriggerAssign(s.id)}
+                              disabled={corrAssigning === s.id}
+                              className="btn btn-ghost btn-sm"
+                            >
+                              {corrAssigning === s.id ? '…' : 'Assigner'}
+                            </button>
+                          </div>
+                        </div>
+                        {corrAssignResult[s.id] && (
+                          <div className="alert alert-ok" style={{ marginTop: 10 }}>
+                            {corrAssignResult[s.id].assigned} lettres assignées, {corrAssignResult[s.id].skipped} ignorées
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Modération */}
+              {corrSubTab === 'moderation' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', margin: 0 }}>Signalements ({corrReports.length})</p>
+                    <select value={corrReportFilter} onChange={(e) => setCorrReportFilter(e.target.value)} className="field-input" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}>
+                      <option value="">Tous</option>
+                      <option value="pending">En attente</option>
+                      <option value="handled">Traités</option>
+                      <option value="dismissed">Rejetés</option>
+                    </select>
+                  </div>
+
+                  {corrReportError && <div className="alert alert-error" style={{ marginBottom: 12 }}>{corrReportError}</div>}
+                  {loadingCorrReports && <p style={{ color: 'var(--ink-3)' }}>Chargement…</p>}
+
+                  {!loadingCorrReports && corrReports.length === 0 && (
+                    <div className="card" style={{ textAlign: 'center', padding: 32 }}>
+                      <p style={{ color: 'var(--ink-3)' }}>Aucun signalement.</p>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {corrReports.map((r) => (
+                      <div key={r.id} className="card" style={{ padding: '14px 18px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                          <div>
+                            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{r.targetType} — {r.reason}</p>
+                            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-3)' }}>
+                              <code style={{ fontSize: 11 }}>{r.targetId}</code> · {new Date(r.createdAt).toLocaleDateString('fr-FR')}
+                            </p>
+                            {r.details && <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--ink-3)' }}>{r.details}</p>}
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, borderRadius: 20, padding: '3px 10px', flexShrink: 0, background: r.status === 'pending' ? 'var(--gold-pale)' : r.status === 'handled' ? 'var(--ok-bg)' : 'var(--stone)', color: r.status === 'pending' ? 'var(--gold)' : r.status === 'handled' ? 'var(--ok)' : 'var(--ink-3)' }}>
+                            {r.status === 'pending' ? 'En attente' : r.status === 'handled' ? 'Traité' : 'Rejeté'}
+                          </span>
+                        </div>
+                        {r.status === 'pending' && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                            <button onClick={() => handleCorrReport(r.id, 'handle')} className="btn btn-primary btn-sm">Traiter</button>
+                            <button onClick={() => handleCorrReport(r.id, 'dismiss')} className="btn btn-ghost btn-sm">Rejeter</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       </main>
 
@@ -1926,13 +2194,6 @@ export default function AdminDashboard() {
             <span>{item.label}</span>
           </button>
         ))}
-        <a
-          href="/admin/correspondence"
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 4px', fontSize: 10, fontWeight: 500, color: 'var(--ink-3)', textDecoration: 'none' }}
-        >
-          <span style={{ display: 'block', width: 16, height: 2, borderRadius: 1, background: 'transparent', marginBottom: 5 }} />
-          <span>Corresp.</span>
-        </a>
       </nav>
     </div>
   )

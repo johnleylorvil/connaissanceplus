@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
 import ArenaWorkspace from '../arena/ArenaWorkspace'
 import { HAITI_CITIES_BY_DEPARTMENT, HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
+import {
+  castVote, createLetter, createReport, getInbox, getMyLetters,
+  getThread, listSessions, openAssignment, sendMessage, submitLetter, updateLetter,
+} from '../correspondence/correspondenceApi'
+import type { ContestSession, InboxItem, Letter, OpenedAssignment, Thread, ThreadMessage } from '../correspondence/types'
 
-type Tab = 'home' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena'
+type Tab = 'home' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence'
+type CorrView = 'sessions' | 'write' | 'myletters' | 'inbox' | 'thread'
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
 type HistoryEntry = {
@@ -87,6 +93,24 @@ export default function StudentDashboard() {
   const [profileError, setProfileError] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
   const cityOptions = profileForm.department ? HAITI_CITIES_BY_DEPARTMENT[profileForm.department as keyof typeof HAITI_CITIES_BY_DEPARTMENT] ?? [] : []
+
+  // ── Correspondence state ─────────────────────────────────────────────────────
+  const [corrView, setCorrView] = useState<CorrView>('sessions')
+  const [corrSessions, setCorrSessions] = useState<ContestSession[]>([])
+  const [corrSelectedSession, setCorrSelectedSession] = useState<ContestSession | null>(null)
+  const [corrLetter, setCorrLetter] = useState<Letter | null>(null)
+  const [corrLetterBody, setCorrLetterBody] = useState('')
+  const [corrLetterSaving, setCorrLetterSaving] = useState(false)
+  const [corrMyLetters, setCorrMyLetters] = useState<Letter[]>([])
+  const [corrInbox, setCorrInbox] = useState<InboxItem[]>([])
+  const [corrOpenedAssignment, setCorrOpenedAssignment] = useState<OpenedAssignment | null>(null)
+  const [corrThread, setCorrThread] = useState<Thread | null>(null)
+  const [corrThreadMessages, setCorrThreadMessages] = useState<ThreadMessage[]>([])
+  const [corrNewMessage, setCorrNewMessage] = useState('')
+  const [corrSendingMessage, setCorrSendingMessage] = useState(false)
+  const [corrLoading, setCorrLoading] = useState(false)
+  const [corrError, setCorrError] = useState('')
+  const corrSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const unreadCount = notifications.filter((n) => !n.isRead).length
 
@@ -236,6 +260,113 @@ export default function StudentDashboard() {
     }
   }
 
+  // ── Correspondence handlers ─────────────────────────────────────────────────
+  const loadCorrSessions = useCallback(async () => {
+    if (!accessToken) return
+    setCorrLoading(true); setCorrError('')
+    try { setCorrSessions(await listSessions(accessToken)) }
+    catch (e: unknown) { setCorrError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setCorrLoading(false) }
+  }, [accessToken])
+
+  const loadCorrMyLetters = useCallback(async () => {
+    if (!accessToken) return
+    try { setCorrMyLetters(await getMyLetters(accessToken)) }
+    catch { /* non-critical */ }
+  }, [accessToken])
+
+  const loadCorrInbox = useCallback(async () => {
+    if (!accessToken) return
+    setCorrLoading(true)
+    try { setCorrInbox(await getInbox(accessToken)) }
+    catch (e: unknown) { setCorrError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setCorrLoading(false) }
+  }, [accessToken])
+
+  useEffect(() => {
+    if (tab !== 'correspondence') return
+    if (corrView === 'sessions') void loadCorrSessions()
+    if (corrView === 'myletters') void loadCorrMyLetters()
+    if (corrView === 'inbox') void loadCorrInbox()
+  }, [tab, corrView, loadCorrSessions, loadCorrMyLetters, loadCorrInbox])
+
+  const openCorrSession = async (session: ContestSession) => {
+    if (!accessToken) return
+    setCorrSelectedSession(session)
+    try {
+      const letters = await getMyLetters(accessToken)
+      const existing = letters.find((l) => l.sessionId === session.id)
+      if (existing) {
+        setCorrLetter(existing)
+        setCorrLetterBody(existing.body)
+      } else {
+        const created = await createLetter(session.id, '', undefined, accessToken)
+        setCorrLetter(created)
+        setCorrLetterBody('')
+      }
+    } catch (e: unknown) { setCorrError(e instanceof Error ? e.message : 'Erreur') }
+    setCorrView('write')
+  }
+
+  const autosaveCorrLetter = useCallback((body: string) => {
+    if (!accessToken || !corrLetter || corrLetter.status !== 'draft') return
+    if (corrSaveTimer.current) clearTimeout(corrSaveTimer.current)
+    corrSaveTimer.current = setTimeout(async () => {
+      setCorrLetterSaving(true)
+      try { await updateLetter(corrLetter.id, body, undefined, accessToken) }
+      catch { /* swallow */ }
+      finally { setCorrLetterSaving(false) }
+    }, 1500)
+  }, [accessToken, corrLetter])
+
+  const submitCorrLetter = async () => {
+    if (!accessToken || !corrLetter) return
+    setCorrLoading(true); setCorrError('')
+    try {
+      const updated = await submitLetter(corrLetter.id, accessToken)
+      setCorrLetter(updated)
+    } catch (e: unknown) { setCorrError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setCorrLoading(false) }
+  }
+
+  const openCorrAssignment = async (item: InboxItem) => {
+    if (!accessToken) return
+    setCorrLoading(true); setCorrError('')
+    try {
+      const opened = await openAssignment(item.assignmentId, accessToken)
+      setCorrOpenedAssignment(opened)
+      setCorrView('thread')
+      if (!item.threadId) return
+      const thread = await getThread(item.threadId, accessToken)
+      setCorrThread(thread)
+      setCorrThreadMessages(thread.messages ?? [])
+    } catch (e: unknown) { setCorrError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setCorrLoading(false) }
+  }
+
+  const sendCorrMessage = async () => {
+    if (!accessToken || !corrThread || !corrNewMessage.trim()) return
+    setCorrSendingMessage(true)
+    try {
+      const msg = await sendMessage(corrThread.threadId, corrNewMessage, accessToken)
+      setCorrThreadMessages((prev) => [...prev, msg as unknown as ThreadMessage])
+      setCorrNewMessage('')
+    } catch (e: unknown) { setCorrError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setCorrSendingMessage(false) }
+  }
+
+  const reportCorrItem = async (targetType: 'letter' | 'message', targetId: string, reason: string) => {
+    if (!accessToken) return
+    try { await createReport(targetType, targetId, reason, undefined, accessToken) }
+    catch { /* swallow */ }
+  }
+
+  const castCorrVote = async (sessionId: string, letterId: string, score: number) => {
+    if (!accessToken) return
+    try { await castVote(sessionId, letterId, score, accessToken) }
+    catch (e: unknown) { setCorrError(e instanceof Error ? e.message : 'Erreur') }
+  }
+
   const saveProfile = async (e: FormEvent) => {
     e.preventDefault()
     setProfileMsg('')
@@ -280,6 +411,7 @@ export default function StudentDashboard() {
     { key: 'history', label: 'Historique' },
     { key: 'leaderboard', label: 'Classement' },
     { key: 'notifications', label: 'Notifications' },
+    { key: 'correspondence', label: 'Correspondance' },
     { key: 'profile', label: 'Profil' },
     { key: 'arena', label: 'Arena' },
   ]
@@ -744,6 +876,253 @@ export default function StudentDashboard() {
           )}
 
           {tab === 'arena' && <ArenaWorkspace embedded />}
+
+          {/* ── CORRESPONDANCE ── */}
+          {tab === 'correspondence' && (
+            <div>
+              {/* Header + sub-nav */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                <div>
+                  <h1 className="display" style={{ fontSize: 28, color: 'var(--cobalt)', marginBottom: 4 }}>Correspondance</h1>
+                  <p style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 500 }}>Écrivez une lettre, recevez-en une, échangez anonymement.</p>
+                </div>
+                {corrView !== 'sessions' && (
+                  <button
+                    onClick={() => { setCorrView('sessions'); setCorrError('') }}
+                    className="btn btn-ghost btn-sm"
+                  >
+                    Retour aux sessions
+                  </button>
+                )}
+              </div>
+
+              {corrError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{corrError}</div>}
+
+              {/* Sub-view tabs (sessions / my letters / inbox) */}
+              {corrView !== 'write' && corrView !== 'thread' && (
+                <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid var(--rule)' }}>
+                  {([
+                    { key: 'sessions' as CorrView, label: 'Concours' },
+                    { key: 'myletters' as CorrView, label: 'Mes lettres' },
+                    { key: 'inbox' as CorrView, label: 'Boîte de réception' },
+                  ]).map((v) => (
+                    <button
+                      key={v.key}
+                      onClick={() => { setCorrView(v.key); setCorrError('') }}
+                      style={{ padding: '8px 18px', border: 'none', background: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: corrView === v.key ? 'var(--cobalt)' : 'var(--ink-3)', borderBottom: corrView === v.key ? '2px solid var(--cobalt)' : '2px solid transparent', marginBottom: -2 }}
+                    >{v.label}</button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Sessions list ── */}
+              {corrView === 'sessions' && (
+                <div>
+                  {corrLoading && <p style={{ color: 'var(--ink-3)' }}>Chargement…</p>}
+                  {!corrLoading && corrSessions.length === 0 && (
+                    <div className="card" style={{ textAlign: 'center', padding: 32 }}>
+                      <p style={{ color: 'var(--ink-3)' }}>Aucun concours disponible pour le moment.</p>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {corrSessions.map((s) => (
+                      <div key={s.id} className="card" style={{ cursor: 'pointer' }} onClick={() => openCorrSession(s)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>{s.title}</p>
+                            <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, marginBottom: 8 }}>{s.themePrompt}</p>
+                            <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                              {new Date(s.startAt).toLocaleDateString('fr-FR')} — {new Date(s.endAt).toLocaleDateString('fr-FR')}
+                            </p>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, flexShrink: 0, background: s.status === 'open' ? 'var(--ok-bg)' : s.status === 'scoring' ? 'var(--gold-pale)' : 'var(--stone)', color: s.status === 'open' ? 'var(--ok)' : s.status === 'scoring' ? 'var(--gold)' : 'var(--ink-3)' }}>
+                            {s.status === 'open' ? 'Ouvert' : s.status === 'scoring' ? 'Vote en cours' : s.status === 'published' ? 'Publié' : 'Fermé'}
+                          </span>
+                        </div>
+                        <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }}>Écrire une lettre</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Write / Edit letter ── */}
+              {corrView === 'write' && corrSelectedSession && (
+                <div>
+                  <div className="card" style={{ marginBottom: 16 }}>
+                    <p className="overline" style={{ marginBottom: 4 }}>Concours</p>
+                    <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 6 }}>{corrSelectedSession.title}</p>
+                    <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.6 }}>{corrSelectedSession.themePrompt}</p>
+                  </div>
+
+                  {corrLetter?.status === 'submitted' ? (
+                    <div className="card">
+                      <div className="alert alert-ok" style={{ marginBottom: 0 }}>
+                        Lettre soumise. Vous serez notifié quand un destinataire vous sera assigné.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <label className="field-label" style={{ margin: 0 }}>Votre lettre</label>
+                        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                          {corrLetterSaving ? 'Sauvegarde…' : 'Sauvegarde auto'}
+                          {' · '}{corrLetterBody.length} car.
+                        </span>
+                      </div>
+                      <textarea
+                        className="field-input"
+                        rows={14}
+                        style={{ resize: 'vertical' }}
+                        value={corrLetterBody}
+                        onChange={(e) => { setCorrLetterBody(e.target.value); autosaveCorrLetter(e.target.value) }}
+                        disabled={corrLetter?.status !== 'draft'}
+                        placeholder="Rédigez votre lettre ici…"
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+                        <button
+                          onClick={submitCorrLetter}
+                          disabled={corrLoading || corrLetterBody.length < (corrSelectedSession.rules?.minBodyLength ?? 500)}
+                          className="btn btn-primary"
+                        >
+                          {corrLoading ? 'Envoi…' : 'Soumettre la lettre'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── My letters ── */}
+              {corrView === 'myletters' && (
+                <div>
+                  {corrMyLetters.length === 0 && !corrLoading && (
+                    <div className="card" style={{ textAlign: 'center', padding: 32 }}>
+                      <p style={{ color: 'var(--ink-3)' }}>Vous n'avez pas encore écrit de lettre.</p>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {corrMyLetters.map((l) => (
+                      <div key={l.id} className="card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+                          <div>
+                            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{l.sessionId}</p>
+                            <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 3 }}>{new Date(l.createdAt).toLocaleDateString('fr-FR')}</p>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, flexShrink: 0, background: l.status === 'draft' ? 'var(--stone)' : l.status === 'submitted' ? 'var(--gold-pale)' : 'var(--ok-bg)', color: l.status === 'draft' ? 'var(--ink-3)' : l.status === 'submitted' ? 'var(--gold)' : 'var(--ok)' }}>
+                            {l.status === 'draft' ? 'Brouillon' : l.status === 'submitted' ? 'Soumise' : l.status === 'assigned' ? 'Assignée' : l.status === 'delivered' ? 'Lue' : 'Archivée'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.6, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                          {l.body || '(brouillon vide)'}
+                        </p>
+                        {l.status === 'draft' && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ marginTop: 10 }}
+                            onClick={() => { const s = corrSessions.find((x) => x.id === l.sessionId); if (s) openCorrSession(s) }}
+                          >
+                            Continuer la rédaction
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Inbox ── */}
+              {corrView === 'inbox' && (
+                <div>
+                  {corrLoading && <p style={{ color: 'var(--ink-3)' }}>Chargement…</p>}
+                  {!corrLoading && corrInbox.length === 0 && (
+                    <div className="card" style={{ textAlign: 'center', padding: 32 }}>
+                      <p style={{ color: 'var(--ink-3)' }}>Aucune lettre reçue pour le moment.</p>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {corrInbox.map((item) => (
+                      <div key={item.assignmentId} className="card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                          <div>
+                            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>Lettre anonyme</p>
+                            <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 3 }}>
+                              {item.openedAt ? `Ouverte le ${new Date(item.openedAt).toLocaleDateString('fr-FR')}` : 'Non ouverte'}
+                            </p>
+                          </div>
+                          <button className="btn btn-primary btn-sm" onClick={() => openCorrAssignment(item)}>
+                            {item.openedAt ? 'Lire et répondre' : 'Ouvrir'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Thread (conversation) ── */}
+              {corrView === 'thread' && corrThread && (
+                <div>
+                  {corrOpenedAssignment && (
+                    <div className="card" style={{ marginBottom: 16 }}>
+                      <p className="overline" style={{ marginBottom: 8 }}>Lettre reçue</p>
+                      <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{corrOpenedAssignment.letter.body}</p>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--error)' }}
+                          onClick={() => reportCorrItem('letter', corrOpenedAssignment.letter.id, 'Contenu inapproprié')}
+                        >
+                          Signaler
+                        </button>
+                        {corrOpenedAssignment.thread && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => castCorrVote(corrThread!.threadId, corrOpenedAssignment.letter.id, 1)}
+                          >
+                            Voter pour cette lettre
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="card">
+                    <p className="overline" style={{ marginBottom: 14 }}>Échange</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto', marginBottom: 16, paddingRight: 4 }}>
+                      {corrThreadMessages.length === 0 && (
+                        <p style={{ color: 'var(--ink-3)', textAlign: 'center', padding: '16px 0' }}>Aucun message encore. Lancez la conversation.</p>
+                      )}
+                      {corrThreadMessages.map((msg) => {
+                        const isOwn = msg.isOwn
+                        return (
+                          <div key={msg.id} style={{ display: 'flex', flexDirection: isOwn ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
+                            <div style={{ maxWidth: '72%', padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.6, background: isOwn ? 'var(--cobalt)' : 'var(--stone)', color: isOwn ? '#fff' : 'var(--ink)' }}>
+                              {msg.body}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className="field-input"
+                        style={{ flex: 1 }}
+                        placeholder="Votre message…"
+                        value={corrNewMessage}
+                        onChange={(e) => setCorrNewMessage(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendCorrMessage() } }}
+                      />
+                      <button className="btn btn-primary" disabled={corrSendingMessage || !corrNewMessage.trim()} onClick={sendCorrMessage}>
+                        Envoyer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
