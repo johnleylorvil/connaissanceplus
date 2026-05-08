@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  InternalServerErrorException,
   Param,
   Patch,
   Post,
@@ -21,7 +22,8 @@ import { CreateSponsorDto, UpdateSponsorDto } from './sponsors.dto';
 import { ConfigService } from '@nestjs/config';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
-import { extname } from 'path';
+import { extname, join } from 'path';
+import { mkdirSync, writeFileSync } from 'fs';
 
 type UploadedSponsorFile = {
   originalname: string;
@@ -86,28 +88,40 @@ export class SponsorsController {
       throw new BadRequestException('Logo file is required');
     }
 
-    if (!this.s3Client || !this.sponsorBucketName || !this.sponsorPublicBaseUrl) {
-      throw new BadRequestException(
-        'Sponsor upload storage is not configured. Define SPONSOR_UPLOADS_S3_BUCKET and SPONSOR_UPLOADS_PUBLIC_BASE_URL.',
-      );
+    const extension = extname(file.originalname).toLowerCase();
+    const filename = `sponsor-${Date.now()}-${randomUUID()}${extension}`;
+
+    // ── Path 1: S3 ──────────────────────────────────────────────────────────
+    if (this.s3Client && this.sponsorBucketName && this.sponsorPublicBaseUrl) {
+      const key = `sponsors/${filename}`;
+      try {
+        await this.s3Client.send(
+          new PutObjectCommand({
+            Bucket: this.sponsorBucketName,
+            Key: key,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+            CacheControl: 'public, max-age=31536000, immutable',
+          }),
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new InternalServerErrorException(`Échec du téléversement S3 : ${msg}`);
+      }
+      return { logoUrl: `${this.sponsorPublicBaseUrl}/${key}` };
     }
 
-    const extension = extname(file.originalname).toLowerCase();
-    const key = `sponsors/sponsor-${Date.now()}-${randomUUID()}${extension}`;
+    // ── Path 2: local disk (fallback when S3 not configured) ─────────────────
+    if (this.sponsorPublicBaseUrl) {
+      const dir = join(process.cwd(), 'uploads', 'sponsors');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, filename), file.buffer);
+      return { logoUrl: `${this.sponsorPublicBaseUrl}/sponsors/${filename}` };
+    }
 
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this.sponsorBucketName,
-        Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-        CacheControl: 'public, max-age=31536000, immutable',
-      }),
+    throw new BadRequestException(
+      'Upload non configuré. Définissez SPONSOR_UPLOADS_PUBLIC_BASE_URL dans le fichier .env.',
     );
-
-    return {
-      logoUrl: `${this.sponsorPublicBaseUrl}/${key}`,
-    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
