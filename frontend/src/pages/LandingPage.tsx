@@ -506,8 +506,8 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <p style={{ margin: '0 0 4px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.36)' }}>Téléphone</p>
-                  <a href="tel:+50900000000" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', fontSize: 14 }}>
-                    +509 00 00 00 00
+                  <a href="tel:+50941312777" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', fontSize: 14 }}>
+                    +509 41 31 27 77
                   </a>
                 </div>
                 <Link to={user ? userHome(user) : '/login'} style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)' }}>

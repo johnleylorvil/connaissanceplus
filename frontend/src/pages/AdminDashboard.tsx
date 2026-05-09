@@ -706,7 +706,7 @@ export default function AdminDashboard() {
                   <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 14 }}>Créer une classe</p>
                   {classMsg && <div className={`alert ${classMsg.startsWith('✅') ? 'alert-ok' : 'alert-error'}`} style={{ marginBottom: 10 }}>{classMsg}</div>}
                   <form onSubmit={createClass} style={{ display: 'flex', gap: 8 }}>
-                    <input type="text" required value={newClass} onChange={(e) => setNewClass(e.target.value)} placeholder="ex: 7e AF, Philo" className="field-input" style={{ flex: 1 }} />
+                    <input type="text" required value={newClass} onChange={(e) => setNewClass(e.target.value)} placeholder="ex: 6e AF, NS4" className="field-input" style={{ flex: 1 }} />
                     <button type="submit" className="btn btn-primary btn-sm">Créer</button>
                   </form>
                 </div>
