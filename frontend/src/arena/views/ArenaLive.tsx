@@ -1202,7 +1202,8 @@ export default function ArenaLive() {
           width: 100%;
           max-width: 900px;
           border-radius: 22px;
-          background: #ffffff;
+          background: #0c1120;
+          border: 1px solid rgba(255,255,255,0.08);
           overflow: hidden;
           animation: questionIn 0.4s ease both;
         }
@@ -1218,7 +1219,7 @@ export default function ArenaLive() {
           margin: 0;
           font-size: clamp(1.35rem, 2.8vw, 2.5rem);
           font-weight: 700;
-          color: #0f1a2e;
+          color: #f0f4ff;
           line-height: 1.22;
           max-width: 740px;
           letter-spacing: -0.015em;
@@ -1495,8 +1496,8 @@ export default function ArenaLive() {
                     gap: 6,
                     padding: '4px 14px',
                     borderRadius: 999,
-                    background: 'rgba(0,0,0,0.06)',
-                    color: '#5a6a82',
+                    background: 'rgba(255,255,255,0.07)',
+                    color: 'rgba(255,255,255,0.50)',
                     fontSize: 11,
                     fontWeight: 800,
                     letterSpacing: '0.11em',
