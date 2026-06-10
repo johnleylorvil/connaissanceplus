@@ -21,7 +21,7 @@ export default function KonesansLogo({ size = 48, showName = false, className }:
       }}
     >
       <img
-        src="/favicon.svg"
+        src="/logo192.png"
         alt="Konesans+ logo"
         width={size}
         height={size}
