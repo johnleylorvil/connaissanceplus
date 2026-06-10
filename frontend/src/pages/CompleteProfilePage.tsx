@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiCall, type ApiError } from '../api/client'
+import KonesansLogo from '../components/KonesansLogo'
 import { useAuth, type AuthUser } from '../context/AuthContext'
 import { needsStudentProfileCompletion, userHome } from '../auth/authRules'
 import { HAITI_CITIES_BY_DEPARTMENT, HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
@@ -239,7 +240,7 @@ export default function CompleteProfilePage() {
 
       <div className="hidden md:flex" style={{ background: 'var(--cobalt)', flexDirection: 'column', justifyContent: 'space-between', padding: '48px 10%', position: 'sticky', top: 0, height: '100vh' }}>
         <div>
-          <span className="brand" style={{ fontSize: 15, color: 'rgba(255,255,255,0.3)' }}>Konesans+</span>
+          <KonesansLogo size={44} showName />
         </div>
         <div>
           <blockquote className="display" style={{ fontSize: 'clamp(26px,2.8vw,40px)', color: '#fff', fontStyle: 'italic', lineHeight: 1.25, marginBottom: 24, letterSpacing: '-0.03em' }}>

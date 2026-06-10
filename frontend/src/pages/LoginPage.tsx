@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import KonesansLogo from '../components/KonesansLogo'
 import { apiCall, GOOGLE_AUTH_ENABLED, GOOGLE_AUTH_URL, type ApiError } from '../api/client'
 import type { AuthUser, UserRole } from '../context/AuthContext'
 import { userHome } from '../auth/authRules'
@@ -188,7 +189,7 @@ export default function LoginPage() {
       {/* ── BRAND PANEL (desktop only) ── */}
       <div className="hidden md:flex" style={{ background: 'var(--cobalt)', flexDirection: 'column', justifyContent: 'space-between', padding: '48px 10%', position: 'sticky', top: 0, height: '100vh' }}>
         <div>
-          <span className="brand" style={{ fontSize: 15, color: 'rgba(255,255,255,0.3)' }}>Konesans+</span>
+          <KonesansLogo size={44} showName />
         </div>
         <div>
           <blockquote className="display" style={{ fontSize: 'clamp(26px,2.8vw,40px)', color: '#fff', fontStyle: 'italic', lineHeight: 1.25, marginBottom: 24, letterSpacing: '-0.03em' }}>

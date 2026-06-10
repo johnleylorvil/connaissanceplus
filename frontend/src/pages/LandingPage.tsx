@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SponsorsSection from '../components/SponsorsSection'
+import KonesansLogo from '../components/KonesansLogo'
 import { userHome } from '../auth/authRules'
 import { apiCall } from '../api/client'
 
@@ -58,6 +59,7 @@ export default function LandingPage() {
             transition: 'all 0.35s',
           }} className="landing-nav-shell">
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <KonesansLogo size={36} />
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
               <span className="brand" style={{ fontSize: 19, color: onDark ? '#fff' : 'var(--cobalt)', transition: 'color 0.35s' }}>Konesans</span>
               <span className="brand" style={{ fontSize: 19, color: 'var(--gold)' }}>+</span>

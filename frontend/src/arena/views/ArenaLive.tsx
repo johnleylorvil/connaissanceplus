@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import KonesansLogo from '../../components/KonesansLogo'
 import { arenaApi, ARENA_API, type ArenaLeaderboardRow, type ArenaPublicStream } from '../arenaApi'
 import { useLiveKitStage, type StageParticipant } from '../hooks/useLiveKitStage'
 import { useArenaSocket } from '../useArenaSocket'
@@ -648,33 +649,7 @@ function PublicStreamPanel({
 
 // ─── LogoMark ─────────────────────────────────────────────────────────────────
 function LogoMark() {
-  return (
-    <div
-      style={{
-        width: 52,
-        height: 52,
-        borderRadius: '50%',
-        border: '1.5px solid rgba(230,194,122,0.38)',
-        background: 'radial-gradient(circle at 35% 30%, rgba(230,194,122,0.18), rgba(10,14,24,0.95))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 18,
-          fontWeight: 900,
-          color: T.gold,
-          letterSpacing: '-0.02em',
-          fontFamily: 'system-ui, sans-serif',
-        }}
-      >
-        K+
-      </span>
-    </div>
-  )
+  return <KonesansLogo size={48} />
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
