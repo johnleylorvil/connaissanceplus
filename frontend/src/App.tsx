@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage'
 import CompleteProfilePage from './pages/CompleteProfilePage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
+import PublicLeaderboardPage from './pages/PublicLeaderboardPage'
 import StudentDashboard from './pages/StudentDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import QuizPage from './pages/QuizPage'
@@ -131,6 +132,7 @@ export default function App() {
       <Route path="/" element={<RootPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterEntry />} />
+      <Route path="/classement" element={<PublicLeaderboardPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
