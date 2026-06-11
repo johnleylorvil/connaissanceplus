@@ -345,21 +345,17 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{
             position: 'relative',
-            overflow: 'hidden',
             borderRadius: 30,
             padding: 'clamp(28px, 4vw, 52px)',
-            background: 'linear-gradient(135deg, #13213f 0%, #1b2d57 58%, #c99124 180%)',
-            border: '1px solid rgba(22,36,71,0.08)',
-            boxShadow: '0 30px 70px rgba(18,28,52,0.18)',
+            background: 'var(--cobalt)',
+            border: '1px solid rgba(22,36,71,0.16)',
+            boxShadow: '0 20px 44px rgba(18,28,52,0.14)',
           }}>
-            <div style={{ position: 'absolute', inset: 'auto -80px -120px auto', width: 260, height: 260, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', filter: 'blur(6px)' }} />
-            <div style={{ position: 'absolute', inset: '-60px auto auto -50px', width: 180, height: 180, borderRadius: '50%', background: 'rgba(201,145,36,0.16)', filter: 'blur(10px)' }} />
-
             <div className="responsive-split-panel" style={{ position: 'relative', gap: 26, alignItems: 'stretch' }}>
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.10)', marginBottom: 22, width: 'fit-content' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', marginBottom: 22, width: 'fit-content' }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--gold)', boxShadow: '0 0 0 4px rgba(201,145,36,0.18)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Prêt pour le génie scolaire national</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.88)' }}>Prêt pour le génie scolaire national</span>
                 </div>
 
                 <h2 className="display" style={{ fontSize: 'clamp(36px,5vw,68px)', color: '#fff', marginBottom: 20, letterSpacing: '-0.04em', lineHeight: 1.02, maxWidth: 620 }}>
@@ -368,7 +364,7 @@ export default function LandingPage() {
                   national.
                 </h2>
 
-                <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', lineHeight: 1.8, maxWidth: 520, margin: '0 0 30px' }}>
+                <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.82)', lineHeight: 1.8, maxWidth: 520, margin: '0 0 30px' }}>
                   Inscription gratuite, génie scolaire cadré, et reconnaissance visible pour les meilleurs profils.
                 </p>
 
@@ -376,14 +372,14 @@ export default function LandingPage() {
                   <button onClick={handleStudentCta} className="btn btn-gold btn-lg" style={{ boxShadow: '0 16px 30px rgba(201,145,36,0.24)' }}>
                     Commencer maintenant
                   </button>
-                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.52)', letterSpacing: '0.03em' }}>
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.70)', letterSpacing: '0.03em' }}>
                     Sans carte bancaire. Accès immédiat.
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
                   {['Génie scolaire en ligne', 'Affrontements en direct', 'Classement national'].map((item) => (
-                    <span key={item} style={{ padding: '9px 13px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', fontSize: 12, color: 'rgba(255,255,255,0.84)' }}>
+                    <span key={item} style={{ padding: '9px 13px', borderRadius: 999, background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.16)', fontSize: 12, color: 'rgba(255,255,255,0.88)' }}>
                       {item}
                     </span>
                   ))}
@@ -391,8 +387,8 @@ export default function LandingPage() {
               </div>
 
               <div style={{ display: 'grid', gap: 14 }}>
-                <div style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 24, padding: '24px 22px' }}>
-                  <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.52)' }}>
+                <div style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 24, padding: '24px 22px' }}>
+                  <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.72)' }}>
                     Pourquoi rejoindre Konesans+
                   </p>
                   <p style={{ margin: 0, fontSize: 20, lineHeight: 1.45, color: '#fff' }}>
@@ -407,9 +403,9 @@ export default function LandingPage() {
                     { value: 'Primes', label: 'Récompenses' },
                     { value: 'National', label: 'Portée du classement' },
                   ].map((item) => (
-                    <div key={item.label} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 20, padding: '18px 16px' }}>
+                    <div key={item.label} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 20, padding: '18px 16px' }}>
                       <p className="display" style={{ margin: '0 0 6px', fontSize: 26, letterSpacing: '-0.04em', color: '#fff' }}>{item.value}</p>
-                      <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'rgba(255,255,255,0.58)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.label}</p>
+                      <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.label}</p>
                     </div>
                   ))}
                 </div>
@@ -420,11 +416,11 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ background: 'linear-gradient(180deg, #101826 0%, #0a101b 100%)', padding: '64px 6vw 28px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <footer style={{ background: 'var(--cobalt)', padding: '64px 6vw 28px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', padding: '0 0 22px', marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', padding: '0 0 22px', marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
             <div>
-              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.42)' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>
                 Konesans+
               </p>
               <p style={{ margin: 0, fontSize: 15, color: '#fff', lineHeight: 1.7 }}>
@@ -433,41 +429,41 @@ export default function LandingPage() {
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {['Éducation', 'Compétition', 'Reconnaissance'].map((item) => (
-                <span key={item} style={{ padding: '9px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', fontSize: 12, color: 'rgba(255,255,255,0.74)' }}>
+                <span key={item} style={{ padding: '9px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', fontSize: 12, color: 'rgba(255,255,255,0.86)' }}>
                   {item}
                 </span>
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, paddingBottom: 36, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '24px 22px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, paddingBottom: 36, borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 20, padding: '24px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 1, marginBottom: 18 }}>
                 <span className="brand" style={{ fontSize: 20, color: '#fff' }}>Konesans</span>
                 <span className="brand" style={{ fontSize: 20, color: 'var(--gold)' }}>+</span>
               </div>
-              <p style={{ margin: '0 0 18px', fontSize: 14, lineHeight: 1.8, color: 'rgba(255,255,255,0.62)', maxWidth: 320 }}>
+              <p style={{ margin: '0 0 18px', fontSize: 14, lineHeight: 1.8, color: 'rgba(255,255,255,0.82)', maxWidth: 320 }}>
                 Plateforme haïtienne de génie scolaire en ligne, avec manches académiques, affrontements et classement national.
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {['6e AF à NS4', 'Classement national', 'Affrontements en direct'].map((item) => (
-                  <span key={item} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
+                  <span key={item} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', fontSize: 12, color: 'rgba(255,255,255,0.82)' }}>
                     {item}
                   </span>
                 ))}
               </div>
-              <p style={{ margin: '18px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.42)', lineHeight: 1.7 }}>
+              <p style={{ margin: '18px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.62)', lineHeight: 1.7 }}>
                 Port-au-Prince, Haïti
               </p>
             </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '24px 22px' }}>
-              <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.42)' }}>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 20, padding: '24px 22px' }}>
+              <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.66)' }}>
                 Navigation
               </p>
               <div style={{ display: 'grid', gap: 10 }}>
                 {[['Accueil', '#top'], ['À propos', '#about'], ['Fonctionnalités', '#features'], ['Comment ça marche', '#how']].map(([label, href]) => (
-                  <a key={href} href={href} style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <a key={href} href={href} style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(201,145,36,0.9)', flexShrink: 0 }} />
                     {label}
                   </a>
@@ -475,58 +471,58 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '24px 22px' }}>
-              <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.42)' }}>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 20, padding: '24px 22px' }}>
+              <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.66)' }}>
                 Plateforme
               </p>
               <div style={{ display: 'grid', gap: 10 }}>
-                <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Manches académiques</a>
-                <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Affrontements en direct</a>
-                <a href="#features" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Classements nationaux</a>
-                <a href="#sponsors" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>Sponsors et soutien</a>
+                <a href="#features" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>Manches académiques</a>
+                <a href="#features" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>Affrontements en direct</a>
+                <a href="#features" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>Classements nationaux</a>
+                <a href="#sponsors" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>Sponsors et soutien</a>
               </div>
-              <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                <p style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.36)' }}>
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.14)' }}>
+                <p style={{ margin: '0 0 6px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>
                   Engagement
                 </p>
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.74)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.84)', lineHeight: 1.7 }}>
                   Une expérience claire, équitable et évolutive au service du génie scolaire haïtien.
                 </p>
               </div>
             </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '24px 22px' }}>
-              <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.42)' }}>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 20, padding: '24px 22px' }}>
+              <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.66)' }}>
                 Contact & légal
               </p>
               <div style={{ display: 'grid', gap: 10 }}>
                 <div>
-                  <p style={{ margin: '0 0 4px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.36)' }}>Email</p>
-                  <a href="mailto:contact@konesansplus.ht" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', fontSize: 14 }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>Email</p>
+                  <a href="mailto:contact@konesansplus.ht" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>
                     contact@konesansplus.ht
                   </a>
                 </div>
                 <div>
-                  <p style={{ margin: '0 0 4px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.36)' }}>Téléphone</p>
-                  <a href="tel:+50941312777" style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', fontSize: 14 }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>Téléphone</p>
+                  <a href="tel:+50941312777" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>
                     +509 41 31 27 77
                   </a>
                 </div>
-                <Link to={user ? userHome(user) : '/login'} style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <Link to={user ? userHome(user) : '/login'} style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.14)' }}>
                   {user ? 'Tableau de bord' : 'Connexion'}
                 </Link>
                 {!user && (
-                  <Link to="/register" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>
+                  <Link to="/register" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>
                     Créer un compte
                   </Link>
                 )}
-                <Link to="/terms" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>
+                <Link to="/terms" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>
                   Conditions d'utilisation
                 </Link>
-                <Link to="/privacy" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>
+                <Link to="/privacy" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>
                   Politique de confidentialité
                 </Link>
-                <a href="#sponsors" style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 14 }}>
+                <a href="#sponsors" style={{ color: 'rgba(255,255,255,0.90)', textDecoration: 'none', fontSize: 14 }}>
                   Partenariats
                 </a>
               </div>
@@ -538,10 +534,10 @@ export default function LandingPage() {
               © 2026 Konesans+. Tous droits réservés.
             </p>
             <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-              <a href="#about" style={{ color: 'rgba(255,255,255,0.52)', textDecoration: 'none', fontSize: 12 }}>Vision</a>
-              <a href="#sponsors" style={{ color: 'rgba(255,255,255,0.52)', textDecoration: 'none', fontSize: 12 }}>Sponsors</a>
-              <Link to="/terms" style={{ color: 'rgba(255,255,255,0.52)', textDecoration: 'none', fontSize: 12 }}>Conditions</Link>
-              <Link to="/privacy" style={{ color: 'rgba(255,255,255,0.52)', textDecoration: 'none', fontSize: 12 }}>Confidentialité</Link>
+              <a href="#about" style={{ color: 'rgba(255,255,255,0.72)', textDecoration: 'none', fontSize: 12 }}>Vision</a>
+              <a href="#sponsors" style={{ color: 'rgba(255,255,255,0.72)', textDecoration: 'none', fontSize: 12 }}>Sponsors</a>
+              <Link to="/terms" style={{ color: 'rgba(255,255,255,0.72)', textDecoration: 'none', fontSize: 12 }}>Conditions</Link>
+              <Link to="/privacy" style={{ color: 'rgba(255,255,255,0.72)', textDecoration: 'none', fontSize: 12 }}>Confidentialité</Link>
             </div>
           </div>
         </div>
