@@ -161,15 +161,24 @@ export default function LandingPage() {
               <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 16 }}>
                 Podium national
               </p>
-              {[{ rank: 1, name: 'Louissa P.', score: 145, gold: true }, { rank: 2, name: 'Peterson J.', score: 132, gold: false }, { rank: 3, name: 'Naika M.', score: 118, gold: false }].map(entry => (
-                <div key={entry.rank} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: entry.rank < 3 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                  <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', width: 16 }}>{entry.rank}</span>
-                    <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>{entry.name}</span>
+              {topStudents.length > 0 ? topStudents.map((entry, index) => {
+                const rank = index + 1
+                const accent = rank === 1 ? 'var(--gold)' : 'rgba(255,255,255,0.6)'
+
+                return (
+                  <div key={entry.userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: rank < topStudents.length ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', width: 16 }}>{rank}</span>
+                      <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>{entry.studentName}</span>
+                    </div>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: accent }}>{entry.winCount}</span>
                   </div>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: entry.gold ? 'var(--gold)' : 'rgba(255,255,255,0.6)' }}>{entry.score}</span>
-                </div>
-              ))}
+                )
+              }) : (
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+                  Le podium hebdomadaire sera visible ici apres les premiers resultats.
+                </p>
+              )}
             </div>
           </div>
 
