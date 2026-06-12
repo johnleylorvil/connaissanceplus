@@ -69,7 +69,6 @@ export default function StudentDashboard() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null)
   const [notificationError, setNotificationError] = useState('')
 
   const [quizSubjectId, setQuizSubjectId] = useState('')
@@ -214,28 +213,11 @@ export default function StudentDashboard() {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n))
   }
 
-  const openNotification = async (notification: Notification) => {
-    setNotificationError('')
-    if (selectedNotificationId === notification.id) {
-      setSelectedNotificationId(null)
-      return
-    }
-    setSelectedNotificationId(notification.id)
-    if (!notification.isRead) {
-      try {
-        await markOneRead(notification.id)
-      } catch (err) {
-        setNotificationError((err as { message?: string }).message ?? 'Impossible d’ouvrir cette notification.')
-      }
-    }
-  }
-
   const deleteNotification = async (id: string) => {
     setNotificationError('')
     try {
       await apiCall(`/notifications/${id}`, { method: 'DELETE' }, accessToken)
       setNotifications((prev) => prev.filter((n) => n.id !== id))
-      setSelectedNotificationId((current) => current === id ? null : current)
     } catch (err) {
       setNotificationError((err as { message?: string }).message ?? 'Suppression impossible pour le moment.')
     }
