@@ -1001,13 +1001,81 @@ export class MvpService {
     let rows = await this.runWeeklyLeaderboardQuery(thisWeekStart, null, classId);
 
     if (rows.length === 0) {
-      // No matches yet this week — fall back to last week's results so the
-      // "Étudiants phare" section is never empty at the start of a new week.
+      // No completed QCM duels yet this week — fall back to last week.
       const lastWeekStart = this.getStartOfWeek(1);
       rows = await this.runWeeklyLeaderboardQuery(lastWeekStart, thisWeekStart, classId);
+
+      // If there are still no duel results, use completed quiz activity as a
+      // secondary fallback so the weekly podium can still highlight active students.
+      if (rows.length === 0) {
+        rows = await this.runWeeklyQuizFallbackQuery(thisWeekStart, null, classId);
+      }
+
+      if (rows.length === 0) {
+        rows = await this.runWeeklyQuizFallbackQuery(lastWeekStart, thisWeekStart, classId);
+      }
     }
 
     return rows;
+  }
+
+  private async runWeeklyQuizFallbackQuery(
+    weekStart: Date,
+    weekEnd: Date | null,
+    classId?: string,
+  ) {
+    const qb = this.quizSessionRepo
+      .createQueryBuilder('session')
+      .innerJoin('users', 'user', 'user.id = session.userId')
+      .select('session.userId', 'userId')
+      .addSelect('user.firstName', 'firstName')
+      .addSelect('user.lastName', 'lastName')
+      .addSelect('COUNT(session.id)', 'winCount')
+      .addSelect('0', 'lossCount')
+      .addSelect('COUNT(session.id)', 'duelCount')
+      .addSelect('SUM(session.score)', 'totalCorrectAnswers')
+      .addSelect('0', 'winTimeSeconds')
+      .addSelect('MAX(session.updatedAt)', 'lastWinAt')
+      .where('session.status = :status', { status: QuizStatus.COMPLETED })
+      .andWhere('session.updatedAt >= :weekStart', { weekStart });
+
+    if (weekEnd) {
+      qb.andWhere('session.updatedAt < :weekEnd', { weekEnd });
+    }
+
+    if (classId) {
+      qb.andWhere('session.classId = :classId', { classId });
+    }
+
+    qb.groupBy('session.userId')
+      .addGroupBy('user.firstName')
+      .addGroupBy('user.lastName')
+      .orderBy('winCount', 'DESC')
+      .addOrderBy('totalCorrectAnswers', 'DESC')
+      .addOrderBy('lastWinAt', 'DESC');
+
+    const rows = await qb.getRawMany<{
+      userId: string;
+      firstName: string;
+      lastName: string;
+      winCount: string;
+      lossCount: string;
+      duelCount: string;
+      totalCorrectAnswers: string;
+      winTimeSeconds: string;
+      lastWinAt: string | null;
+    }>();
+
+    return rows.map((row) => ({
+      userId: row.userId,
+      studentName: `${row.firstName} ${row.lastName}`,
+      winCount: Number(row.winCount),
+      lossCount: Number(row.lossCount),
+      duelCount: Number(row.duelCount),
+      totalCorrectAnswers: Number(row.totalCorrectAnswers),
+      winTimeSeconds: Number(row.winTimeSeconds),
+      lastWinAt: row.lastWinAt,
+    }));
   }
 
   private async runWeeklyLeaderboardQuery(
