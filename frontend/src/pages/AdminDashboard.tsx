@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
 import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type VerifyModeratorOtpResponse, type ModeratorOtpRequestResponse } from '../arena/arenaApi'
+import DashboardSidebar, { type DashboardSidebarSection } from '../components/DashboardSidebar'
 import { HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
 import {
   adminCreateSession, adminHandleReport, adminListReports,
@@ -580,50 +581,115 @@ export default function AdminDashboard() {
     }
   }
 
-  const navItems: { key: Tab; label: string }[] = [
-    { key: 'overview', label: 'Vue d\'ensemble' },
-    { key: 'levels', label: 'Classes' },
-    { key: 'subjects', label: 'Matières' },
-    { key: 'questions', label: 'Questions' },
-    { key: 'students', label: 'Étudiants' },
-    { key: 'messages', label: 'Messages' },
-    { key: 'sponsors', label: 'Sponsors' },
-    { key: 'arena', label: 'Arena' },
-    { key: 'correspondence', label: 'Correspondance' },
+  const openAdminTab = (nextTab: Tab) => {
+    setTab(nextTab)
+  }
+
+  const openAdminCorrespondence = (nextSubTab: CorrSubTab) => {
+    setTab('correspondence')
+    setCorrSubTab(nextSubTab)
+  }
+
+  const adminSidebarSections: DashboardSidebarSection[] = [
+    {
+      title: 'Tableau de bord',
+      note: 'Pilotage',
+      items: [
+        { id: 'overview', label: 'Vue d\'ensemble', onClick: () => openAdminTab('overview'), active: tab === 'overview' },
+        { id: 'overview-alerts', label: 'Indicateurs clés', muted: true, disabled: true },
+        { id: 'overview-warnings', label: 'Alertes', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Gestion académique',
+      note: 'Contenus',
+      items: [
+        { id: 'levels', label: 'Classes', onClick: () => openAdminTab('levels'), active: tab === 'levels' },
+        { id: 'subjects', label: 'Matières', onClick: () => openAdminTab('subjects'), active: tab === 'subjects' },
+        { id: 'questions', label: 'Questions', onClick: () => openAdminTab('questions'), active: tab === 'questions' },
+        { id: 'exams', label: 'Examens', muted: true, disabled: true },
+        { id: 'certifications', label: 'Certifications', muted: true, disabled: true },
+        { id: 'library', label: 'Bibliothèque de contenus', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Utilisateurs',
+      note: 'Accès',
+      items: [
+        { id: 'students', label: 'Étudiants', onClick: () => openAdminTab('students'), active: tab === 'students' },
+        { id: 'roles', label: 'Rôles et accès', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Communication',
+      note: 'Messages',
+      items: [
+        { id: 'messages', label: 'Messages', onClick: () => openAdminTab('messages'), active: tab === 'messages' },
+        {
+          id: 'correspondence',
+          label: 'Correspondance',
+          onClick: () => openAdminTab('correspondence'),
+          active: tab === 'correspondence',
+          children: [
+            { id: 'corr-sessions', label: 'Sessions', onClick: () => openAdminCorrespondence('sessions'), active: tab === 'correspondence' && corrSubTab === 'sessions' },
+            { id: 'corr-moderation', label: 'Modération', onClick: () => openAdminCorrespondence('moderation'), active: tab === 'correspondence' && corrSubTab === 'moderation' },
+          ],
+        },
+        { id: 'notifications', label: 'Notifications', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Compétitions',
+      note: 'Arena',
+      items: [
+        { id: 'arena', label: 'Arena', onClick: () => openAdminTab('arena'), active: tab === 'arena' },
+        { id: 'competition-sessions', label: 'Sessions live', muted: true, disabled: true },
+        { id: 'competition-ranking', label: 'Classements', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Croissance',
+      note: 'Business',
+      items: [
+        { id: 'sponsors', label: 'Sponsors', onClick: () => openAdminTab('sponsors'), active: tab === 'sponsors' },
+        { id: 'payments', label: 'Paiements', muted: true, disabled: true },
+        { id: 'subscriptions', label: 'Abonnements', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Analyse',
+      note: 'Lecture',
+      items: [
+        { id: 'reports', label: 'Rapports', muted: true, disabled: true },
+        { id: 'stats', label: 'Statistiques', muted: true, disabled: true },
+        { id: 'ai', label: 'IA pédagogique', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Paramètres',
+      note: 'Système',
+      items: [
+        { id: 'organization', label: 'Organisation', muted: true, disabled: true },
+        { id: 'integrations', label: 'Intégrations', muted: true, disabled: true },
+        { id: 'security', label: 'Sécurité', muted: true, disabled: true },
+        { id: 'global-config', label: 'Configuration globale', muted: true, disabled: true },
+      ],
+    },
   ]
 
   return (
     <div className="dashboard-shell flex">
-
-      {/* -- SIDEBAR -- */}
-      <aside className="hidden md:flex flex-col" style={{ width: 216, background: '#fff', borderRight: '1px solid var(--rule)', minHeight: '100vh', position: 'fixed', top: 0, left: 0, zIndex: 40 }}>
-        <div style={{ padding: '20px 18px 16px', borderBottom: '1px solid var(--rule)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-            <span className="brand" style={{ fontSize: 17, color: 'var(--cobalt)' }}>Konesans</span>
-            <span className="brand" style={{ fontSize: 17, color: 'var(--gold)' }}>+</span>
-          </div>
-          <p style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 3 }}>Administration</p>
-        </div>
-
-        <nav style={{ flex: 1, padding: '10px 8px' }}>
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setTab(item.key)}
-              className={`nav-item${tab === item.key ? ' active' : ''}`}
-              style={{ marginBottom: 2 }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ padding: '10px 8px', borderTop: '1px solid var(--rule)' }}>
-          <button onClick={logout} className="nav-item" style={{ color: 'var(--error)', fontWeight: 500 }}>
-            Déconnexion
-          </button>
-        </div>
-      </aside>
+      <DashboardSidebar
+        portalLabel="Dashboard administrateur"
+        identityLabel="Administration"
+        identityCaption="Pilotage du produit"
+        identityMeta="Navigation hiérarchique"
+        avatarText="A"
+        sections={adminSidebarSections}
+        onLogout={logout}
+        logoutLabel="Déconnexion"
+        footerNote="Architecture pensée pour accueillir examens, rapports, paiements et IA pédagogique."
+      />
 
       {/* -- MAIN -- */}
       <main className="flex-1" style={{ paddingBottom: 80 }}>
@@ -637,7 +703,7 @@ export default function AdminDashboard() {
           <button onClick={logout} style={{ fontSize: 16, color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Quitter</button>
         </div>
 
-        <div className="dashboard-main md:ml-[216px]" style={{ maxWidth: 860 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: 860 }}>
 
           {/* -- OVERVIEW -- */}
           {tab === 'overview' && (

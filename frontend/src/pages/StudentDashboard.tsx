@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
 import ArenaWorkspace from '../arena/ArenaWorkspace'
+import DashboardSidebar, { type DashboardSidebarSection } from '../components/DashboardSidebar'
 import { HAITI_CITIES_BY_DEPARTMENT, HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
 import {
   castVote, createLetter, createReport, getInbox, getMyLetters,
@@ -405,15 +406,74 @@ export default function StudentDashboard() {
     }
   }
 
-  const navItems: { key: Tab; label: string }[] = [
-    { key: 'home', label: 'Accueil' },
-    { key: 'quiz', label: 'Challenge' },
-    { key: 'history', label: 'Historique' },
-    { key: 'leaderboard', label: 'Classement' },
-    { key: 'notifications', label: 'Notifications' },
-    { key: 'correspondence', label: 'Correspondance' },
-    { key: 'profile', label: 'Profil' },
-    { key: 'arena', label: 'Arena' },
+  const openStudentTab = (nextTab: Tab) => {
+    setTab(nextTab)
+  }
+
+  const openStudentCorrespondence = (nextView: CorrView) => {
+    setTab('correspondence')
+    setCorrView(nextView)
+    setCorrError('')
+  }
+
+  const studentSidebarSections: DashboardSidebarSection[] = [
+    {
+      title: 'Tableau de bord',
+      note: 'Point d\'entrée',
+      items: [
+        { id: 'home', label: 'Accueil', onClick: () => openStudentTab('home'), active: tab === 'home' },
+        { id: 'home-summary', label: 'Résumé personnel', muted: true, disabled: true },
+        { id: 'home-reco', label: 'Recommandations du jour', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Compétitions',
+      note: 'Quiz et défis',
+      items: [
+        { id: 'quiz', label: 'Challenge', onClick: () => openStudentTab('quiz'), active: tab === 'quiz' },
+        { id: 'arena', label: 'Arena', onClick: () => openStudentTab('arena'), active: tab === 'arena' },
+        { id: 'leaderboard', label: 'Classement', onClick: () => openStudentTab('leaderboard'), active: tab === 'leaderboard' },
+        { id: 'exams', label: 'Examens', muted: true, disabled: true },
+        { id: 'certifications', label: 'Certifications', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Correspondance',
+      note: 'Échanges',
+      items: [
+        { id: 'corr-sessions', label: 'Concours', onClick: () => openStudentCorrespondence('sessions'), active: tab === 'correspondence' && corrView === 'sessions' },
+        { id: 'corr-myletters', label: 'Mes lettres', onClick: () => openStudentCorrespondence('myletters'), active: tab === 'correspondence' && corrView === 'myletters' },
+        { id: 'corr-inbox', label: 'Boîte de réception', onClick: () => openStudentCorrespondence('inbox'), active: tab === 'correspondence' && corrView === 'inbox' },
+      ],
+    },
+    {
+      title: 'Activité',
+      note: 'Suivi',
+      items: [
+        { id: 'history', label: 'Historique', onClick: () => openStudentTab('history'), active: tab === 'history' },
+        { id: 'notifications', label: 'Notifications', onClick: () => openStudentTab('notifications'), active: tab === 'notifications', badge: unreadCount > 0 ? unreadCount : undefined },
+        { id: 'stats', label: 'Statistiques', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Apprentissage',
+      note: 'À venir',
+      items: [
+        { id: 'library', label: 'Bibliothèque de contenus', muted: true, disabled: true },
+        { id: 'pathways', label: 'Parcours', muted: true, disabled: true },
+        { id: 'revisions', label: 'Révisions', muted: true, disabled: true },
+      ],
+    },
+    {
+      title: 'Compte',
+      note: 'Profil',
+      items: [
+        { id: 'profile', label: 'Profil', onClick: () => openStudentTab('profile'), active: tab === 'profile' },
+        { id: 'security', label: 'Sécurité', muted: true, disabled: true },
+        { id: 'preferences', label: 'Préférences', muted: true, disabled: true },
+        { id: 'billing', label: 'Abonnements / paiements', muted: true, disabled: true },
+      ],
+    },
   ]
 
   const avgScore =
@@ -433,51 +493,17 @@ export default function StudentDashboard() {
 
   return (
     <div className="dashboard-shell flex">
-
-      {/* ── SIDEBAR (desktop) ── */}
-      <aside className="hidden md:flex flex-col" style={{ width: 216, background: '#fff', borderRight: '1px solid var(--rule)', minHeight: '100vh', position: 'fixed', top: 0, left: 0, zIndex: 40 }}>
-        <div style={{ padding: '20px 18px 16px', borderBottom: '1px solid var(--rule)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-            <span className="brand" style={{ fontSize: 17, color: 'var(--cobalt)' }}>Konesans</span>
-            <span className="brand" style={{ fontSize: 17, color: 'var(--gold)' }}>+</span>
-          </div>
-          <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--cobalt)', marginTop: 3 }}>
-            {classes.find((c) => c.id === user?.classId)?.name ?? 'Génie scolaire'}
-          </p>
-        </div>
-
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 4, background: 'var(--cobalt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0, letterSpacing: '-0.01em' }}>
-            {user?.firstName?.[0]}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.firstName} {user?.lastName}</p>
-            <p style={{ fontSize: 13, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
-          </div>
-        </div>
-
-        <nav style={{ flex: 1, padding: '10px 8px' }}>
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setTab(item.key)}
-              className={`nav-item${tab === item.key ? ' active' : ''}`}
-              style={{ marginBottom: 2 }}
-            >
-              <span>{item.label}</span>
-              {item.key === 'notifications' && unreadCount > 0 && (
-                <span className="badge" style={{ marginLeft: 'auto' }}>{unreadCount}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ padding: '10px 8px', borderTop: '1px solid var(--rule)' }}>
-          <button onClick={logout} className="nav-item btn-danger" style={{ color: 'var(--error)', fontWeight: 500 }}>
-            Déconnexion
-          </button>
-        </div>
-      </aside>
+      <DashboardSidebar
+        portalLabel="Dashboard étudiant"
+        identityLabel={`${user?.firstName ?? 'Étudiant'} ${user?.lastName ?? ''}`.trim()}
+        identityCaption={classes.find((c) => c.id === user?.classId)?.name ?? 'Génie scolaire'}
+        identityMeta="Navigation hiérarchique"
+        avatarText={user?.firstName?.[0] ?? 'E'}
+        sections={studentSidebarSections}
+        onLogout={logout}
+        logoutLabel="Déconnexion"
+        footerNote="Une structure pensée pour évoluer vers examens, certifications et contenus."
+      />
 
       {/* ── MAIN ── */}
       <main className="flex-1" style={{ marginLeft: 0, paddingBottom: 80 }} >
@@ -493,7 +519,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div className="dashboard-main md:ml-[216px]" style={{ maxWidth: tab === 'quiz' || tab === 'arena' ? 980 : 820 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'quiz' || tab === 'arena' ? 980 : 820 }}>
 
 
           {/* ── HOME ── */}
