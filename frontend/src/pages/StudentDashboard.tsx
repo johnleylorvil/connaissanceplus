@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
 import ArenaWorkspace from '../arena/ArenaWorkspace'
 import DashboardSidebar, { type DashboardSidebarSection } from '../components/DashboardSidebar'
+import NotificationCenter from '../components/NotificationCenter'
 import { HAITI_CITIES_BY_DEPARTMENT, HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
 import {
   castVote, createLetter, createReport, getInbox, getMyLetters,
@@ -747,77 +748,14 @@ export default function StudentDashboard() {
 
           {/* ── NOTIFICATIONS ── */}
           {tab === 'notifications' && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-                <div>
-                  <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)' }}>
-                    Notifications
-                    {unreadCount > 0 && <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink-3)', marginLeft: 14 }}>{unreadCount} non lue{unreadCount !== 1 ? 's' : ''}</span>}
-                  </h1>
-                </div>
-                {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Tout marquer comme lu</button>
-                )}
-              </div>
-
-              {notificationError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{notificationError}</div>}
-
-              {notifications.length === 0 ? (
-                <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--ink-3)' }}>Aucune notification pour l'instant.</p>
-                </div>
-              ) : (
-                <div style={{ border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden' }}>
-                  {notifications.map((n, i, arr) => (
-                    <div
-                      key={n.id}
-                      onClick={() => openNotification(n)}
-                      style={{ padding: '14px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--rule)' : 'none', background: selectedNotificationId === n.id ? 'rgba(15,32,64,0.06)' : n.isRead ? '#fff' : 'rgba(27,53,99,0.03)', cursor: 'pointer', transition: 'background 0.15s' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 17, fontWeight: n.isRead ? 500 : 600, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {n.title}
-                            {!n.isRead && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--cobalt)', display: 'inline-block', flexShrink: 0 }} />}
-                          </p>
-                          <p style={{ fontSize: 16, color: 'var(--ink-3)', marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.75 }}>
-                            {n.message}
-                          </p>
-                          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 5 }}>{new Date(n.createdAt).toLocaleString('fr-HT')}</p>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              openNotification(n)
-                            }}
-                            className="btn btn-ghost btn-sm"
-                          >
-                            {selectedNotificationId === n.id ? 'Réduire' : 'Lire'}
-                          </button>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              deleteNotification(n.id)
-                            }}
-                            className="btn btn-danger btn-sm"
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      </div>
-                      {selectedNotificationId === n.id && (
-                        <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(15,32,64,0.08)' }}>
-                          <p style={{ fontSize: 16, color: 'var(--ink-2)', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-                            {n.message}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <NotificationCenter
+              notifications={notifications}
+              onMarkAllRead={markAllRead}
+              onMarkOneRead={markOneRead}
+              onDelete={deleteNotification}
+              onNavigate={(targetTab) => setTab(targetTab as Tab)}
+              error={notificationError}
+            />
           )}
 
           {/* ── PROFIL ── */}
