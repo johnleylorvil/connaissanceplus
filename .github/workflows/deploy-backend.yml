@@ -95,6 +95,10 @@ jobs:
             fi
 
             aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            docker system df || true
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
             docker compose --env-file .deploy.env -f docker-compose.yml pull
             docker compose --env-file .deploy.env -f docker-compose.yml up -d --remove-orphans
             docker image prune -f
