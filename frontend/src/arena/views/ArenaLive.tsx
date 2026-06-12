@@ -114,399 +114,276 @@ function getInitials(value: string) {
 }
 
 function getQuestionPanelText(opts: {
-        /* Minimal status pulse used by the live dot */
-        @keyframes pulseDot {
-          0%, 100% { opacity: 0.95; transform: scale(1); }
-          50% { opacity: 0.55; transform: scale(0.9); }
-        }
+  phase: CompetitionPhase
+  isOralQuestion: boolean
+  questionPrompt: string | null
+  currentQuestionTarget: QuestionTarget | null
+}) {
+  if (opts.phase === 'waiting') return 'Le modérateur peut lancer la première question.'
+  if (opts.phase === 'live-waiting') return 'La prochaine question va commencer.'
+  if (opts.phase === 'paused') return 'Le match est en pause.'
+  if (opts.phase === 'live-between') return 'Question clôturée. Le modérateur rend sa décision.'
+  if (opts.phase === 'live-question' && opts.questionPrompt) return opts.questionPrompt
+  if (opts.phase === 'live-question' && opts.isOralQuestion) {
+    return opts.currentQuestionTarget
+      ? `Question orale pour ${opts.currentQuestionTarget.displayName ?? `Compétiteur ${opts.currentQuestionTarget.slot}`}.`
+      : 'Question orale posée en direct.'
+  }
+  return 'Préparation du plateau live.'
+}
 
-        /* Audio activity indicator bars */
-        @keyframes voiceBars {
-          0%, 100% { transform: scaleY(0.55); opacity: 0.62; }
-          50% { transform: scaleY(1); opacity: 0.95; }
-        }
+function getScoreFill(score: number, totalQuestions: number, bestScore: number) {
+  const denominator = Math.max(totalQuestions, bestScore, 1)
+  return `${Math.min((score / denominator) * 100, 100)}%`
+}
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+function getStageParticipantForUser(
+  stageParticipants: StageParticipant[],
+  subjectUserId: string | null | undefined,
+  currentUserId: string | undefined,
+) {
+  if (!subjectUserId) return null
+  if (currentUserId && subjectUserId === currentUserId) {
+    return stageParticipants.find((p) => p.isLocal) ?? null
+  }
+  return stageParticipants.find((p) => p.identity === subjectUserId) ?? null
+}
 
-        /* Subtle entry for question cards */
-        @keyframes questionIn {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+// ─── VideoRenderer ────────────────────────────────────────────────────────────
+function VideoRenderer({
+  stageParticipant,
+  isLocal,
+  avatarText,
+  avatarColor,
+}: {
+  stageParticipant: StageParticipant | null
+  isLocal: boolean
+  avatarText: string
+  avatarColor: string
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const cameraTrack = stageParticipant?.cameraPublication?.track ?? null
+  const cameraEnabled = stageParticipant?.isCameraEnabled ?? false
 
-        /* Gentle score update emphasis */
-        @keyframes scoreGain {
-          0% { transform: scale(1); }
-          40% { transform: scale(1.08); }
-          100% { transform: scale(1); }
-        }
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el || !cameraTrack) return
+    cameraTrack.attach(el)
+    return () => {
+      cameraTrack.detach(el)
+    }
+  }, [cameraTrack])
 
-        /* Final seconds timer emphasis */
-        @keyframes beatSecond {
-          0% { transform: scale(1); }
-          35% { transform: scale(1.05); }
-          100% { transform: scale(1); }
-        }
+  if (cameraEnabled) {
+    return (
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    )
+  }
 
-        /* Focus ring for targeted competitor (professional and restrained) */
-        @keyframes spotlightGreen {
-          0%, 100% { box-shadow: 0 0 0 1px rgba(79,198,106,0.34), 0 8px 24px rgba(0,0,0,0.32); }
-          50% { box-shadow: 0 0 0 2px rgba(79,198,106,0.48), 0 10px 26px rgba(0,0,0,0.34); }
-        }
-        @keyframes spotlightBlue {
-          0%, 100% { box-shadow: 0 0 0 1px rgba(108,168,245,0.34), 0 8px 24px rgba(0,0,0,0.32); }
-          50% { box-shadow: 0 0 0 2px rgba(108,168,245,0.48), 0 10px 26px rgba(0,0,0,0.34); }
-        }
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: `radial-gradient(circle at 50% 38%, ${avatarColor}1a, #04070e 80%)`,
+      }}
+    >
+      <div
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 26,
+          fontWeight: 900,
+          color: avatarColor,
+          border: `1.5px solid ${avatarColor}55`,
+          background: `${avatarColor}14`,
+          boxShadow: `0 0 50px ${avatarColor}1e`,
+          letterSpacing: '0.04em',
+        }}
+      >
+        {avatarText}
+      </div>
+    </div>
+  )
+}
 
-        /* Reply button cue with low visual noise */
-        @keyframes replyPulseGreen {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(79,198,106,0.0); }
-          50% { box-shadow: 0 0 0 3px rgba(79,198,106,0.14); }
-        }
-        @keyframes replyPulseBlue {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(108,168,245,0.0); }
-          50% { box-shadow: 0 0 0 3px rgba(108,168,245,0.14); }
-        }
+// ─── AudioRenderer ────────────────────────────────────────────────────────────
+function AudioRenderer({
+  stageParticipant,
+  isLocal,
+}: {
+  stageParticipant: StageParticipant | null
+  isLocal: boolean
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const micTrack = stageParticipant?.micPublication?.track ?? null
 
-        /* Local identity badge blink kept discreet */
-        @keyframes youBadgeBlink {
-          0%, 80%, 100% { opacity: 1; }
-          90% { opacity: 0.72; }
-        }
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el || !micTrack || isLocal) return
+    micTrack.attach(el)
+    return () => {
+      micTrack.detach(el)
+    }
+  }, [isLocal, micTrack])
 
-        /* Waiting card breathes very lightly */
-        @keyframes awaitingPulse {
-          0%, 100% { box-shadow: 0 8px 18px rgba(0,0,0,0.34); }
-          50% { box-shadow: 0 10px 22px rgba(0,0,0,0.40); }
-        }
+  if (isLocal) return null
+  return <audio ref={audioRef} autoPlay />
+}
 
-        /* Arena shell */
-        .arena-root {
-          display: flex;
-          flex-direction: column;
-          min-height: 100vh;
-        }
+// ─── AudioWave ────────────────────────────────────────────────────────────────
+function AudioWave() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      {[8, 14, 10, 16, 12].map((h, i) => (
+        <div
+          key={i}
+          style={{
+            width: 3,
+            height: h,
+            borderRadius: 999,
+            background: 'rgba(255,255,255,0.82)',
+            animation: `voiceBars 0.85s ease-in-out infinite ${i * 0.1}s`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
-        /* Top application bar: stable, enterprise tone */
-        .arena-header {
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 24px;
-          height: 72px;
-          background: #0b1320;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
-          gap: 16px;
-          z-index: 10;
-          position: sticky;
-          top: 0;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.24);
-        }
+// ─── CompetitorPanel ──────────────────────────────────────────────────────────
+type CompetitorPanelProps = {
+  participant: MatchParticipant
+  stageParticipant: StageParticipant | null
+  isLocal: boolean
+  isTargeted: boolean
+  canReply: boolean
+  onReply: () => void
+  hasSubmitted: boolean
+  scoreFill: string
+  buttonLabel: string
+}
 
-        .arena-brand-text { display: flex; flex-direction: column; }
-        .arena-brand-sub { }
+function CompetitorPanel({
+  participant,
+  stageParticipant,
+  isLocal,
+  isTargeted,
+  canReply,
+  onReply,
+  hasSubmitted,
+  scoreFill,
+  buttonLabel,
+}: CompetitorPanelProps) {
+  const isSpeaking = (stageParticipant?.participant as { isSpeaking?: boolean } | undefined)?.isSpeaking ?? false
+  const initials = getInitials(participant.displayName)
+  const slotColor = participant.slot === 'A' ? T.green : T.blue
+  const targetBorderColor = slotColor === T.green ? 'rgba(79,198,106,0.70)' : 'rgba(108,168,245,0.70)'
+  const spotlightClass = participant.slot === 'A' ? 'arena-spotlight-green' : 'arena-spotlight-blue'
 
-        /* Central context pill (question index / waiting) */
-        .arena-header-center {
-          padding: 10px 24px;
-          border-radius: 999px;
-          background: #111a2a;
-          border: 1px solid rgba(255,255,255,0.10);
-          font-size: 14px;
-          font-weight: 700;
-          color: #e8edf7;
-          white-space: nowrap;
-          letter-spacing: 0.01em;
-        }
+  // Score gain flash
+  const prevScoreRef = useRef(participant.score)
+  const [scoreFlashActive, setScoreFlashActive] = useState(false)
+  useEffect(() => {
+    if (participant.score > prevScoreRef.current) {
+      setScoreFlashActive(true)
+      const t = setTimeout(() => setScoreFlashActive(false), 580)
+      return () => clearTimeout(t)
+    }
+    prevScoreRef.current = participant.score
+  }, [participant.score])
 
-        .arena-status-row {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          flex-shrink: 0;
-        }
+  return (
+    <article
+      className={`arena-competitor-article${isTargeted ? ` ${spotlightClass}` : ''}`}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 20,
+        overflow: 'hidden',
+        border: `1px solid ${isTargeted ? targetBorderColor : 'rgba(255,255,255,0.11)'}`,
+        ...(isTargeted ? {} : { boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }),
+        transition: 'border-color 0.4s ease',
+      }}
+    >
+      {/* Video area */}
+      <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#030610', overflow: 'hidden', flexShrink: 0 }}>
+        <VideoRenderer
+          stageParticipant={stageParticipant}
+          isLocal={isLocal}
+          avatarText={initials}
+          avatarColor={slotColor}
+        />
+        <AudioRenderer stageParticipant={stageParticipant} isLocal={isLocal} />
 
-        .arena-status-badge {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
+        {/* Bottom gradient for text legibility */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '55%',
+            background: 'linear-gradient(0deg, rgba(3,6,16,0.92) 0%, transparent 100%)',
+            pointerEvents: 'none',
+          }}
+        />
 
-        .arena-status-label {
-          font-size: 14px;
-          font-weight: 800;
-          letter-spacing: 0.06em;
-        }
+        {/* Name overlay — bottom left */}
+        <div style={{ position: 'absolute', bottom: 14, left: 14 }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.58)', fontWeight: 600, lineHeight: 1.2 }}>
+            Compétiteur {participant.slot}
+          </p>
+          <p style={{ margin: '3px 0 0', fontSize: 17, color: '#fff', fontWeight: 800, lineHeight: 1.1 }}>
+            {participant.displayName}
+          </p>
+        </div>
 
-        /* Timer uses tabular numbers for stable width */
-        .arena-timer-box {
-          padding: 8px 18px;
-          border-radius: 10px;
-          background: #131d2d;
-          border: 1px solid rgba(255,255,255,0.14);
-          font-size: 26px;
-          font-weight: 900;
-          font-variant-numeric: tabular-nums;
-          color: #f3f6fc;
-          min-width: 112px;
-          text-align: center;
-          letter-spacing: 0.03em;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-        }
+        {/* VOUS badge — top-right, only for the local participant */}
+        {isLocal && <div className="arena-you-badge">VOUS</div>}
 
-        /* Main stage with sober vertical depth instead of neon gradients */
-        .arena-stage {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          background: linear-gradient(180deg, #0a111d 0%, #0a111d 52%, #090f1a 100%);
-          position: relative;
-        }
+        {/* Right indicator — glow dot if targeted, audio wave if speaking */}
+        <div style={{ position: 'absolute', bottom: 18, right: 14 }}>
+          {isTargeted ? (
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: slotColor,
+                boxShadow: `0 0 16px ${slotColor}, 0 0 36px ${slotColor}88`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+            </div>
+          ) : isSpeaking ? (
+            <AudioWave />
+          ) : null}
+        </div>
+      </div>
 
-        /* Question area */
-        .arena-question-wrap {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 24px 24px 16px;
-        }
-
-        .arena-question-card {
-          width: 100%;
-          max-width: 900px;
-          border-radius: 16px;
-          background: #101827;
-          border: 1px solid rgba(255,255,255,0.10);
-          overflow: hidden;
-          animation: questionIn 0.25s ease both;
-          box-shadow: 0 10px 24px rgba(0,0,0,0.34) !important;
-        }
-
-        .arena-question-inner {
-          padding: 28px 40px 24px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          gap: 12px;
-        }
-
-        /* Primary instructional text gets strongest hierarchy */
-        .arena-question-text {
-          margin: 0;
-          font-size: clamp(1.3rem, 2.4vw, 2.15rem);
-          font-weight: 700;
-          color: #eef3fb;
-          line-height: 1.25;
-          max-width: 740px;
-          letter-spacing: -0.01em;
-        }
-
-        /* Three-panel stage grid */
-        .arena-stage-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          grid-template-areas: "compA mod compB";
-          gap: 8px;
-          padding: 0 12px 16px;
-          align-items: end;
-        }
-
-        .arena-cell-a { grid-area: compA; }
-        .arena-cell-mod { grid-area: mod; }
-        .arena-cell-b { grid-area: compB; }
-
-        /* Team accents remain visible but restrained */
-        .arena-cell-a .arena-competitor-article { border-color: rgba(79,198,106,0.24) !important; }
-        .arena-cell-b .arena-competitor-article { border-color: rgba(108,168,245,0.24) !important; }
-
-        /* Normalize inline card glow/shadow and radius for consistency */
-        .arena-competitor-article {
-          border-radius: 16px !important;
-          box-shadow: 0 8px 22px rgba(0,0,0,0.34) !important;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        /* Moderator card stays visually central without being flashy */
-        .arena-cell-mod > article {
-          border-radius: 16px !important;
-          box-shadow: 0 10px 24px rgba(0,0,0,0.36) !important;
-          border-color: rgba(230,194,122,0.58) !important;
-        }
-
-        /* Bottom bars */
-        .arena-media-bar {
-          flex-shrink: 0;
-          background: #0c1524;
-          border-top: 1px solid rgba(255,255,255,0.08);
-          padding: 12px 20px;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .arena-mod-bar {
-          flex-shrink: 0;
-          background: #0b1422;
-          border-top: 1px solid rgba(255,255,255,0.08);
-          padding: 16px 20px;
-        }
-
-        .arena-mod-controls {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          align-items: center;
-        }
-
-        /* Local user marker */
-        .arena-you-badge {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          background: rgba(8,14,24,0.84);
-          color: #f2f6fc;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          padding: 4px 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(255,255,255,0.24);
-          z-index: 2;
-          pointer-events: none;
-          animation: youBadgeBlink 3.6s ease-in-out infinite;
-        }
-
-        /* Target highlight classes reused by business logic */
-        .arena-spotlight-green {
-          animation: spotlightGreen 2s ease-in-out infinite;
-          border-color: rgba(79,198,106,0.52) !important;
-        }
-
-        .arena-spotlight-blue {
-          animation: spotlightBlue 2s ease-in-out infinite;
-          border-color: rgba(108,168,245,0.52) !important;
-        }
-
-        /* Score tick animation class */
-        .score-flash {
-          animation: scoreGain 0.34s ease-out both;
-          display: inline-block;
-        }
-
-        /* Reply CTA styles: clear but not neon */
-        .arena-reply-urgent-green {
-          background: rgba(79,198,106,0.14) !important;
-          border-color: rgba(79,198,106,0.48) !important;
-          color: #8fdf9f !important;
-          animation: replyPulseGreen 1.35s ease-in-out infinite;
-        }
-
-        .arena-reply-urgent-blue {
-          background: rgba(108,168,245,0.14) !important;
-          border-color: rgba(108,168,245,0.48) !important;
-          color: #a6c9f9 !important;
-          animation: replyPulseBlue 1.35s ease-in-out infinite;
-        }
-
-        .arena-question-card-waiting {
-          animation: awaitingPulse 3.2s ease-in-out infinite !important;
-        }
-
-        /* Desktop hover states inspired by mature collaboration tools */
-        @media (hover: hover) and (pointer: fine) {
-          .arena-mod-controls button:hover,
-          .arena-media-bar button:hover {
-            filter: brightness(1.05);
-          }
-
-          .arena-mod-controls button:active,
-          .arena-media-bar button:active {
-            transform: translateY(1px);
-          }
-        }
-
-        /* Mobile layout preserves structure while tightening spacing */
-        @media (max-width: 767px) {
-          .arena-header {
-            padding: 0 12px;
-            height: 56px;
-            gap: 10px;
-          }
-
-          .arena-header-center { display: none; }
-          .arena-brand-sub { display: none; }
-
-          .arena-timer-box {
-            font-size: 20px;
-            padding: 6px 12px;
-            min-width: 84px;
-            border-radius: 8px;
-          }
-
-          .arena-status-label {
-            font-size: 12px;
-            letter-spacing: 0.04em;
-          }
-
-          .arena-status-row { gap: 10px; }
-
-          .arena-question-wrap {
-            padding: 12px 8px 10px;
-            flex: none;
-          }
-
-          .arena-question-card { border-radius: 12px; }
-
-          .arena-question-inner {
-            padding: 20px 16px 18px;
-            gap: 10px;
-          }
-
-          .arena-question-text {
-            font-size: clamp(1rem, 4.4vw, 1.32rem);
-          }
-
-          .arena-stage-grid {
-            grid-template-columns: 1fr 1fr;
-            grid-template-areas: "compA compB" "mod mod";
-            gap: 8px;
-            padding: 0 8px 12px;
-          }
-
-          .arena-media-bar {
-            padding: 10px 12px;
-            overflow-x: auto;
-          }
-
-          .arena-mod-bar { padding: 12px; }
-
-          .arena-mod-controls {
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            padding-bottom: 4px;
-          }
-
-          .arena-reply-urgent-green,
-          .arena-reply-urgent-blue {
-            padding: 14px 0 !important;
-            font-size: 15px !important;
-            border-radius: 10px !important;
-            letter-spacing: 0.08em !important;
-          }
-        }
-
-        @media (max-width: 420px) {
-          .arena-timer-box {
-            font-size: 17px;
-            min-width: 72px;
-          }
-
-          .arena-question-inner { padding: 16px 12px; }
-        }
+      {/* Score + bar + reply */}
+      <div
+        style={{
+          background: `linear-gradient(180deg, #0e1626 0%, ${T.panel} 100%)`,
+          padding: '12px 14px 14px',
+          display: 'flex',
           flexDirection: 'column',
           gap: 10,
           borderTop: `1px solid ${slotColor}22`,
