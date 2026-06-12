@@ -677,6 +677,16 @@ export default function AdminDashboard() {
     },
   ]
 
+  const adminMobileNavItems: { key: Tab; label: string }[] = [
+    { key: 'overview', label: 'Vue d\'ensemble' },
+    { key: 'levels', label: 'Classes' },
+    { key: 'subjects', label: 'Matières' },
+    { key: 'questions', label: 'Questions' },
+    { key: 'students', label: 'Étudiants' },
+    { key: 'correspondence', label: 'Correspondance' },
+    { key: 'arena', label: 'Arena' },
+  ]
+
   return (
     <div className="dashboard-shell flex">
       <DashboardSidebar
@@ -2250,7 +2260,7 @@ export default function AdminDashboard() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden bottom-tab-nav">
-        {navItems.map((item) => (
+        {adminMobileNavItems.map((item) => (
           <button
             key={item.key}
             onClick={() => setTab(item.key)}

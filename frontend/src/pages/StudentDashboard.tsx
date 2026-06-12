@@ -476,6 +476,15 @@ export default function StudentDashboard() {
     },
   ]
 
+  const studentMobileNavItems: { key: Tab; label: string }[] = [
+    { key: 'home', label: 'Accueil' },
+    { key: 'quiz', label: 'Challenge' },
+    { key: 'history', label: 'Historique' },
+    { key: 'leaderboard', label: 'Classement' },
+    { key: 'correspondence', label: 'Correspondance' },
+    { key: 'profile', label: 'Profil' },
+  ]
+
   const avgScore =
     history.length > 0
       ? Math.round(history.reduce((s, h) => s + h.score, 0) / history.length)
@@ -1154,7 +1163,7 @@ export default function StudentDashboard() {
 
       {/* ── MOBILE BOTTOM NAV ── */}
       <nav className="md:hidden bottom-tab-nav">
-        {navItems.map((item) => (
+        {studentMobileNavItems.map((item) => (
           <button
             key={item.key}
             onClick={() => setTab(item.key)}
