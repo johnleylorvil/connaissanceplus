@@ -20,6 +20,7 @@ import {
   AdminBroadcast,
   BroadcastTargetType,
   DuelAnswer,
+  DuelBuzzerPhase,
   DuelMatch,
   DuelMatchQuestion,
   DuelMode,
@@ -60,6 +61,7 @@ import { MailService } from './mail.service';
 
 const QUIZ_QUESTION_COUNT = 10;
 const DUEL_QUESTION_COUNT = 10;
+const DUEL_BUZZER_RESPONSE_SECONDS = 8;
 const MATCHMAKING_EXPIRE_MINUTES = 15;
 const FORFEIT_INACTIVE_SECONDS = 60; // if a player has no activity for 60s during a match, they forfeit
 const ACCOUNT_OTP_TTL_MINUTES = 10;
@@ -700,6 +702,11 @@ export class MvpService {
           playerTwoId: null,
           status: DuelStatus.WAITING,
           questionCount: DUEL_QUESTION_COUNT,
+          currentQuestionPosition: 1,
+          buzzerPhase: DuelBuzzerPhase.WAITING_FOR_BUZZ,
+          activeResponderUserId: null,
+          firstResponderUserId: null,
+          responseDeadlineAt: null,
           winnerUserId: null,
           startedAt: null,
           completedAt: null,
@@ -789,6 +796,10 @@ export class MvpService {
       await this.duelMatchRepo.save(duelMatch);
     }
 
+    if (duelMatch.status === DuelStatus.IN_PROGRESS && duelMatch.mode === DuelMode.QCM) {
+      await this.applyExpiredBuzzerDeadline(duelMatch);
+    }
+
     const [duelQuestions, progresses] = await Promise.all([
       this.duelMatchQuestionRepo.find({
         where: { duelMatchId: duelId },
@@ -802,7 +813,7 @@ export class MvpService {
     ]);
 
     // Lazy forfeit: if in_progress and a player has had no activity for FORFEIT_INACTIVE_SECONDS, forfeit them
-    if (duelMatch.status === DuelStatus.IN_PROGRESS) {
+    if (duelMatch.status === DuelStatus.IN_PROGRESS && !duelMatch.buzzerPhase) {
       const now = new Date();
       const forfeitThreshold = new Date(now.getTime() - FORFEIT_INACTIVE_SECONDS * 1000);
       let anyForfeited = false;
@@ -840,6 +851,12 @@ export class MvpService {
     );
 
     const myProgress = progresses.find((progress) => progress.userId === userId);
+    const currentQuestion = duelQuestions.find(
+      (duelQuestion) => duelQuestion.position === duelMatch.currentQuestionPosition,
+    );
+    const currentQuestionAnswers = currentQuestion
+      ? answers.filter((answer) => answer.duelMatchQuestionId === currentQuestion.id)
+      : [];
 
     return {
       duelId: duelMatch.id,
@@ -848,8 +865,38 @@ export class MvpService {
       competitionName: duelMatch.competitionName,
       status: duelMatch.status,
       questionCount: duelMatch.questionCount,
+      mode: duelMatch.mode,
+      currentQuestionPosition: duelMatch.currentQuestionPosition,
+      buzzerPhase: duelMatch.buzzerPhase ?? DuelBuzzerPhase.WAITING_FOR_BUZZ,
+      activeResponderUserId: duelMatch.activeResponderUserId,
+      firstResponderUserId: duelMatch.firstResponderUserId,
+      responseDeadlineAt: duelMatch.responseDeadlineAt,
+      responseSeconds: DUEL_BUZZER_RESPONSE_SECONDS,
       winnerUserId: duelMatch.winnerUserId,
       currentUserId: userId,
+      currentQuestion: currentQuestion
+        ? {
+            duelQuestionId: currentQuestion.id,
+            position: currentQuestion.position,
+            prompt: currentQuestion.question.prompt,
+            options: {
+              A: currentQuestion.question.optionA,
+              B: currentQuestion.question.optionB,
+              C: currentQuestion.question.optionC,
+              D: currentQuestion.question.optionD,
+            },
+            difficulty: currentQuestion.question.difficulty,
+          }
+        : null,
+      questionAttempts: currentQuestionAnswers
+        .sort((a, b) => a.answeredAt.getTime() - b.answeredAt.getTime())
+        .map((answer, index) => ({
+          userId: answer.userId,
+          selectedOption: answer.selectedOption,
+          isCorrect: answer.isCorrect,
+          attemptNumber: index + 1,
+          answeredAt: answer.answeredAt,
+        })),
       questions: duelQuestions.map((duelQuestion) => ({
         duelQuestionId: duelQuestion.id,
         position: duelQuestion.position,
@@ -867,10 +914,7 @@ export class MvpService {
         name: `${progress.user.firstName} ${progress.user.lastName}`,
         score: progress.score,
         answeredCount: progress.answeredCount,
-        currentQuestion:
-          progress.answeredCount >= duelMatch.questionCount
-            ? duelMatch.questionCount
-            : progress.answeredCount + 1,
+        currentQuestion: duelMatch.currentQuestionPosition,
         isFinished: !!progress.submittedAt,
         totalTimeSeconds: progress.totalTimeSeconds,
         answers: duelQuestions.map((duelQuestion) => {
@@ -882,13 +926,71 @@ export class MvpService {
           };
         }),
       })),
+      canBuzz:
+        duelMatch.status === DuelStatus.IN_PROGRESS &&
+        duelMatch.mode === DuelMode.QCM &&
+        (duelMatch.buzzerPhase ?? DuelBuzzerPhase.WAITING_FOR_BUZZ) === DuelBuzzerPhase.WAITING_FOR_BUZZ &&
+        !!myProgress &&
+        !myProgress.submittedAt,
       canAnswer:
         duelMatch.status === DuelStatus.IN_PROGRESS &&
+        duelMatch.mode === DuelMode.QCM &&
+        (duelMatch.buzzerPhase ?? DuelBuzzerPhase.WAITING_FOR_BUZZ) === DuelBuzzerPhase.ANSWERING &&
+        duelMatch.activeResponderUserId === userId &&
         !!myProgress &&
         !myProgress.submittedAt &&
-        myProgress.answeredCount < duelMatch.questionCount,
+        !!currentQuestion,
       myAnsweredCount: myProgress?.answeredCount ?? 0,
     };
+  }
+
+  async buzzDuel(userId: string, duelId: string) {
+    const duelMatch = await this.duelMatchRepo.findOne({ where: { id: duelId } });
+    if (!duelMatch) {
+      throw new NotFoundException('Duel not found');
+    }
+    this.assertQcmDuelParticipant(duelMatch, userId);
+    if (duelMatch.status !== DuelStatus.IN_PROGRESS) {
+      throw new BadRequestException('Duel is not in progress');
+    }
+
+    await this.applyExpiredBuzzerDeadline(duelMatch);
+
+    if ((duelMatch.buzzerPhase ?? DuelBuzzerPhase.WAITING_FOR_BUZZ) !== DuelBuzzerPhase.WAITING_FOR_BUZZ) {
+      throw new BadRequestException('Une personne a deja pris la main.');
+    }
+
+    const progress = await this.duelProgressRepo.findOne({
+      where: { duelMatchId: duelId, userId },
+    });
+    if (!progress || progress.submittedAt) {
+      throw new BadRequestException('Vous ne pouvez pas repondre a ce duel.');
+    }
+
+    const currentQuestion = await this.getCurrentDuelQuestion(duelMatch);
+    if (!currentQuestion) {
+      throw new NotFoundException('Duel question not found');
+    }
+
+    const alreadyAnswered = await this.duelAnswerRepo.findOne({
+      where: { duelMatchQuestionId: currentQuestion.id, userId },
+    });
+    if (alreadyAnswered) {
+      throw new BadRequestException('Vous avez deja tente cette question.');
+    }
+
+    const now = new Date();
+    duelMatch.buzzerPhase = DuelBuzzerPhase.ANSWERING;
+    duelMatch.activeResponderUserId = userId;
+    duelMatch.firstResponderUserId = userId;
+    duelMatch.responseDeadlineAt = new Date(now.getTime() + DUEL_BUZZER_RESPONSE_SECONDS * 1000);
+    progress.lastActivityAt = now;
+    await Promise.all([
+      this.duelMatchRepo.save(duelMatch),
+      this.duelProgressRepo.save(progress),
+    ]);
+
+    return this.getDuelState(userId, duelId);
   }
 
   async submitDuelAnswer(userId: string, duelId: string, dto: DuelAnswerDto) {
@@ -896,14 +998,21 @@ export class MvpService {
     if (!duelMatch) {
       throw new NotFoundException('Duel not found');
     }
-    if ((duelMatch as { mode?: string }).mode === 'oral_live') {
-      throw new BadRequestException('QCM answers are not supported for oral live duels');
-    }
-    if (duelMatch.playerOneId !== userId && duelMatch.playerTwoId !== userId) {
-      throw new UnauthorizedException('You are not part of this duel');
-    }
+    this.assertQcmDuelParticipant(duelMatch, userId);
     if (duelMatch.status !== DuelStatus.IN_PROGRESS) {
       throw new BadRequestException('Duel is not in progress');
+    }
+
+    await this.applyExpiredBuzzerDeadline(duelMatch);
+    if (
+      (duelMatch.buzzerPhase ?? DuelBuzzerPhase.WAITING_FOR_BUZZ) !== DuelBuzzerPhase.ANSWERING ||
+      duelMatch.activeResponderUserId !== userId
+    ) {
+      throw new BadRequestException('Ce n\'est pas votre tour de repondre.');
+    }
+    if (!duelMatch.responseDeadlineAt || duelMatch.responseDeadlineAt.getTime() <= Date.now()) {
+      await this.applyExpiredBuzzerDeadline(duelMatch);
+      throw new BadRequestException('Le delai de reponse est depasse.');
     }
 
     const progress = await this.duelProgressRepo.findOne({
@@ -916,18 +1025,12 @@ export class MvpService {
       throw new BadRequestException('You already finished this duel');
     }
 
-    const duelQuestion = await this.duelMatchQuestionRepo.findOne({
-      where: { id: dto.duelQuestionId, duelMatchId: duelId },
-      relations: ['question'],
-    });
-
+    const duelQuestion = await this.getCurrentDuelQuestion(duelMatch);
     if (!duelQuestion) {
       throw new NotFoundException('Duel question not found');
     }
-
-    const expectedPosition = progress.answeredCount + 1;
-    if (duelQuestion.position !== expectedPosition) {
-      throw new BadRequestException('Answer out of order');
+    if (duelQuestion.id !== dto.duelQuestionId) {
+      throw new BadRequestException('Cette question n\'est plus active.');
     }
 
     const alreadyAnswered = await this.duelAnswerRepo.findOne({
@@ -959,41 +1062,31 @@ export class MvpService {
       progress.score += 1;
     }
 
-    if (progress.answeredCount >= duelMatch.questionCount) {
-      const submittedAt = new Date();
-      progress.submittedAt = submittedAt;
-      progress.totalTimeSeconds = Math.max(
-        1,
-        Math.round((submittedAt.getTime() - progress.startedAt.getTime()) / 1000),
-      );
-    }
-
     await this.duelProgressRepo.save(progress);
 
-    const allProgresses = await this.duelProgressRepo.find({ where: { duelMatchId: duelId } });
-    if (
-      allProgresses.length === 2 &&
-      allProgresses.every((entry) => !!entry.submittedAt)
-    ) {
-      const [left, right] = allProgresses;
-      const winnerUserId = this.resolveDuelWinner(left, right);
+    if (isCorrect) {
+      await this.advanceBuzzerQuestion(duelMatch);
+    } else if (duelMatch.firstResponderUserId === userId) {
+      const secondResponderId = this.getOtherDuelParticipantId(duelMatch, userId);
+      const secondAlreadyAnswered = secondResponderId
+        ? await this.duelAnswerRepo.findOne({
+            where: { duelMatchQuestionId: duelQuestion.id, userId: secondResponderId },
+          })
+        : null;
 
-      duelMatch.status = DuelStatus.COMPLETED;
-      duelMatch.completedAt = new Date();
-      duelMatch.winnerUserId = winnerUserId;
-      await this.duelMatchRepo.save(duelMatch);
-
-      if (winnerUserId) {
-        await this.createNotification(
-          winnerUserId,
-          '🥇 Duel gagné',
-          `Vous avez remporte ${duelMatch.competitionName}.`,
-          'duel',
-        );
+      if (secondResponderId && !secondAlreadyAnswered) {
+        duelMatch.activeResponderUserId = secondResponderId;
+        duelMatch.responseDeadlineAt = new Date(Date.now() + DUEL_BUZZER_RESPONSE_SECONDS * 1000);
+        await this.duelMatchRepo.save(duelMatch);
+      } else {
+        await this.advanceBuzzerQuestion(duelMatch);
       }
+    } else {
+      await this.advanceBuzzerQuestion(duelMatch);
     }
 
     return this.getDuelState(userId, duelId);
+
   }
 
   async getWeeklyLeaderboard(classId?: string) {
@@ -1383,6 +1476,165 @@ export class MvpService {
 
   getFrontendUrl(): string {
     return this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+  }
+
+  private assertQcmDuelParticipant(duelMatch: DuelMatch, userId: string) {
+    if (duelMatch.mode === DuelMode.ORAL_LIVE) {
+      throw new BadRequestException('QCM answers are not supported for oral live duels');
+    }
+    if (duelMatch.playerOneId !== userId && duelMatch.playerTwoId !== userId) {
+      throw new UnauthorizedException('You are not part of this duel');
+    }
+  }
+
+  private getOtherDuelParticipantId(duelMatch: DuelMatch, userId: string) {
+    if (duelMatch.playerOneId === userId) {
+      return duelMatch.playerTwoId;
+    }
+    if (duelMatch.playerTwoId === userId) {
+      return duelMatch.playerOneId;
+    }
+    return null;
+  }
+
+  private getCurrentDuelQuestion(duelMatch: DuelMatch) {
+    return this.duelMatchQuestionRepo.findOne({
+      where: {
+        duelMatchId: duelMatch.id,
+        position: duelMatch.currentQuestionPosition,
+      },
+      relations: ['question'],
+    });
+  }
+
+  private async applyExpiredBuzzerDeadline(duelMatch: DuelMatch) {
+    if (
+      duelMatch.mode !== DuelMode.QCM ||
+      duelMatch.status !== DuelStatus.IN_PROGRESS ||
+      (duelMatch.buzzerPhase ?? DuelBuzzerPhase.WAITING_FOR_BUZZ) !== DuelBuzzerPhase.ANSWERING ||
+      !duelMatch.activeResponderUserId ||
+      !duelMatch.responseDeadlineAt ||
+      duelMatch.responseDeadlineAt.getTime() > Date.now()
+    ) {
+      return;
+    }
+
+    const currentQuestion = await this.getCurrentDuelQuestion(duelMatch);
+    if (!currentQuestion) {
+      await this.advanceBuzzerQuestion(duelMatch);
+      return;
+    }
+
+    const userId = duelMatch.activeResponderUserId;
+    const existing = await this.duelAnswerRepo.findOne({
+      where: { duelMatchQuestionId: currentQuestion.id, userId },
+    });
+
+    if (!existing) {
+      await this.duelAnswerRepo.save(
+        this.duelAnswerRepo.create({
+          duelMatchQuestionId: currentQuestion.id,
+          userId,
+          selectedOption: null,
+          isCorrect: false,
+        }),
+      );
+
+      const progress = await this.duelProgressRepo.findOne({
+        where: { duelMatchId: duelMatch.id, userId },
+      });
+      if (progress) {
+        if (!progress.startedAt) {
+          progress.startedAt = duelMatch.startedAt ?? new Date();
+        }
+        progress.answeredCount += 1;
+        progress.lastActivityAt = new Date();
+        await this.duelProgressRepo.save(progress);
+      }
+    }
+
+    if (duelMatch.firstResponderUserId === userId) {
+      const secondResponderId = this.getOtherDuelParticipantId(duelMatch, userId);
+      const secondAlreadyAnswered = secondResponderId
+        ? await this.duelAnswerRepo.findOne({
+            where: { duelMatchQuestionId: currentQuestion.id, userId: secondResponderId },
+          })
+        : null;
+
+      if (secondResponderId && !secondAlreadyAnswered) {
+        duelMatch.activeResponderUserId = secondResponderId;
+        duelMatch.responseDeadlineAt = new Date(Date.now() + DUEL_BUZZER_RESPONSE_SECONDS * 1000);
+        await this.duelMatchRepo.save(duelMatch);
+        return;
+      }
+    }
+
+    await this.advanceBuzzerQuestion(duelMatch);
+  }
+
+  private async advanceBuzzerQuestion(duelMatch: DuelMatch) {
+    if (duelMatch.currentQuestionPosition >= duelMatch.questionCount) {
+      await this.completeBuzzerDuel(duelMatch);
+      return;
+    }
+
+    duelMatch.currentQuestionPosition += 1;
+    duelMatch.buzzerPhase = DuelBuzzerPhase.WAITING_FOR_BUZZ;
+    duelMatch.activeResponderUserId = null;
+    duelMatch.firstResponderUserId = null;
+    duelMatch.responseDeadlineAt = null;
+    await this.duelMatchRepo.save(duelMatch);
+  }
+
+  private async completeBuzzerDuel(duelMatch: DuelMatch) {
+    const completedAt = new Date();
+    const progresses = await this.duelProgressRepo.find({
+      where: { duelMatchId: duelMatch.id },
+    });
+    const winnerUserId = this.resolveDuelWinnerByScore(progresses);
+
+    for (const progress of progresses) {
+      progress.submittedAt = completedAt;
+      const startedAt = progress.startedAt ?? duelMatch.startedAt ?? completedAt;
+      progress.totalTimeSeconds = Math.max(
+        1,
+        Math.round((completedAt.getTime() - startedAt.getTime()) / 1000),
+      );
+    }
+    await this.duelProgressRepo.save(progresses);
+
+    duelMatch.status = DuelStatus.COMPLETED;
+    duelMatch.completedAt = completedAt;
+    duelMatch.winnerUserId = winnerUserId;
+    duelMatch.buzzerPhase = DuelBuzzerPhase.WAITING_FOR_BUZZ;
+    duelMatch.activeResponderUserId = null;
+    duelMatch.firstResponderUserId = null;
+    duelMatch.responseDeadlineAt = null;
+    await this.duelMatchRepo.save(duelMatch);
+
+    if (winnerUserId) {
+      await this.createNotification(
+        winnerUserId,
+        'Duel gagne',
+        `Vous avez remporte ${duelMatch.competitionName}.`,
+        'duel',
+      );
+    }
+  }
+
+  private resolveDuelWinnerByScore(progresses: DuelProgress[]) {
+    if (progresses.length < 2) {
+      return progresses[0]?.userId ?? null;
+    }
+
+    const [first, second] = progresses;
+    if (first.score > second.score) {
+      return first.userId;
+    }
+    if (second.score > first.score) {
+      return second.userId;
+    }
+    return null;
   }
 
   private async createNotification(userId: string, title: string, message: string, type: string) {

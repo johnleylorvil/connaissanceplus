@@ -38,15 +38,30 @@ type DuelState = {
   status: 'waiting' | 'in_progress' | 'completed' | 'cancelled'
   mode?: 'qcm' | 'oral_live'
   questionCount: number
+  currentQuestionPosition?: number
+  buzzerPhase?: 'waiting_for_buzz' | 'answering'
+  activeResponderUserId?: string | null
+  firstResponderUserId?: string | null
+  responseDeadlineAt?: string | null
+  responseSeconds?: number
   winnerUserId: string | null
   currentUserId: string
+  currentQuestion?: DuelQuestion | null
+  questionAttempts?: Array<{
+    userId: string
+    selectedOption: 'A' | 'B' | 'C' | 'D' | null
+    isCorrect: boolean
+    attemptNumber: number
+    answeredAt: string
+  }>
   questions: DuelQuestion[]
   participants: ParticipantState[]
+  canBuzz?: boolean
   canAnswer: boolean
   myAnsweredCount: number
 }
 
-const QUESTION_TIME_SECONDS = 10
+const QUESTION_TIME_SECONDS = 8
 
 function adaptOralLiveState(
   data: Partial<DuelState> & { participants?: ParticipantState[] },
@@ -63,8 +78,11 @@ function adaptOralLiveState(
     questionCount: data.questionCount ?? 0,
     winnerUserId: data.winnerUserId ?? null,
     currentUserId,
+    currentQuestion: null,
+    questionAttempts: [],
     questions: [],
     participants: data.participants ?? [],
+    canBuzz: false,
     canAnswer: false,
     myAnsweredCount: 0,
   }
@@ -114,8 +132,8 @@ export default function DuelPage() {
   }
   // ─────────────────────────────────────────────────────────────────────
 
-  const myParticipant = useMemo(
-    () => duelState?.participants.find((participant) => participant.userId === duelState.currentUserId) ?? null,
+  const activeResponder = useMemo(
+    () => duelState?.participants.find((participant) => participant.userId === duelState.activeResponderUserId) ?? null,
     [duelState],
   )
   const duelStatus = duelState?.status
@@ -137,9 +155,9 @@ export default function DuelPage() {
   }, [duelId, accessToken])
 
   const currentQuestion = useMemo(() => {
-    if (!duelState || !myParticipant) return null
-    return duelState.questions[myParticipant.answeredCount] ?? null
-  }, [duelState, myParticipant])
+    if (!duelState) return null
+    return duelState.currentQuestion ?? duelState.questions.find((question) => question.position === duelState.currentQuestionPosition) ?? null
+  }, [duelState])
 
   const loadState = useCallback(async (silent = false) => {
     if (!duelId) return
@@ -191,6 +209,26 @@ export default function DuelPage() {
     }
   }, [accessToken, currentQuestion, duelId, duelState, submitting])
 
+  const buzz = useCallback(async () => {
+    if (!duelId || !duelState?.canBuzz || submitting) return
+
+    setSubmitting(true)
+    setError('')
+    try {
+      const data = await apiCall<DuelState>(
+        `/duels/${duelId}/buzz`,
+        { method: 'POST' },
+        accessToken,
+      )
+      setDuelState(data)
+      setSelectedOption(null)
+    } catch (err) {
+      setError((err as { message: string }).message)
+    } finally {
+      setSubmitting(false)
+    }
+  }, [accessToken, duelId, duelState?.canBuzz, submitting])
+
   useEffect(() => {
     void loadState()
   }, [loadState])
@@ -206,26 +244,25 @@ export default function DuelPage() {
   }, [duelId, isOralLive, loadState, duelStatus])
 
   useEffect(() => {
-    if (duelStatus !== 'in_progress' || !duelCanAnswer) return
-    setTimeLeft(QUESTION_TIME_SECONDS)
+    if (duelStatus !== 'in_progress') return
+    setTimeLeft(duelState?.responseSeconds ?? QUESTION_TIME_SECONDS)
     setSelectedOption(null)
-  }, [duelCanAnswer, duelStatus, myAnsweredCount])
+  }, [currentQuestion?.duelQuestionId, duelState?.buzzerPhase, duelState?.responseSeconds, duelStatus, myAnsweredCount])
 
   useEffect(() => {
     if (duelStatus !== 'in_progress' || !duelCanAnswer || isOralLive) return
 
     const interval = setInterval(() => {
-      setTimeLeft((seconds) => {
-        if (seconds <= 1) {
-          void submitAnswer()
-          return QUESTION_TIME_SECONDS
-        }
-        return seconds - 1
-      })
-    }, 1000)
+      const deadline = duelState?.responseDeadlineAt ? new Date(duelState.responseDeadlineAt).getTime() : 0
+      const nextSeconds = deadline > 0 ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0
+      setTimeLeft(nextSeconds)
+      if (nextSeconds <= 0) {
+        void loadState(true)
+      }
+    }, 250)
 
     return () => clearInterval(interval)
-  }, [currentQuestion?.duelQuestionId, duelCanAnswer, duelStatus, isOralLive, submitAnswer])
+  }, [currentQuestion?.duelQuestionId, duelCanAnswer, duelStatus, duelState?.responseDeadlineAt, isOralLive, loadState])
 
   if (loading && !duelState) {
     return (
@@ -365,11 +402,13 @@ export default function DuelPage() {
   // ── End ORAL_LIVE branch ────────────────────────────────────────────────
 
   // Timer bar values
-  const timerPct = (timeLeft / QUESTION_TIME_SECONDS) * 100
+  const timerMax = duelState.responseSeconds ?? QUESTION_TIME_SECONDS
+  const timerPct = (timeLeft / timerMax) * 100
   const timerBarColor = timeLeft <= 3 ? 'var(--error)' : timeLeft <= 5 ? 'var(--gold)' : 'var(--ok)'
-  const questionKey = myParticipant?.answeredCount ?? 0
+  const questionKey = currentQuestion?.duelQuestionId ?? duelState.currentQuestionPosition ?? 0
   const isMine = (uid: string) => uid === duelState.currentUserId
   const isWinner = duelState.winnerUserId === duelState.currentUserId
+  const isSecondChance = Boolean(duelState.firstResponderUserId && duelState.firstResponderUserId !== duelState.activeResponderUserId)
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
@@ -463,32 +502,46 @@ export default function DuelPage() {
           </div>
         )}
 
-        {/* Active question */}
-        {duelState.status === 'in_progress' && duelState.canAnswer && currentQuestion && (
+        {/* Shared buzzer question */}
+        {duelState.status === 'in_progress' && currentQuestion && (
           <>
-            <div className="quiz-timer-bar-wrap" style={{ marginBottom: 0 }}>
-              <div
-                className={`quiz-timer-bar${timeLeft <= 3 ? ' urgent' : ''}`}
-                style={{ width: `${timerPct}%`, background: timerBarColor }}
-              />
-            </div>
+            {duelState.canAnswer && (
+              <div className="quiz-timer-bar-wrap" style={{ marginBottom: 0 }}>
+                <div
+                  className={`quiz-timer-bar${timeLeft <= 3 ? ' urgent' : ''}`}
+                  style={{ width: `${timerPct}%`, background: timerBarColor }}
+                />
+              </div>
+            )}
 
             <div key={questionKey} className="card anim-slide-in">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--cobalt)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 20, background: 'rgba(15,32,64,0.08)' }}>
                   Question {currentQuestion.position}/{duelState.questionCount}
                 </span>
-                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{duelState.competitionName}</span>
+                <span style={{ fontSize: 13, color: 'var(--ink-3)', textAlign: 'right' }}>
+                  {duelState.canAnswer
+                    ? `A vous de repondre - ${timeLeft}s`
+                    : activeResponder
+                      ? `${activeResponder.name} repond${isSecondChance ? ' - deuxieme chance' : ''}`
+                      : 'Appuyez sur le buzzer pour repondre'}
+                </span>
               </div>
+
               <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 20, lineHeight: 1.6 }}>{currentQuestion.prompt}</p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
                 {(Object.entries(currentQuestion.options) as ['A' | 'B' | 'C' | 'D', string][]).map(([key, value], i) => (
                   <button
                     key={key}
-                    onClick={() => setSelectedOption(key)}
+                    onClick={() => duelState.canAnswer && setSelectedOption(key)}
+                    disabled={!duelState.canAnswer || submitting}
                     className={`quiz-option anim-fade-up${selectedOption === key ? ' selected' : ''}`}
-                    style={{ animationDelay: `${i * 0.06}s` }}
+                    style={{
+                      animationDelay: `${i * 0.06}s`,
+                      opacity: duelState.canAnswer ? 1 : 0.72,
+                      cursor: duelState.canAnswer ? 'pointer' : 'not-allowed',
+                    }}
                   >
                     <span className="opt-key" data-key={key}>{key}</span>
                     <span>{value}</span>
@@ -496,34 +549,40 @@ export default function DuelPage() {
                 ))}
               </div>
 
+              {duelState.questionAttempts && duelState.questionAttempts.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                  {duelState.questionAttempts.map((attempt) => {
+                    const participant = duelState.participants.find((item) => item.userId === attempt.userId)
+                    return (
+                      <p key={`${attempt.userId}-${attempt.attemptNumber}`} style={{ fontSize: 13, color: attempt.isCorrect ? 'var(--ok)' : 'var(--error)', fontWeight: 600 }}>
+                        {participant?.name ?? 'Participant'} : {attempt.isCorrect ? 'bonne reponse' : attempt.selectedOption ? 'mauvaise reponse' : 'temps depasse'}
+                      </p>
+                    )
+                  })}
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button onClick={() => void submitAnswer()} disabled={submitting} className="btn btn-ghost btn-sm">Passer</button>
-                <button
-                  onClick={() => void submitAnswer(selectedOption ?? undefined)}
-                  disabled={submitting || !selectedOption}
-                  className="btn btn-primary btn-sm"
-                  style={{ minWidth: 100 }}
-                >
-                  {submitting ? '…' : 'Valider →'}
-                </button>
+                {duelState.canBuzz && (
+                  <button onClick={() => void buzz()} disabled={submitting} className="btn btn-primary btn-sm" style={{ minWidth: 150 }}>
+                    {submitting ? '...' : 'Je reponds'}
+                  </button>
+                )}
+                {duelState.canAnswer && (
+                  <button
+                    onClick={() => void submitAnswer(selectedOption ?? undefined)}
+                    disabled={submitting || !selectedOption}
+                    className="btn btn-primary btn-sm"
+                    style={{ minWidth: 100 }}
+                  >
+                    {submitting ? '...' : 'Valider'}
+                  </button>
+                )}
               </div>
             </div>
           </>
         )}
 
-        {/* Waiting for opponent to finish */}
-        {duelState.status === 'in_progress' && !duelState.canAnswer && (
-          <div className="card anim-fade-up" style={{ padding: '44px 24px', textAlign: 'center' }}>
-            <p className="overline" style={{ marginBottom: 12 }}>En attente</p>
-            <h2 className="display" style={{ fontSize: 26, color: 'var(--cobalt)', marginBottom: 14 }}>Vous avez terminé votre série !</h2>
-            <div className="waiting-dots" style={{ marginBottom: 16 }}>
-              <span /><span /><span />
-            </div>
-            <p style={{ fontSize: 16, color: 'var(--ink-3)', lineHeight: 1.7 }}>
-              Le résultat final s’affichera dès que votre adversaire aura terminé.
-            </p>
-          </div>
-        )}
 
         {/* Completed */}
         {duelState.status === 'completed' && (
@@ -542,9 +601,9 @@ export default function DuelPage() {
                 )}
               </div>
             ) : (
-              <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 16 }}>Même score, même temps — égalité parfaite.</p>
+              <p style={{ fontSize: 16, color: 'var(--ink-3)', marginBottom: 16 }}>Score identique - egalite parfaite.</p>
             )}
-            <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>Départage : score, puis temps total le plus court.</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>Regle finale : le meilleur score gagne.</p>
             <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour</button>
           </div>
         )}

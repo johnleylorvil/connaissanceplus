@@ -55,6 +55,11 @@ export enum DuelMode {
   ORAL_LIVE = 'oral_live',
 }
 
+export enum DuelBuzzerPhase {
+  WAITING_FOR_BUZZ = 'waiting_for_buzz',
+  ANSWERING = 'answering',
+}
+
 export enum OptionChoice {
   A = 'A',
   B = 'B',
@@ -372,6 +377,21 @@ export class DuelMatch {
 
   @Column({ type: 'text', default: DuelMode.QCM })
   mode: DuelMode;
+
+  @Column({ type: 'int', default: 1 })
+  currentQuestionPosition: number;
+
+  @Column({ type: 'text', default: DuelBuzzerPhase.WAITING_FOR_BUZZ })
+  buzzerPhase: DuelBuzzerPhase;
+
+  @Column('uuid', { nullable: true })
+  activeResponderUserId: string | null;
+
+  @Column('uuid', { nullable: true })
+  firstResponderUserId: string | null;
+
+  @Column({ type: dateTimeColumnType, nullable: true })
+  responseDeadlineAt: Date | null;
 
   @Column('uuid', { nullable: true })
   moderatorUserId: string | null;

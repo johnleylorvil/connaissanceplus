@@ -290,6 +290,13 @@ export class MvpController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
+  @Post('duels/:duelId/buzz')
+  buzzDuel(@Req() request: AuthenticatedRequest, @Param('duelId') duelId: string) {
+    return this.mvpService.buzzDuel(request.user.id, duelId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
   @Post('duels/:duelId/answer')
   submitDuelAnswer(
     @Req() request: AuthenticatedRequest,
