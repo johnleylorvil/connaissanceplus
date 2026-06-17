@@ -458,9 +458,23 @@ export default function DuelPage() {
           </div>
 
           <div className="duel-vs-strip">
-            <span>{me?.name ?? 'Vous'}</span>
-            <strong>VS</strong>
-            <span>{opponent?.name ?? 'En recherche'}</span>
+            <div className="duel-side mine">
+              <span>{me?.name.slice(0, 1).toUpperCase() ?? 'V'}</span>
+              <div>
+                <small>Vous</small>
+                <strong>{me?.name ?? 'Vous'}</strong>
+              </div>
+              <b>{me?.score ?? 0}</b>
+            </div>
+            <div className="duel-vs-chip">VS</div>
+            <div className="duel-side opponent">
+              <b>{opponent?.score ?? 0}</b>
+              <div>
+                <small>Adversaire</small>
+                <strong>{opponent?.name ?? 'En recherche'}</strong>
+              </div>
+              <span>{opponent?.name.slice(0, 1).toUpperCase() ?? '?'}</span>
+            </div>
           </div>
         </section>
 
@@ -509,6 +523,13 @@ export default function DuelPage() {
               <span>Question {currentQuestion.position}/{duelState.questionCount}</span>
               <strong className={duelState.canAnswer ? 'is-your-turn' : ''}>{statusCopy}</strong>
             </div>
+            <p className="duel-question-helper">
+              {duelState.canAnswer
+                ? 'Choisissez la meilleure réponse avant la fin du chrono.'
+                : duelState.canBuzz
+                  ? 'Appuyez sur le buzzer quand vous êtes prêt à répondre.'
+                  : 'Suivez la manche: la main peut changer après une mauvaise réponse.'}
+            </p>
 
             <div className="duel-center-timer">
               <span style={{ width: `${timerPct}%`, background: timerBarColor }} />

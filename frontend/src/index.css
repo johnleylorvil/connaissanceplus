@@ -1159,19 +1159,20 @@
 
 .challenge-duel-card {
   position: relative;
-  padding: 22px;
+  padding: 24px;
   background:
-    linear-gradient(135deg, rgba(15,32,64,0.98) 0%, rgba(22,40,72,0.95) 46%, rgba(27,99,67,0.92) 100%);
-  color: #fff;
-  box-shadow: 0 18px 40px rgba(15,32,64,0.18);
+    linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(251,248,242,0.98) 52%, rgba(243,232,212,0.82) 100%);
+  color: var(--ink);
+  box-shadow: 0 16px 38px rgba(15,32,64,0.09);
 }
 
 .challenge-duel-card::after {
   content: '';
   position: absolute;
-  inset: auto 0 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--gold) 0%, #1B6343 50%, var(--error) 100%);
+  inset: 0 auto 0 0;
+  width: 5px;
+  height: auto;
+  background: linear-gradient(180deg, var(--gold) 0%, var(--cobalt) 58%, var(--ok) 100%);
 }
 
 .challenge-card-topline {
@@ -1198,7 +1199,7 @@
 }
 
 .challenge-live-copy {
-  color: rgba(255,255,255,0.72);
+  color: var(--ink-3);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1221,9 +1222,9 @@
   gap: 10px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid rgba(255,255,255,0.16);
+  border: 1px solid rgba(15,32,64,0.12);
   border-radius: 8px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.78);
 }
 
 .challenge-player.opponent {
@@ -1237,8 +1238,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  color: var(--cobalt);
+  background: var(--cobalt);
+  color: #fff;
   font-size: 18px;
   font-weight: 900;
   flex-shrink: 0;
@@ -1254,8 +1255,8 @@
 }
 
 .challenge-vs-mark {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -1265,7 +1266,7 @@
   font-size: 18px;
   font-weight: 900;
   letter-spacing: 0.06em;
-  box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+  box-shadow: 0 10px 22px rgba(176,121,26,0.18);
 }
 
 .challenge-duel-copy,
@@ -1286,7 +1287,7 @@
 .challenge-duel-copy p,
 .challenge-training-card p {
   margin: 0;
-  color: rgba(255,255,255,0.74);
+  color: var(--ink-3);
   font-size: 15px;
   line-height: 1.65;
 }
@@ -1299,7 +1300,7 @@
 }
 
 .challenge-duel-form .field-label {
-  color: rgba(255,255,255,0.7);
+  color: var(--ink-3);
 }
 
 .challenge-select {
@@ -1313,12 +1314,12 @@
   gap: 12px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(15,32,64,0.11);
 }
 
 .challenge-selected-subject span {
-  color: rgba(255,255,255,0.64);
+  color: var(--ink-3);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1326,7 +1327,7 @@
 }
 
 .challenge-selected-subject strong {
-  color: #fff;
+  color: var(--ink);
   font-size: 14px;
   text-align: right;
 }
@@ -1337,7 +1338,7 @@
   border-color: var(--gold);
   color: #fff;
   font-size: 16px;
-  animation: duelPulse 2.2s ease-in-out infinite;
+  animation: none;
 }
 
 .challenge-duel-cta:hover {
@@ -1359,14 +1360,14 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   margin-top: 18px;
-  border: 1px solid rgba(255,255,255,0.16);
+  border: 1px solid rgba(15,32,64,0.11);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .challenge-duel-stats div {
   padding: 12px 10px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.7);
 }
 
 .challenge-duel-stats span {
@@ -1380,19 +1381,28 @@
 .challenge-duel-stats small {
   display: block;
   margin-top: 6px;
-  color: rgba(255,255,255,0.62);
+  color: var(--ink-3);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
+.challenge-human-note {
+  position: relative;
+  z-index: 1;
+  margin: 14px 0 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .challenge-training-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 20px;
-  background: var(--surface);
+  gap: 16px;
+  padding: 22px;
+  background: rgba(255,255,255,0.72);
 }
 
 .challenge-training-card h2 {
@@ -1408,6 +1418,37 @@
   flex-direction: column;
   gap: 12px;
   margin-top: auto;
+}
+
+.challenge-training-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.challenge-training-meta div {
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.challenge-training-meta span {
+  display: block;
+  color: var(--cobalt);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.challenge-training-meta small {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 640px) {
@@ -1552,7 +1593,7 @@
 }
 
 .duel-score-grid {
-  display: grid;
+  display: none;
   grid-template-columns: 1fr;
   gap: 12px;
 }
@@ -1694,34 +1735,83 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 14px;
+  padding: 14px 16px;
   border: 1px solid rgba(15,32,64,0.14);
   border-radius: 8px;
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 8px 22px rgba(15,32,64,0.06);
 }
 
-.duel-vs-strip span {
+.duel-side {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
-  overflow: hidden;
-  color: var(--ink-2);
-  font-size: 13px;
+}
+
+.duel-side.opponent {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  text-align: right;
+}
+
+.duel-side > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cobalt);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.duel-side.opponent > span {
+  background: var(--gold);
+}
+
+.duel-side small {
+  display: block;
+  color: var(--ink-3);
+  font-size: 10px;
   font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.duel-side strong {
+  display: block;
+  min-width: 0;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.duel-vs-strip span:last-child {
-  text-align: right;
+.duel-side b {
+  color: var(--cobalt);
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.duel-vs-strip strong {
-  padding: 4px 10px;
+.duel-vs-chip {
+  padding: 7px 10px;
   border-radius: 6px;
   background: var(--gold);
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 900;
   letter-spacing: 0.08em;
+  box-shadow: 0 8px 18px rgba(176,121,26,0.18);
 }
 
 .duel-matchmaking-panel,
@@ -1850,7 +1940,7 @@
 }
 
 .duel-question-panel {
-  padding: 20px;
+  padding: 24px;
 }
 
 .duel-question-topline {
@@ -1859,7 +1949,7 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .duel-question-topline span,
@@ -1885,8 +1975,15 @@
   color: var(--error);
 }
 
+.duel-question-helper {
+  margin: 0 0 14px;
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .duel-center-timer {
-  height: 8px;
+  height: 7px;
   border-radius: 99px;
   overflow: hidden;
   background: var(--rule);
@@ -1903,9 +2000,9 @@
 .duel-question-prompt {
   margin: 0 0 18px;
   color: var(--ink);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 800;
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 .duel-options-list {
@@ -1955,7 +2052,7 @@
 .duel-buzzer-button {
   background: var(--error);
   border-color: var(--error);
-  animation: duelPulse 1.6s ease-in-out infinite;
+  animation: none;
 }
 
 .duel-buzzer-button:hover {
@@ -2065,8 +2162,10 @@
     text-align: center;
   }
 
-  .duel-vs-strip span:last-child {
-    text-align: center;
+  .duel-side,
+  .duel-side.opponent {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    text-align: left;
   }
 
   .duel-action-row .btn {

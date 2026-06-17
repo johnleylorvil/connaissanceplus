@@ -580,7 +580,7 @@ export default function StudentDashboard() {
                 <section className="challenge-duel-card">
                   <div className="challenge-card-topline">
                     <span className="challenge-ranked-badge">Classé</span>
-                    <span className="challenge-live-copy">Duel en temps réel</span>
+                    <span className="challenge-live-copy">Face-à-face en direct</span>
                   </div>
 
                   <div className="challenge-versus">
@@ -598,7 +598,7 @@ export default function StudentDashboard() {
                   <div className="challenge-duel-copy">
                     <h2>Affrontement classé</h2>
                     <p>
-                      Choisis une matière, entre dans la file, puis réponds plus vite et plus juste pour grimper au classement hebdomadaire.
+                      Trouve un élève de ton niveau, prends la main au buzzer, puis gagne avec des réponses justes.
                     </p>
                   </div>
 
@@ -612,7 +612,7 @@ export default function StudentDashboard() {
                     </select>
 
                     <div className="challenge-selected-subject">
-                      <span>Terrain choisi</span>
+                      <span>Matière choisie</span>
                       <strong>{selectedDuelSubject?.name ?? 'En attente de sélection'}</strong>
                     </div>
 
@@ -642,12 +642,26 @@ export default function StudentDashboard() {
                       <small>matières</small>
                     </div>
                   </div>
+                  <p className="challenge-human-note">
+                    Le duel démarre automatiquement dès qu'un adversaire est trouvé. Tu peux quitter la recherche à tout moment.
+                  </p>
                 </section>
 
                 <aside className="challenge-training-card">
                   <p className="overline">Entraînement</p>
                   <h2>Manche individuelle</h2>
                   <p>Prépare-toi avant d'entrer en classé. Même base de questions, moins de pression.</p>
+
+                  <div className="challenge-training-meta">
+                    <div>
+                      <span>{bestScore}</span>
+                      <small>record perso</small>
+                    </div>
+                    <div>
+                      <span>{history.length}</span>
+                      <small>manches</small>
+                    </div>
+                  </div>
 
                   {quizError && <div className="alert alert-error">{quizError}</div>}
 
