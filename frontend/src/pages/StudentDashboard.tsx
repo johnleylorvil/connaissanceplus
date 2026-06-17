@@ -473,6 +473,7 @@ export default function StudentDashboard() {
       ? Math.round(history.reduce((s, h) => s + h.score, 0) / history.length)
       : 0
   const bestScore = history.length > 0 ? Math.max(...history.map((h) => h.score)) : 0
+  const selectedDuelSubject = subjects.find((subject) => subject.id === duelSubjectId)
   const podiumRows = leaderboard.slice(0, 3).map((row, index) => ({
     ...row,
     rank: index + 1,
@@ -520,7 +521,7 @@ export default function StudentDashboard() {
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Bonjour, {user?.firstName}.</h1>
               <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 22, fontWeight: 500 }}>
                 {history.length > 0
-                  ? `${history.length} session${history.length > 1 ? 's' : ''} jouée${history.length > 1 ? 's' : ''} · Meilleur score : ${bestScore} pts`
+                  ? `${history.length} session${history.length > 1 ? 's' : ''} jouée${history.length > 1 ? 's' : ''} · Meilleur score : ${bestScore} pts`
                   : 'Aucune session encore — lancez votre première manche.'}
               </p>
 
@@ -538,7 +539,7 @@ export default function StudentDashboard() {
               </div>
 
               <div className="card responsive-stack row" style={{ marginBottom: 28 }}>
-                <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--cobalt)' }}>Une manche d’entraînement ?</p>
+                <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--cobalt)' }}>Une manche d’entraînement ?</p>
                 <button onClick={() => setTab('quiz')} className="btn btn-primary" style={{ flexShrink: 0 }}>Lancer une manche</button>
               </div>
 
@@ -563,45 +564,104 @@ export default function StudentDashboard() {
 
           {/* ── QUIZ ── */}
           {tab === 'quiz' && (
-            <div>
-              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 22 }}>Challenge</h1>
+            <div className="challenge-hub">
+              <div className="challenge-header">
+                <div>
+                  <p className="overline">Mode compétition</p>
+                  <h1 className="display challenge-title">Challenge</h1>
+                </div>
+                <div className="challenge-record">
+                  <span>{history.length}</span>
+                  <small>manches jouées</small>
+                </div>
+              </div>
 
-              <div className="grid gap-5 lg:grid-cols-2">
-                <div className="card" style={{ marginBottom: 0 }}>
-                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 16 }}>Manche individuelle</p>
-                  {quizError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{quizError}</div>}
+              <div className="challenge-layout">
+                <section className="challenge-duel-card">
+                  <div className="challenge-card-topline">
+                    <span className="challenge-ranked-badge">Classé</span>
+                    <span className="challenge-live-copy">Duel en temps réel</span>
+                  </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div>
-                      <label className="field-label">Matière</label>
-                      <select value={quizSubjectId} onChange={(e) => setQuizSubjectId(e.target.value)} className="field-input">
-                        <option value="">Choisir une matière</option>
-                        {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
+                  <div className="challenge-versus">
+                    <div className="challenge-player">
+                      <div className="challenge-avatar">{user?.firstName?.[0] ?? 'E'}</div>
+                      <span>{user?.firstName ?? 'Vous'}</span>
                     </div>
-                    <button onClick={startQuiz} disabled={quizLoading || !quizSubjectId} className="btn btn-primary btn-full">
-                      {quizLoading ? 'Chargement…' : 'Commencer la manche'}
+                    <div className="challenge-vs-mark">VS</div>
+                    <div className="challenge-player opponent">
+                      <div className="challenge-avatar">?</div>
+                      <span>Adversaire</span>
+                    </div>
+                  </div>
+
+                  <div className="challenge-duel-copy">
+                    <h2>Affrontement classé</h2>
+                    <p>
+                      Choisis une matière, entre dans la file, puis réponds plus vite et plus juste pour grimper au classement hebdomadaire.
+                    </p>
+                  </div>
+
+                  {duelError && <div className="alert alert-error">{duelError}</div>}
+
+                  <div className="challenge-duel-form">
+                    <label className="field-label">Matière du duel</label>
+                    <select value={duelSubjectId} onChange={(e) => setDuelSubjectId(e.target.value)} className="field-input challenge-select">
+                      <option value="">Choisir une matière</option>
+                      {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+
+                    <div className="challenge-selected-subject">
+                      <span>Terrain choisi</span>
+                      <strong>{selectedDuelSubject?.name ?? 'En attente de sélection'}</strong>
+                    </div>
+
+                    <button onClick={searchOpponent} disabled={duelLoading || !duelSubjectId} className="btn btn-primary btn-full challenge-duel-cta">
+                      {duelLoading ? (
+                        <>
+                          <span className="challenge-cta-loader" />
+                          Recherche d'un adversaire
+                        </>
+                      ) : (
+                        'Lancer le duel classé'
+                      )}
                     </button>
                   </div>
-                </div>
 
-                <div className="card" style={{ marginBottom: 0 }}>
-                  <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--cobalt)', marginBottom: 16 }}>Affrontement classé</p>
-                  {duelError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{duelError}</div>}
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="challenge-duel-stats">
                     <div>
-                      <label className="field-label">Matière</label>
-                      <select value={duelSubjectId} onChange={(e) => setDuelSubjectId(e.target.value)} className="field-input">
-                        <option value="">Choisir une matière</option>
-                        {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
+                      <span>{bestScore}</span>
+                      <small>meilleur score</small>
                     </div>
-                    <button onClick={searchOpponent} disabled={duelLoading || !duelSubjectId} className="btn btn-primary btn-full">
-                      {duelLoading ? 'Recherche…' : 'Chercher un adversaire'}
+                    <div>
+                      <span>{avgScore}</span>
+                      <small>moyenne</small>
+                    </div>
+                    <div>
+                      <span>{subjects.length}</span>
+                      <small>matières</small>
+                    </div>
+                  </div>
+                </section>
+
+                <aside className="challenge-training-card">
+                  <p className="overline">Entraînement</p>
+                  <h2>Manche individuelle</h2>
+                  <p>Prépare-toi avant d'entrer en classé. Même base de questions, moins de pression.</p>
+
+                  {quizError && <div className="alert alert-error">{quizError}</div>}
+
+                  <div className="challenge-training-form">
+                    <label className="field-label">Matière</label>
+                    <select value={quizSubjectId} onChange={(e) => setQuizSubjectId(e.target.value)} className="field-input">
+                      <option value="">Choisir une matière</option>
+                      {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button onClick={startQuiz} disabled={quizLoading || !quizSubjectId} className="btn btn-ghost btn-full">
+                      {quizLoading ? 'Chargement...' : "Commencer l'entraînement"}
                     </button>
                   </div>
-                </div>
+                </aside>
               </div>
             </div>
           )}
