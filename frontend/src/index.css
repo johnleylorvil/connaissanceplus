@@ -2727,3 +2727,39 @@
   .insight-subject-row { grid-template-columns: minmax(0, 1fr) auto; }
   .insight-subject-row > strong { grid-column: 2; }
 }
+
+
+/* Detailed student statistics */
+.statistics-page { display: grid; gap: 22px; }
+.statistics-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.statistics-kpi { padding: 18px; }
+.statistics-kpi strong { color: var(--cobalt); display: block; font-size: 32px; }
+.statistics-kpi span { color: var(--ink-3); display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-top: 7px; text-transform: uppercase; }
+.statistics-chart-card, .statistics-subject-card, .statistics-record-card { padding: 20px; }
+.statistics-section-heading { align-items: flex-start; display: flex; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.statistics-section-heading h2 { color: var(--cobalt); font-size: 21px; margin-top: 4px; }
+.statistics-section-heading > strong { color: var(--ink-3); font-size: 13px; }
+.statistics-chart { align-items: end; display: grid; grid-template-columns: repeat(30, minmax(12px, 1fr)); gap: 4px; height: 190px; overflow-x: auto; padding-top: 12px; }
+.statistics-day { display: grid; grid-template-rows: 150px 22px; min-width: 12px; text-align: center; }
+.statistics-bar-track { align-items: end; background: #f1f5f9; border-radius: 4px 4px 0 0; display: flex; height: 150px; overflow: hidden; }
+.statistics-bar { align-items: flex-start; background: linear-gradient(180deg, var(--cobalt), #4f78c8); border-radius: 4px 4px 0 0; display: flex; justify-content: center; min-height: 4px; transition: height .3s ease; width: 100%; }
+.statistics-bar span { color: #fff; font-size: 9px; font-weight: 700; padding-top: 3px; }
+.statistics-day small { color: var(--ink-3); font-size: 9px; padding-top: 5px; white-space: nowrap; }
+.statistics-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.statistics-legend span { background: #f8fafc; border: 1px solid var(--rule); border-radius: 999px; color: var(--ink-3); font-size: 11px; padding: 5px 9px; }
+.statistics-two-col { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, .75fr); gap: 14px; }
+.statistics-subject { align-items: center; border-top: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 14px; padding: 12px 0; }
+.statistics-subject > div:first-child span { color: var(--ink-3); display: block; font-size: 12px; margin-top: 2px; }
+.statistics-progress { background: #e2e8f0; border-radius: 999px; grid-column: 1 / -1; height: 6px; overflow: hidden; }
+.statistics-progress span { background: var(--cobalt); border-radius: inherit; display: block; height: 100%; }
+.statistics-record-card { display: grid; align-content: start; gap: 18px; }
+.statistics-record-group { border-top: 1px solid var(--rule); padding-top: 12px; }
+.statistics-record-group h3 { color: var(--cobalt); font-size: 15px; margin-bottom: 8px; }
+.statistics-record-group div { align-items: center; display: flex; justify-content: space-between; padding: 5px 0; }
+.statistics-record-group span { color: var(--ink-3); font-size: 13px; }
+
+@media (max-width: 760px) {
+  .statistics-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .statistics-two-col { grid-template-columns: 1fr; }
+  .statistics-chart { grid-template-columns: repeat(30, 18px); }
+}

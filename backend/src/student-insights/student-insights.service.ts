@@ -294,6 +294,46 @@ export class StudentInsightsService {
       return latest && latest.senderUserId !== userId;
     });
 
+    const activityByDate = new Map(
+      Array.from({ length: INSIGHT_DAYS }, (_, index) => {
+        const date = this.shiftDateKey(periodStart, index);
+        return [
+          date,
+          {
+            date,
+            quizzes: 0,
+            duels: 0,
+            arena: 0,
+            correspondence: 0,
+            total: 0,
+          },
+        ];
+      }),
+    );
+    const addActivity = (
+      date: Date | null | undefined,
+      type: 'quizzes' | 'duels' | 'arena' | 'correspondence',
+    ) => {
+      if (!date) return;
+      const day = activityByDate.get(this.localDateKey(date));
+      if (!day) return;
+      day[type] += 1;
+      day.total += 1;
+    };
+    recentQuizzes.forEach((item) => addActivity(item.startedAt, 'quizzes'));
+    recentDuels.forEach((item) =>
+      addActivity(item.duelMatch.completedAt ?? item.lastActivityAt, 'duels'),
+    );
+    recentCompletedRegistrations.forEach((item) =>
+      addActivity(item.competition.completedAt, 'arena'),
+    );
+    recentLetters.forEach((item) =>
+      addActivity(item.submittedAt, 'correspondence'),
+    );
+    recentMessages.forEach((item) =>
+      addActivity(item.createdAt, 'correspondence'),
+    );
+
     const summary = {
       activeDays: activeDays.size,
       quizzes: {
@@ -366,6 +406,7 @@ export class StudentInsightsService {
         awaitingReplies: awaitingReplies.length,
       },
       subjects: subjectStats,
+      activityTimeline: [...activityByDate.values()],
     };
 
     const candidates = this.buildCandidates({

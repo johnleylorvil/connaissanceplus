@@ -94,6 +94,12 @@ describe('StudentInsightsService', () => {
       previousAccuracy: 50,
       trend: 17,
     });
+    expect(insights.summary.activityTimeline).toHaveLength(30);
+    expect(
+      insights.summary.activityTimeline.find(
+        (entry) => entry.date === '2026-06-10',
+      ),
+    ).toMatchObject({ quizzes: 1, total: 1 });
   });
   it('requires three answers before classifying a subject', () => {
     const subjects = [

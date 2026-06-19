@@ -12,7 +12,7 @@ import {
 } from '../correspondence/correspondenceApi'
 import type { ContestSession, InboxItem, Letter, OpenedAssignment, Thread, ThreadMessage } from '../correspondence/types'
 
-type Tab = 'home' | 'summary' | 'recommendations' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence'
+type Tab = 'home' | 'summary' | 'recommendations' | 'statistics' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence'
 type CorrView = 'sessions' | 'write' | 'myletters' | 'inbox' | 'thread'
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
@@ -75,6 +75,7 @@ type StudentInsights = {
     arena: { periodCompetitions: number; previousCompetitions: number; totalCompetitions: number; periodWins: number; totalWins: number; periodCorrectAnswers: number; periodPoints: number; previousPoints: number; upcomingRegistrations: number }
     correspondence: { periodLettersSubmitted: number; previousLettersSubmitted: number; totalLettersSubmitted: number; periodMessagesSent: number; previousMessagesSent: number; totalMessagesSent: number; drafts: number; unopenedAssignments: number; awaitingReplies: number }
     subjects: Array<{ subjectId: string; subjectName: string; answered: number; correct: number; accuracy: number | null; level: 'strong' | 'needs_work' | 'insufficient_data' }>
+    activityTimeline: Array<{ date: string; quizzes: number; duels: number; arena: number; correspondence: number; total: number }>
   }
   recommendations: Array<{ id: string; category: 'learning' | 'competition' | 'participation'; title: string; reason: string; action: InsightAction }>
 }
@@ -235,7 +236,7 @@ export default function StudentDashboard() {
     if (tab === 'home' || tab === 'history') loadHistory()
     if (tab === 'leaderboard') loadLeaderboard()
     if (tab === 'notifications') loadNotifications()
-    if (tab === 'home' || tab === 'summary' || tab === 'recommendations') void loadInsights()
+    if (tab === 'home' || tab === 'summary' || tab === 'recommendations' || tab === 'statistics') void loadInsights()
   }, [loadHistory, loadInsights, loadLeaderboard, loadNotifications, tab])
 
   const startQuiz = async () => {
@@ -489,8 +490,6 @@ export default function StudentDashboard() {
         { id: 'quiz', label: 'Challenge', onClick: () => openStudentTab('quiz'), active: tab === 'quiz' },
         { id: 'arena', label: 'Arena', onClick: () => openStudentTab('arena'), active: tab === 'arena' },
         { id: 'leaderboard', label: 'Classement', onClick: () => openStudentTab('leaderboard'), active: tab === 'leaderboard' },
-        { id: 'exams', label: 'Examens', muted: true, disabled: true },
-        { id: 'certifications', label: 'Certifications', muted: true, disabled: true },
       ],
     },
     {
@@ -508,7 +507,7 @@ export default function StudentDashboard() {
       items: [
         { id: 'history', label: 'Historique', onClick: () => openStudentTab('history'), active: tab === 'history' },
         { id: 'notifications', label: 'Notifications', onClick: () => openStudentTab('notifications'), active: tab === 'notifications', badge: unreadCount > 0 ? unreadCount : undefined },
-        { id: 'stats', label: 'Statistiques', muted: true, disabled: true },
+        { id: 'stats', label: 'Statistiques', onClick: () => openStudentTab('statistics'), active: tab === 'statistics' },
       ],
     },
     {
@@ -538,6 +537,7 @@ export default function StudentDashboard() {
     { key: 'recommendations', label: 'Conseils' },
     { key: 'quiz', label: 'Challenge' },
     { key: 'history', label: 'Historique' },
+    { key: 'statistics', label: 'Statistiques' },
     { key: 'leaderboard', label: 'Classement' },
     { key: 'correspondence', label: 'Correspondance' },
     { key: 'profile', label: 'Profil' },
@@ -549,6 +549,7 @@ export default function StudentDashboard() {
       : 0
   const bestScore = history.length > 0 ? Math.max(...history.map((h) => h.score)) : 0
   const selectedDuelSubject = subjects.find((subject) => subject.id === duelSubjectId)
+  const maxDailyActivity = Math.max(1, ...(insights?.summary.activityTimeline.map((day) => day.total) ?? [1]))
   const podiumRows = leaderboard.slice(0, 3).map((row, index) => ({
     ...row,
     rank: index + 1,
@@ -570,7 +571,7 @@ export default function StudentDashboard() {
         sections={studentSidebarSections}
         onLogout={logout}
         logoutLabel="Déconnexion"
-        footerNote="Une structure pensée pour évoluer vers examens, certifications et contenus."
+        footerNote="Suivez vos activités, vos résultats et votre progression."
       />
 
       {/* ── MAIN ── */}
@@ -773,6 +774,117 @@ export default function StudentDashboard() {
               )}
             </div>
           )}
+
+          {/* DETAILED STATISTICS */}
+          {tab === 'statistics' && (
+            <div className="statistics-page">
+              <div className="insights-heading">
+                <div>
+                  <p className="overline">Analyse détaillée</p>
+                  <h1 className="display">Statistiques</h1>
+                  <p>Visualisez votre rythme, vos performances par matière et votre bilan compétitif.</p>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => void loadInsights()} disabled={insightsLoading}>Actualiser</button>
+              </div>
+
+              {insightsError && <div className="alert alert-error">{insightsError}</div>}
+              {insightsLoading && !insights && <div className="card insights-empty">Calcul de vos statistiques...</div>}
+
+              {insights && (
+                <>
+                  <section className="statistics-kpi-grid">
+                    {[
+                      { label: 'Quiz terminés', value: insights.summary.quizzes.totalSessions },
+                      { label: 'Duels terminés', value: insights.summary.duels.totalParticipations },
+                      { label: 'Arena disputées', value: insights.summary.arena.totalCompetitions },
+                      { label: 'Lettres soumises', value: insights.summary.correspondence.totalLettersSubmitted },
+                    ].map((item) => (
+                      <div className="card statistics-kpi" key={item.label}>
+                        <strong className="display">{item.value}</strong>
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                  </section>
+
+                  <section className="card statistics-chart-card">
+                    <div className="statistics-section-heading">
+                      <div>
+                        <p className="overline">Régularité</p>
+                        <h2>Activité des 30 derniers jours</h2>
+                      </div>
+                      <strong>{insights.period.activeDays} jour(s) actif(s)</strong>
+                    </div>
+                    <div className="statistics-chart" role="img" aria-label="Activités quotidiennes sur les 30 derniers jours">
+                      {insights.summary.activityTimeline.map((day, index) => (
+                        <div className="statistics-day" key={day.date} title={day.date + ' : ' + day.total + ' activité(s)'}>
+                          <div className="statistics-bar-track">
+                            <div className="statistics-bar" style={{ height: Math.max(4, Math.round((day.total / maxDailyActivity) * 100)) + '%' }}>
+                              {day.total > 0 && <span>{day.total}</span>}
+                            </div>
+                          </div>
+                          <small>{index % 5 === 0 || index === 29 ? new Date(day.date + 'T12:00:00').toLocaleDateString('fr-HT', { day: '2-digit', month: '2-digit' }) : ''}</small>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="statistics-legend">
+                      <span>Quiz : {insights.summary.quizzes.periodSessions}</span>
+                      <span>Duels : {insights.summary.duels.periodParticipations}</span>
+                      <span>Arena : {insights.summary.arena.periodCompetitions}</span>
+                      <span>Correspondance : {insights.summary.correspondence.periodLettersSubmitted + insights.summary.correspondence.periodMessagesSent}</span>
+                    </div>
+                  </section>
+
+                  <div className="statistics-two-col">
+                    <section className="card statistics-subject-card">
+                      <div className="statistics-section-heading">
+                        <div>
+                          <p className="overline">Précision</p>
+                          <h2>Résultats par matière</h2>
+                        </div>
+                      </div>
+                      {insights.summary.subjects.length === 0 ? (
+                        <p className="insight-trend">Aucune matière analysée pour le moment.</p>
+                      ) : insights.summary.subjects.map((subject) => (
+                        <div className="statistics-subject" key={subject.subjectId}>
+                          <div>
+                            <strong>{subject.subjectName}</strong>
+                            <span>{subject.correct}/{subject.answered} bonnes réponses</span>
+                          </div>
+                          <strong>{insightValue(subject.accuracy, '%')}</strong>
+                          <div className="statistics-progress">
+                            <span style={{ width: (subject.accuracy ?? 0) + '%' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </section>
+
+                    <section className="card statistics-record-card">
+                      <div className="statistics-section-heading">
+                        <div>
+                          <p className="overline">Compétition</p>
+                          <h2>Bilan personnel</h2>
+                        </div>
+                      </div>
+                      <div className="statistics-record-group">
+                        <h3>Duels</h3>
+                        <div><span>Victoires</span><strong>{insights.summary.duels.wins}</strong></div>
+                        <div><span>Défaites</span><strong>{insights.summary.duels.losses}</strong></div>
+                        <div><span>Égalités</span><strong>{insights.summary.duels.draws}</strong></div>
+                        <div><span>Précision récente</span><strong>{insightValue(insights.summary.duels.accuracy, '%')}</strong></div>
+                      </div>
+                      <div className="statistics-record-group">
+                        <h3>Arena</h3>
+                        <div><span>Victoires</span><strong>{insights.summary.arena.totalWins}</strong></div>
+                        <div><span>Compétitions</span><strong>{insights.summary.arena.totalCompetitions}</strong></div>
+                        <div><span>Points sur 30 jours</span><strong>{insights.summary.arena.periodPoints}</strong></div>
+                      </div>
+                    </section>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
 
           {/* ── QUIZ ── */}
           {tab === 'quiz' && (
