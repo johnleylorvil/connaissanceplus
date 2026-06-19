@@ -12,7 +12,7 @@ import {
 } from '../correspondence/correspondenceApi'
 import type { ContestSession, InboxItem, Letter, OpenedAssignment, Thread, ThreadMessage } from '../correspondence/types'
 
-type Tab = 'home' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence'
+type Tab = 'home' | 'summary' | 'recommendations' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence'
 type CorrView = 'sessions' | 'write' | 'myletters' | 'inbox' | 'thread'
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
@@ -58,7 +58,43 @@ type MatchmakingResponse = {
   status: 'waiting' | 'in_progress' | 'completed'
   competitionId: string
 }
+type InsightAction =
+  | { type: 'start_quiz'; subjectId: string }
+  | { type: 'open_duels'; subjectId?: string }
+  | { type: 'open_arena'; competitionId?: string }
+  | { type: 'open_correspondence'; view: CorrView; targetId?: string }
+  | { type: 'view_history' }
 
+type StudentInsights = {
+  generatedFor: string
+  period: { from: string; to: string; days: number; previousFrom: string; previousTo: string; activeDays: number }
+  summary: {
+    activeDays: number
+    quizzes: { periodSessions: number; previousSessions: number; totalSessions: number; accuracy: number | null; previousAccuracy: number | null; trend: number | null }
+    duels: { periodParticipations: number; previousParticipations: number; totalParticipations: number; wins: number; losses: number; draws: number; accuracy: number | null; previousAccuracy: number | null; trend: number | null }
+    arena: { periodCompetitions: number; previousCompetitions: number; totalCompetitions: number; periodWins: number; totalWins: number; periodCorrectAnswers: number; periodPoints: number; previousPoints: number; upcomingRegistrations: number }
+    correspondence: { periodLettersSubmitted: number; previousLettersSubmitted: number; totalLettersSubmitted: number; periodMessagesSent: number; previousMessagesSent: number; totalMessagesSent: number; drafts: number; unopenedAssignments: number; awaitingReplies: number }
+    subjects: Array<{ subjectId: string; subjectName: string; answered: number; correct: number; accuracy: number | null; level: 'strong' | 'needs_work' | 'insufficient_data' }>
+  }
+  recommendations: Array<{ id: string; category: 'learning' | 'competition' | 'participation'; title: string; reason: string; action: InsightAction }>
+}
+
+
+const insightValue = (value: number | null, suffix = '') => value === null ? '—' : value + suffix
+const trendText = (trend: number | null) => {
+  if (trend === null) return 'Pas encore de comparaison'
+  if (trend === 0) return 'Stable par rapport à la période précédente'
+  return (trend > 0 ? '+' : '') + trend + ' points par rapport à la période précédente'
+}
+const insightActionLabel = (action: InsightAction) => {
+  switch (action.type) {
+    case 'start_quiz': return 'Lancer cet entraînement'
+    case 'open_duels': return 'Ouvrir les duels'
+    case 'open_arena': return 'Ouvrir Arena'
+    case 'open_correspondence': return 'Ouvrir Correspondance'
+    case 'view_history': return 'Voir mon historique'
+  }
+}
 export default function StudentDashboard() {
   const { user, accessToken, logout, updateUser } = useAuth()
   const navigate = useNavigate()
@@ -70,6 +106,9 @@ export default function StudentDashboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notificationError, setNotificationError] = useState('')
+  const [insights, setInsights] = useState<StudentInsights | null>(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
+  const [insightsError, setInsightsError] = useState('')
 
   const [quizSubjectId, setQuizSubjectId] = useState('')
   const [quizLoading, setQuizLoading] = useState(false)
@@ -158,6 +197,18 @@ export default function StudentDashboard() {
     () => apiCall<Notification[]>('/notifications', {}, accessToken).then(setNotifications).catch(() => {}),
     [accessToken],
   )
+  const loadInsights = useCallback(async () => {
+    if (!accessToken) return
+    setInsightsLoading(true)
+    setInsightsError('')
+    try {
+      setInsights(await apiCall<StudentInsights>('/student/insights', {}, accessToken))
+    } catch (err) {
+      setInsightsError((err as { message?: string }).message ?? 'Impossible de charger votre progression.')
+    } finally {
+      setInsightsLoading(false)
+    }
+  }, [accessToken])
 
   useEffect(() => {
     apiCall<SchoolClass[]>('/classes').then(setClasses).catch(() => {})
@@ -184,7 +235,8 @@ export default function StudentDashboard() {
     if (tab === 'home' || tab === 'history') loadHistory()
     if (tab === 'leaderboard') loadLeaderboard()
     if (tab === 'notifications') loadNotifications()
-  }, [loadHistory, loadLeaderboard, loadNotifications, tab])
+    if (tab === 'home' || tab === 'summary' || tab === 'recommendations') void loadInsights()
+  }, [loadHistory, loadInsights, loadLeaderboard, loadNotifications, tab])
 
   const startQuiz = async () => {
     setQuizError('')
@@ -398,6 +450,27 @@ export default function StudentDashboard() {
     setCorrView(nextView)
     setCorrError('')
   }
+  const runInsightAction = (action: InsightAction) => {
+    switch (action.type) {
+      case 'start_quiz':
+        if (subjects.some((subject) => subject.id === action.subjectId)) setQuizSubjectId(action.subjectId)
+        setTab('quiz')
+        break
+      case 'open_duels':
+        if (action.subjectId && subjects.some((subject) => subject.id === action.subjectId)) setDuelSubjectId(action.subjectId)
+        setTab('quiz')
+        break
+      case 'open_arena':
+        setTab('arena')
+        break
+      case 'open_correspondence':
+        if (['sessions', 'write', 'myletters', 'inbox', 'thread'].includes(action.view)) openStudentCorrespondence(action.view)
+        break
+      case 'view_history':
+        setTab('history')
+        break
+    }
+  }
 
   const studentSidebarSections: DashboardSidebarSection[] = [
     {
@@ -405,8 +478,8 @@ export default function StudentDashboard() {
       note: 'Point d\'entrée',
       items: [
         { id: 'home', label: 'Accueil', onClick: () => openStudentTab('home'), active: tab === 'home' },
-        { id: 'home-summary', label: 'Résumé personnel', muted: true, disabled: true },
-        { id: 'home-reco', label: 'Recommandations du jour', muted: true, disabled: true },
+        { id: 'home-summary', label: 'Résumé personnel', onClick: () => openStudentTab('summary'), active: tab === 'summary' },
+        { id: 'home-reco', label: 'Recommandations du jour', onClick: () => openStudentTab('recommendations'), active: tab === 'recommendations' },
       ],
     },
     {
@@ -461,6 +534,8 @@ export default function StudentDashboard() {
 
   const studentMobileNavItems: { key: Tab; label: string }[] = [
     { key: 'home', label: 'Accueil' },
+    { key: 'summary', label: 'Résumé' },
+    { key: 'recommendations', label: 'Conseils' },
     { key: 'quiz', label: 'Challenge' },
     { key: 'history', label: 'Historique' },
     { key: 'leaderboard', label: 'Classement' },
@@ -520,16 +595,16 @@ export default function StudentDashboard() {
             <div>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 4 }}>Bonjour, {user?.firstName}.</h1>
               <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 22, fontWeight: 500 }}>
-                {history.length > 0
-                  ? `${history.length} session${history.length > 1 ? 's' : ''} jouée${history.length > 1 ? 's' : ''} · Meilleur score : ${bestScore} pts`
+                {(insights?.summary.quizzes.totalSessions ?? history.length) > 0
+                  ? (insights?.summary.quizzes.totalSessions ?? history.length) + ' challenge(s) enregistré(s) · ' + (insights?.period.activeDays ?? 0) + ' jour(s) actif(s) récemment'
                   : 'Aucune session encore — lancez votre première manche.'}
               </p>
 
               <div className="responsive-three-col" style={{ border: '1px solid var(--rule)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 }}>
                 {[
-                  { label: 'Challenges joués', value: history.length, accent: 'var(--cobalt)' },
+                  { label: 'Challenges joués', value: insights?.summary.quizzes.totalSessions ?? history.length, accent: 'var(--cobalt)' },
                   { label: 'Meilleur score', value: bestScore, accent: 'var(--cobalt)' },
-                  { label: 'Score moyen', value: avgScore, accent: 'var(--cobalt)' },
+                  { label: 'Précision récente', value: insights?.summary.quizzes.accuracy === null || insights?.summary.quizzes.accuracy === undefined ? '—' : insights.summary.quizzes.accuracy + '%', accent: 'var(--cobalt)' },
                 ].map((stat) => (
                   <div key={stat.label} className="mobile-stat-card" style={{ background: '#fff', padding: '20px 18px' }}>
                     <div className="display" style={{ fontSize: 36, color: stat.accent, letterSpacing: '-0.03em', lineHeight: 1 }}>{stat.value}</div>
@@ -557,6 +632,143 @@ export default function StudentDashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+          {/* PERSONAL SUMMARY */}
+          {tab === 'summary' && (
+            <div className="insights-page">
+              <div className="insights-heading">
+                <div>
+                  <p className="overline">30 derniers jours</p>
+                  <h1 className="display">Résumé personnel</h1>
+                  <p>Vos activités restent séparées pour montrer clairement où vous progressez.</p>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => void loadInsights()} disabled={insightsLoading}>Actualiser</button>
+              </div>
+
+              {insightsError && <div className="alert alert-error">{insightsError}</div>}
+              {insightsLoading && !insights && <div className="card insights-empty">Analyse de votre progression...</div>}
+
+              {insights && (
+                <>
+                  <div className="responsive-three-col insights-overview">
+                    {[
+                      { label: 'Jours actifs', value: insights.period.activeDays },
+                      { label: 'Activités récentes', value: insights.summary.quizzes.periodSessions + insights.summary.duels.periodParticipations + insights.summary.arena.periodCompetitions + insights.summary.correspondence.periodLettersSubmitted },
+                      { label: 'Matières pratiquées', value: insights.summary.subjects.filter((subject) => subject.answered > 0).length },
+                    ].map((stat) => (
+                      <div className="mobile-stat-card" key={stat.label}>
+                        <strong className="display">{stat.value}</strong>
+                        <span>{stat.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="insights-grid">
+                    <section className="card insight-domain">
+                      <p className="overline">Apprentissage</p>
+                      <h2>Quiz individuels</h2>
+                      <div className="insight-metrics">
+                        <div><strong>{insights.summary.quizzes.periodSessions}</strong><span>sur 30 jours</span></div>
+                        <div><strong>{insightValue(insights.summary.quizzes.accuracy, '%')}</strong><span>de précision</span></div>
+                        <div><strong>{insights.summary.quizzes.totalSessions}</strong><span>au total</span></div>
+                      </div>
+                      <p className="insight-trend">{trendText(insights.summary.quizzes.trend)} · {insights.summary.quizzes.previousSessions} session(s) sur la période précédente</p>
+                    </section>
+
+                    <section className="card insight-domain">
+                      <p className="overline">Face-à-face</p>
+                      <h2>Duels</h2>
+                      <div className="insight-metrics">
+                        <div><strong>{insights.summary.duels.wins}</strong><span>victoires</span></div>
+                        <div><strong>{insights.summary.duels.losses}</strong><span>défaites</span></div>
+                        <div><strong>{insightValue(insights.summary.duels.accuracy, '%')}</strong><span>de précision</span></div>
+                      </div>
+                      <p className="insight-trend">{trendText(insights.summary.duels.trend)} · {insights.summary.duels.previousParticipations} duel(s) sur la période précédente</p>
+                    </section>
+
+                    <section className="card insight-domain">
+                      <p className="overline">Compétitions</p>
+                      <h2>Arena</h2>
+                      <div className="insight-metrics">
+                        <div><strong>{insights.summary.arena.periodCompetitions}</strong><span>sur 30 jours</span></div>
+                        <div><strong>{insights.summary.arena.periodPoints}</strong><span>points récents</span></div>
+                        <div><strong>{insights.summary.arena.totalWins}</strong><span>victoires totales</span></div>
+                      </div>
+                      <p className="insight-trend">Période précédente : {insights.summary.arena.previousCompetitions} compétition(s), {insights.summary.arena.previousPoints} points · {insights.summary.arena.upcomingRegistrations} inscription(s) à venir</p>
+                    </section>
+
+                    <section className="card insight-domain">
+                      <p className="overline">Échanges</p>
+                      <h2>Correspondance</h2>
+                      <div className="insight-metrics">
+                        <div><strong>{insights.summary.correspondence.periodLettersSubmitted}</strong><span>lettres récentes</span></div>
+                        <div><strong>{insights.summary.correspondence.periodMessagesSent}</strong><span>messages récents</span></div>
+                        <div><strong>{insights.summary.correspondence.unopenedAssignments + insights.summary.correspondence.awaitingReplies}</strong><span>à traiter</span></div>
+                      </div>
+                      <p className="insight-trend">Période précédente : {insights.summary.correspondence.previousLettersSubmitted} lettre(s), {insights.summary.correspondence.previousMessagesSent} message(s) · {insights.summary.correspondence.totalLettersSubmitted} lettre(s) au total</p>
+                    </section>
+                  </div>
+
+                  <section className="card insight-subjects">
+                    <div>
+                      <p className="overline">Par matière</p>
+                      <h2>Points forts et priorités</h2>
+                    </div>
+                    {insights.summary.subjects.length === 0 ? (
+                      <p className="insight-trend">Complétez votre classe pour commencer votre suivi par matière.</p>
+                    ) : insights.summary.subjects.map((subject) => (
+                      <div className="insight-subject-row" key={subject.subjectId}>
+                        <div>
+                          <strong>{subject.subjectName}</strong>
+                          <span>{subject.answered} réponse(s) analysée(s)</span>
+                        </div>
+                        <span className={'insight-level ' + subject.level}>
+                          {subject.level === 'strong' ? 'Point fort' : subject.level === 'needs_work' ? 'À renforcer' : 'Données à compléter'}
+                        </span>
+                        <strong>{insightValue(subject.accuracy, '%')}</strong>
+                      </div>
+                    ))}
+                  </section>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* DAILY RECOMMENDATIONS */}
+          {tab === 'recommendations' && (
+            <div className="insights-page">
+              <div className="insights-heading">
+                <div>
+                  <p className="overline">Programme du {insights?.generatedFor ? new Date(insights.generatedFor + 'T12:00:00').toLocaleDateString('fr-HT') : 'jour'}</p>
+                  <h1 className="display">Recommandations du jour</h1>
+                  <p>Trois actions concrètes, choisies selon vos priorités et conservées pour la journée.</p>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => void loadInsights()} disabled={insightsLoading}>Actualiser</button>
+              </div>
+
+              {insightsError && <div className="alert alert-error">{insightsError}</div>}
+              {insightsLoading && !insights && <div className="card insights-empty">Préparation de votre programme...</div>}
+              {insights && insights.recommendations.length === 0 && (
+                <div className="card insights-empty">Aucune action prioritaire aujourd'hui. Votre parcours est à jour.</div>
+              )}
+              {insights && (
+                <div className="recommendation-grid">
+                  {insights.recommendations.map((recommendation, index) => (
+                    <article className={'card recommendation-card ' + recommendation.category} key={recommendation.id}>
+                      <div className="recommendation-topline">
+                        <span>0{index + 1}</span>
+                        <span>{recommendation.category === 'learning' ? 'Apprentissage' : recommendation.category === 'competition' ? 'Compétition' : 'Participation'}</span>
+                      </div>
+                      <h2>{recommendation.title}</h2>
+                      <p>{recommendation.reason}</p>
+                      <button className="btn btn-primary btn-full" onClick={() => runInsightAction(recommendation.action)}>
+                        {insightActionLabel(recommendation.action)}
+                      </button>
+                    </article>
+                  ))}
                 </div>
               )}
             </div>

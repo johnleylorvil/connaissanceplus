@@ -33,6 +33,7 @@ import {
   Letter,
   ModerationCase,
 } from '../correspondence/correspondence.entities';
+import { StudentDailyRecommendation } from '../student-insights/student-daily-recommendation.entity';
 
 export const databaseEntities = [
   AcademicClass,
@@ -64,4 +65,5 @@ export const databaseEntities = [
   CorrespondenceMessage,
   CorrespondenceVote,
   ModerationCase,
+  StudentDailyRecommendation,
 ];

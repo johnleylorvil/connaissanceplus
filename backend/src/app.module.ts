@@ -10,6 +10,7 @@ import { ArenaModule } from './arena/arena.module';
 import { SponsorsModule } from './sponsors/sponsors.module';
 import { CorrespondenceModule } from './correspondence/correspondence.module';
 import { createTypeOrmOptions } from './database/typeorm.config';
+import { StudentInsightsModule } from './student-insights/student-insights.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { createTypeOrmOptions } from './database/typeorm.config';
     ArenaModule,
     SponsorsModule,
     CorrespondenceModule,
+    StudentInsightsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

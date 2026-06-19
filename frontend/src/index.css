@@ -2686,3 +2686,44 @@
     gap: 5px;
   }
 }
+
+
+/* Student insights */
+.insights-page { display: grid; gap: 22px; }
+.insights-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.insights-heading h1 { color: var(--cobalt); font-size: 32px; margin: 3px 0 6px; }
+.insights-heading > div > p:last-child, .insight-trend { color: var(--ink-3); font-size: 14px; }
+.insights-overview { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.insights-overview .mobile-stat-card { background: #fff; padding: 20px 18px; }
+.insights-overview strong { display: block; color: var(--cobalt); font-size: 34px; }
+.insights-overview span { display: block; color: var(--ink-3); font-size: 11px; font-weight: 600; letter-spacing: .07em; margin-top: 7px; text-transform: uppercase; }
+.insights-grid, .recommendation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.insight-domain, .insight-subjects, .recommendation-card { padding: 20px; }
+.insight-domain h2, .insight-subjects h2, .recommendation-card h2 { color: var(--cobalt); font-size: 21px; margin: 4px 0 16px; }
+.insight-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.insight-metrics div { border-left: 2px solid var(--rule); padding-left: 9px; }
+.insight-metrics strong, .insight-metrics span { display: block; }
+.insight-metrics strong { color: var(--ink); font-size: 22px; }
+.insight-metrics span { color: var(--ink-3); font-size: 11px; margin-top: 2px; }
+.insight-subjects { display: grid; gap: 10px; }
+.insight-subject-row { align-items: center; border-top: 1px solid var(--rule); display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto 56px; padding-top: 11px; }
+.insight-subject-row > div span { color: var(--ink-3); display: block; font-size: 12px; margin-top: 2px; }
+.insight-level { border-radius: 999px; font-size: 11px; font-weight: 700; padding: 5px 9px; }
+.insight-level.strong { background: #dcfce7; color: #166534; }
+.insight-level.needs_work { background: #fee2e2; color: #991b1b; }
+.insight-level.insufficient_data { background: #f1f5f9; color: #475569; }
+.recommendation-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.recommendation-card { border-top: 4px solid var(--cobalt); display: flex; flex-direction: column; min-height: 290px; }
+.recommendation-card.competition { border-top-color: var(--gold); }
+.recommendation-card.participation { border-top-color: var(--ok); }
+.recommendation-topline { color: var(--ink-3); display: flex; font-size: 11px; font-weight: 700; justify-content: space-between; letter-spacing: .08em; text-transform: uppercase; }
+.recommendation-card > p { color: var(--ink-3); flex: 1; font-size: 14px; line-height: 1.55; margin-bottom: 20px; }
+.insights-empty { color: var(--ink-3); padding: 36px; text-align: center; }
+
+@media (max-width: 760px) {
+  .insights-heading { align-items: stretch; flex-direction: column; }
+  .insights-grid, .recommendation-grid { grid-template-columns: 1fr; }
+  .recommendation-card { min-height: 240px; }
+  .insight-subject-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .insight-subject-row > strong { grid-column: 2; }
+}
