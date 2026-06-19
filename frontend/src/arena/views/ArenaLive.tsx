@@ -1154,16 +1154,14 @@ export default function ArenaLive() {
           color: var(--text-muted) !important;
         }
         .arena-header-center {
-          padding: 10px 20px;
-          border-radius: 999px;
-          border: 1px solid var(--border-soft);
-          background: #121e30;
+          max-width: min(44vw, 540px); padding: 0; border: 0; background: transparent;
           color: var(--text-main);
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 700;
-          letter-spacing: 0.02em;
           white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis;
         }
+        .arena-header-center strong { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
         .arena-status-row {
           display: flex;
           align-items: center;
@@ -1363,7 +1361,33 @@ export default function ArenaLive() {
         }
 
         /* Adaptation mobile: grille et lisibilité conservées */
-        @media (max-width: 767px) {
+        .arena-stage-layout {
+          flex: 1; min-height: 0; display: grid;
+          grid-template-columns: minmax(0, 1fr) 330px; gap: 16px;
+          padding: 18px 20px; align-items: stretch;
+        }
+        .arena-question-wrap { padding: 0; min-height: 460px; }
+        .arena-question-card { max-width: 820px; }
+        .arena-question-inner { min-height: 280px; justify-content: center; padding: 38px; }
+        .arena-stage-grid {
+          display: flex; flex-direction: column; gap: 10px; padding: 0;
+          align-self: center; width: 100%;
+        }
+        .arena-cell-mod { order: -1; }
+        .arena-competitor-article, .arena-cell-mod article {
+          display: grid !important; grid-template-columns: 132px minmax(0, 1fr);
+          min-height: 118px; overflow: hidden;
+        }
+        .arena-competitor-article > div:first-child,
+        .arena-cell-mod article > div:first-child { aspect-ratio: auto !important; min-height: 118px; }
+        .arena-competitor-article > div:last-child { padding: 10px 12px !important; justify-content: center; }
+        .arena-cell-mod article > div:last-child { display: flex; align-items: center; padding: 12px !important; text-align: left !important; }
+        .arena-cell-mod article > div:last-child p { font-size: 15px !important; }
+        .arena-media-bar { justify-content: center; }
+        .arena-mod-controls { max-width: 1180px; margin: 0 auto; }
+
+        @media (max-width: 900px) {
+          .arena-stage-layout { display: flex; flex-direction: column; gap: 10px; padding: 10px; }
           .arena-header {
             height: 56px;
             padding: 0 12px;
@@ -1384,14 +1408,13 @@ export default function ArenaLive() {
           }
 
           .arena-question-wrap {
-            flex: none;
-            padding: 12px 10px 10px;
+            flex: none; min-height: 190px; padding: 0;
           }
           .arena-question-card {
             border-radius: 12px;
           }
           .arena-question-inner {
-            padding: 20px 18px 18px;
+            min-height: 150px; padding: 20px 18px 18px;
             gap: 10px;
           }
           .arena-question-text {
@@ -1399,13 +1422,13 @@ export default function ArenaLive() {
           }
 
           .arena-stage-grid {
-            grid-template-columns: 1fr 1fr;
-            grid-template-areas: "compA compB" "mod mod";
-            gap: 8px;
-            padding: 0 8px 12px;
+            flex-direction: row; gap: 8px; padding: 0 0 4px;
+            overflow-x: auto; align-self: auto;
           }
+          .arena-stage-grid > div { min-width: 270px; }
+          .arena-cell-mod { order: 0; }
           .arena-media-bar {
-            padding: 10px 12px;
+            position: sticky; bottom: 0; z-index: 12; padding: 10px 12px;
             overflow-x: auto;
           }
           .arena-mod-bar {
@@ -1462,6 +1485,7 @@ export default function ArenaLive() {
 
         {/* Center: Question pill */}
         <div className="arena-header-center">
+          <strong>{liveState?.competitionName ?? 'Match Arena'}</strong>
           {questionNumber > 0
             ? `Q ${String(questionNumber).padStart(2, '0')}${totalQuestions > 0 ? ` — ${String(totalQuestions).padStart(2, '0')}` : ''}`
             : 'En attente du match'}
@@ -1554,6 +1578,7 @@ export default function ArenaLive() {
           </div>
         )}
 
+        <div className="arena-stage-layout">
         {/* Question card */}
         <div className="arena-question-wrap">
           <div
@@ -1655,6 +1680,7 @@ export default function ArenaLive() {
               buttonLabel="Répondre"
             />
           </div>
+        </div>
         </div>
       </div>
 

@@ -16,14 +16,6 @@ const T = {
   red: '#ff4d4d',
 }
 
-const GROUP_LABELS: Record<string, string> = {
-  live: 'En direct',
-  ready: 'Matchs confirmés',
-  open: 'Inscriptions ouvertes',
-  upcoming: 'À venir',
-  past: 'Terminés',
-}
-
 function getInitials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || '?'
 }
@@ -199,6 +191,7 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
 
   return (
     <div
+      className={isAssignedCompetitor ? 'arena-hub-personal' : undefined}
       style={{
         borderRadius: 14,
         border: `1px solid ${cardBorderColor}`,
@@ -224,6 +217,7 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
             {comp.name}
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {isAssignedCompetitor && <span className="arena-hub-personal-label">VOTRE MATCH</span>}
             {isLive && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 900, letterSpacing: '.12em', color: '#ff7070' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, boxShadow: `0 0 5px ${T.red}`, display: 'inline-block', animation: 'clLivePulse 1.4s ease-in-out infinite' }} />
@@ -260,13 +254,14 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
 }
 
 // ─── legacy status color map (kept for reference, no longer used in JSX) ─────
-export default function ArenaCompetitionsList() {
+export default function ArenaCompetitionsList({ embedded = false }: { embedded?: boolean }) {
   const { accessToken, user } = useAuth()
   const [competitions, setCompetitions] = useState<ArenaCompetition[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [registeringId, setRegisteringId] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
+  const [showAllResults, setShowAllResults] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -311,10 +306,21 @@ export default function ArenaCompetitionsList() {
   const groups = {
     live: competitions.filter((c) => c.status === 'live' || c.status === 'paused'),
     ready: competitions.filter((c) => c.status === 'approved' && Boolean(c.competitorAUserId && c.competitorBUserId)),
-    open: competitions.filter((c) => c.status === 'approved' && !Boolean(c.competitorAUserId && c.competitorBUserId)),
+    open: competitions.filter((c) => c.status === 'approved' && !(c.competitorAUserId && c.competitorBUserId)),
     upcoming: competitions.filter((c) => c.status === 'pending'),
     past: competitions.filter((c) => c.status === 'completed' || c.status === 'cancelled'),
   }
+  const activeGroups = [
+    { key: 'ready', label: 'Matchs confirm\u00e9s', items: groups.ready },
+    { key: 'open', label: 'Inscriptions ouvertes', items: groups.open },
+    { key: 'upcoming', label: '\u00c0 venir', items: groups.upcoming },
+  ]
+  const visibleResults = showAllResults ? groups.past : groups.past.slice(0, 4)
+  const displayGroups = [
+    { key: 'live', label: 'En direct', items: groups.live },
+    ...activeGroups,
+    { key: 'past', label: 'R\u00e9sultats r\u00e9cents', items: visibleResults },
+  ]
 
   if (loading) {
     return (
@@ -335,9 +341,10 @@ export default function ArenaCompetitionsList() {
         }
       `}</style>
 
-      <div style={{ marginBottom: 24 }}>
+      <div className="arena-hub-title">
         <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: T.textSoft }}>Konesans+ Arena</p>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 900, color: T.text }}>Compétitions</h1>
+        <h1>Votre espace de comp&eacute;tition</h1>
+        {!embedded && <span>Directs, prochains matchs et derniers r&eacute;sultats au m&ecirc;me endroit.</span>}
       </div>
 
       {error && (
@@ -351,7 +358,7 @@ export default function ArenaCompetitionsList() {
         </div>
       )}
 
-      {Object.entries(groups).map(([group, items]) => {
+      {displayGroups.map(({ key: group, label, items }) => {
         if (items.length === 0) return null
         return (
           <div key={group} style={{ marginBottom: 24 }}>
@@ -371,10 +378,10 @@ export default function ArenaCompetitionsList() {
                 />
               )}
               <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: group === 'live' ? '#ff7070' : T.textSoft }}>
-                {GROUP_LABELS[group]}
+                {label}
               </p>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className={`arena-hub-grid${group === 'live' ? ' arena-hub-grid-live' : ''}`}>
               {items.map((comp) => (
                 <CompCard
                   key={comp.id}
@@ -390,6 +397,12 @@ export default function ArenaCompetitionsList() {
           </div>
         )
       })}
+
+      {groups.past.length > 4 && (
+        <button type="button" className="arena-hub-more" onClick={() => setShowAllResults((value) => !value)}>
+          {showAllResults ? 'R\u00e9duire les r\u00e9sultats' : `Voir tous les r\u00e9sultats (${groups.past.length})`}
+        </button>
+      )}
 
       {competitions.length === 0 && (
         <div style={{ borderRadius: 14, border: `1px solid ${T.border}`, background: T.bgCard, padding: '40px 20px', textAlign: 'center' }}>

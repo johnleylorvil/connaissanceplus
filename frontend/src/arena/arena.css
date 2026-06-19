@@ -1,0 +1,87 @@
+:root {
+  --arena-bg: #09111d;
+  --arena-surface: #101b2a;
+  --arena-surface-raised: #142235;
+  --arena-border: rgba(226, 234, 248, .11);
+  --arena-border-strong: rgba(226, 234, 248, .18);
+  --arena-text: #f3f7ff;
+  --arena-muted: #a8b5c9;
+  --arena-soft: #718096;
+  --arena-gold: #e6c27a;
+}
+
+.arena-hub { min-height: 100vh; background: var(--arena-bg); color: var(--arena-text); }
+.arena-hub-header {
+  position: sticky; top: 0; z-index: 20; height: 64px; padding: 0 24px;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  background: rgba(12, 22, 36, .96); border-bottom: 1px solid var(--arena-border);
+  backdrop-filter: blur(16px);
+}
+.arena-hub button { font: inherit; }
+.arena-hub-back, .arena-hub-brand, .arena-hub-watch { border: 0; background: transparent; color: var(--arena-muted); cursor: pointer; }
+.arena-hub-back { justify-self: start; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.arena-hub-brand { display: flex; align-items: center; gap: 10px; color: var(--arena-text); text-align: left; }
+.arena-hub-brand span { display: flex; flex-direction: column; }
+.arena-hub-brand strong { font-size: 14px; }
+.arena-hub-brand small { margin-top: 2px; color: var(--arena-muted); font-size: 11px; }
+.arena-hub-watch { justify-self: end; padding: 8px 13px; border: 1px solid var(--arena-border); border-radius: 9px; font-size: 12px; font-weight: 700; }
+.arena-hub-main { width: min(100% - 32px, 980px); margin: 0 auto; padding: 36px 0 64px; }
+.arena-hub-embedded { border: 1px solid var(--arena-border); border-radius: 16px; overflow: hidden; }
+.arena-hub-embedded-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: #0c1624; border-bottom: 1px solid var(--arena-border); }
+.arena-hub-embedded-header div { display: flex; flex-direction: column; gap: 2px; }
+.arena-hub-embedded-header strong { font-size: 14px; }
+.arena-hub-embedded-header span { color: var(--arena-muted); font-size: 11px; }
+.arena-hub-embedded .arena-hub-content { padding: 20px 18px 24px; }
+.arena-hub-title { margin-bottom: 28px; }
+.arena-hub-title p { margin: 0 0 7px; color: var(--arena-gold); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.arena-hub-title h1 { margin: 0; font-size: clamp(25px, 4vw, 34px); line-height: 1.15; }
+.arena-hub-title span { display: block; margin-top: 8px; color: var(--arena-muted); font-size: 14px; }
+.arena-hub-section { margin-top: 28px; }
+.arena-hub-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+.arena-hub-section-heading h2 { margin: 0; font-size: 13px; color: var(--arena-muted); letter-spacing: .06em; text-transform: uppercase; }
+.arena-hub-count { color: var(--arena-soft); font-size: 12px; }
+.arena-hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.arena-hub-grid-live { grid-template-columns: 1fr; }
+.arena-hub-more { width: 100%; margin-top: 10px; padding: 10px; color: var(--arena-muted); cursor: pointer; background: transparent; border: 1px solid var(--arena-border); border-radius: 10px; font-weight: 700; }
+.arena-hub-personal { box-shadow: inset 3px 0 0 #6ca8f5; }
+.arena-hub-personal-label { color: #9bc5ff; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+@media (max-width: 700px) {
+  .arena-hub-header { height: 56px; padding: 0 12px; grid-template-columns: 1fr auto; }
+  .arena-hub-brand { grid-column: 1; grid-row: 1; }
+  .arena-hub-back span:last-child, .arena-hub-brand small, .arena-hub-watch { display: none; }
+  .arena-hub-back { grid-column: 2; grid-row: 1; font-size: 20px; }
+  .arena-hub-main { width: min(100% - 20px, 980px); padding: 24px 0 42px; }
+  .arena-hub-grid { grid-template-columns: 1fr; }
+}
+
+.arena-watch { background: var(--arena-bg) !important; padding: 0 18px 36px !important; }
+.arena-watch-shell { max-width: 1240px !important; }
+.arena-watch-header {
+  min-height: 64px; padding: 8px 4px !important; border: 0 !important;
+  border-bottom: 1px solid var(--arena-border) !important; border-radius: 0 !important;
+  background: rgba(12, 22, 36, .96) !important; box-shadow: none !important;
+}
+.arena-watch-header > button > div:first-child { width: 40px !important; height: 40px !important; border-radius: 10px !important; }
+.arena-watch-header > div:nth-child(2) { padding: 7px 14px !important; min-width: 0 !important; border-radius: 9px !important; font-size: 13px !important; }
+.arena-watch-main { margin-top: 16px !important; }
+.arena-watch-stage { padding: 18px !important; border-radius: 14px !important; background: #0d1725 !important; box-shadow: none !important; }
+.arena-watch-question-wrap { margin-bottom: 16px !important; }
+.arena-watch-question {
+  max-width: none !important; min-height: 112px !important; padding: 24px 30px !important;
+  border-color: var(--arena-border-strong) !important; border-radius: 12px !important;
+  background: var(--arena-surface-raised) !important; color: var(--arena-text) !important; box-shadow: none !important;
+}
+.arena-watch-question h1 { max-width: 820px !important; font-size: clamp(1.25rem, 2.5vw, 2rem) !important; line-height: 1.28 !important; }
+.arena-watch-video { border-radius: 12px !important; box-shadow: none !important; }
+.arena-watch-aside > div { padding: 15px !important; border-radius: 12px !important; background: var(--arena-surface) !important; box-shadow: none !important; backdrop-filter: none !important; }
+@media (max-width: 900px) {
+  .arena-watch { padding: 0 10px 28px !important; }
+  .arena-watch-header { grid-template-columns: minmax(0, 1fr) auto !important; gap: 8px !important; }
+  .arena-watch-header > div:nth-child(2) { display: none; }
+  .arena-watch-header > div:last-child { gap: 8px !important; }
+  .arena-watch-header > div:last-child > span { padding: 8px 10px !important; font-size: 11px !important; }
+  .arena-watch-header > div:last-child > div { min-width: 74px !important; padding: 7px 9px !important; font-size: 18px !important; }
+  .arena-watch-stage { padding: 10px !important; }
+  .arena-watch-question { min-height: 96px !important; padding: 20px 16px !important; }
+  .arena-watch-content { gap: 10px !important; }
+}

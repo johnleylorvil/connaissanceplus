@@ -440,7 +440,7 @@ export default function ArenaWatchPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', padding: '20px 14px 40px', background: `radial-gradient(circle at top, ${T.bgGlow}, ${T.bg} 48%)`, color: T.text }}>
+    <div className="arena-watch" style={{ minHeight: '100vh', padding: '20px 14px 40px', background: `radial-gradient(circle at top, ${T.bgGlow}, ${T.bg} 48%)`, color: T.text }}>
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -451,14 +451,14 @@ export default function ArenaWatchPage() {
         }
       `}</style>
 
-      <div style={{ width: '100%', maxWidth: 1320, margin: '0 auto' }}>
+      <div className="arena-watch-shell" style={{ width: '100%', maxWidth: 1320, margin: '0 auto' }}>
         {displayError && (
           <div style={{ marginBottom: 14, padding: '12px 16px', borderRadius: 16, background: 'rgba(255,111,125,0.12)', border: '1px solid rgba(255,111,125,0.25)', color: '#ffd0d5', fontWeight: 700 }}>
             {displayError}
           </div>
         )}
 
-        <header
+        <header className="arena-watch-header"
           style={{
             display: 'grid',
             gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
@@ -530,8 +530,8 @@ export default function ArenaWatchPage() {
           </div>
         </header>
 
-        <main style={{ marginTop: 18 }}>
-          <section
+        <main className="arena-watch-main" style={{ marginTop: 18 }}>
+          <section className="arena-watch-stage"
             style={{
               borderRadius: 34,
               padding: '44px 28px 34px',
@@ -540,8 +540,8 @@ export default function ArenaWatchPage() {
               boxShadow: '0 24px 80px rgba(2, 6, 13, 0.48)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-              <div
+            <div className="arena-watch-question-wrap" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
+              <div className="arena-watch-question"
                 style={{
                   width: '100%',
                   maxWidth: 760,
@@ -586,8 +586,8 @@ export default function ArenaWatchPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
-              <div
+            <div className="arena-watch-content grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+              <div className="arena-watch-video"
                 style={{
                   position: 'relative',
                   borderRadius: 28,
@@ -678,7 +678,7 @@ export default function ArenaWatchPage() {
                 </div>
               </div>
 
-              <aside style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <aside className="arena-watch-aside" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ padding: '18px 18px', borderRadius: 24, border: `1px solid ${T.borderStrong}`, background: T.panelGlass, boxShadow: '0 18px 60px rgba(2, 6, 13, 0.4)', backdropFilter: 'blur(16px)' }}>
                   <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, color: T.textSoft }}>INFOS LIVE</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, marginTop: 14 }}>
