@@ -343,7 +343,7 @@ function CompetitorPanel({
         />
 
         {/* Name overlay — bottom left */}
-        <div style={{ position: 'absolute', bottom: 14, left: 14 }}>
+        <div className="arena-participant-name-overlay" style={{ position: 'absolute', bottom: 14, left: 14 }}>
           <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.58)', fontWeight: 600, lineHeight: 1.2 }}>
             Compétiteur {participant.slot}
           </p>
@@ -389,8 +389,12 @@ function CompetitorPanel({
           borderTop: `1px solid ${slotColor}22`,
         }}
       >
+        <div className="arena-compact-participant-meta">
+          <span>Comp&eacute;titeur {participant.slot}</span>
+          <strong>{participant.displayName}</strong>
+        </div>
         {/* Score row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="arena-compact-score-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span
             className={scoreFlashActive ? 'score-flash' : undefined}
             style={{
@@ -508,6 +512,7 @@ function ModeratorPanel({
 
         {/* MODÉRATEUR badge — bottom center of video */}
         <div
+          className="arena-moderator-video-badge"
           style={{
             position: 'absolute',
             bottom: 14,
@@ -545,6 +550,7 @@ function ModeratorPanel({
           borderTop: `1px solid rgba(230,194,122,0.14)`,
         }}
       >
+        <span className="arena-compact-role">Mod&eacute;rateur</span>
         <p style={{ margin: 0, fontSize: 19, fontWeight: 800, color: T.text }}>{displayName}</p>
       </div>
     </article>
@@ -1363,25 +1369,32 @@ export default function ArenaLive() {
         /* Adaptation mobile: grille et lisibilité conservées */
         .arena-stage-layout {
           flex: 1; min-height: 0; display: grid;
-          grid-template-columns: minmax(0, 1fr) 330px; gap: 16px;
-          padding: 18px 20px; align-items: stretch;
+          grid-template-columns: minmax(0, 1fr) 370px; gap: 24px;
+          padding: 32px 24px 20px; align-items: start;
         }
-        .arena-question-wrap { padding: 0; min-height: 460px; }
-        .arena-question-card { max-width: 820px; }
-        .arena-question-inner { min-height: 280px; justify-content: center; padding: 38px; }
+        .arena-question-wrap { width: 100%; padding: 0; min-height: 0; align-self: start; }
+        .arena-question-card { max-width: 760px; }
+        .arena-question-inner { min-height: 210px; justify-content: center; padding: 30px 36px; }
+        .arena-question-text { font-size: clamp(1.35rem, 2.35vw, 2rem); }
         .arena-stage-grid {
           display: flex; flex-direction: column; gap: 10px; padding: 0;
           align-self: center; width: 100%;
         }
         .arena-cell-mod { order: -1; }
         .arena-competitor-article, .arena-cell-mod article {
-          display: grid !important; grid-template-columns: 132px minmax(0, 1fr);
-          min-height: 118px; overflow: hidden;
+          display: grid !important; grid-template-columns: 148px minmax(0, 1fr);
+          min-height: 132px; overflow: hidden;
         }
         .arena-competitor-article > div:first-child,
-        .arena-cell-mod article > div:first-child { aspect-ratio: auto !important; min-height: 118px; }
-        .arena-competitor-article > div:last-child { padding: 10px 12px !important; justify-content: center; }
-        .arena-cell-mod article > div:last-child { display: flex; align-items: center; padding: 12px !important; text-align: left !important; }
+        .arena-cell-mod article > div:first-child { aspect-ratio: auto !important; min-height: 132px; }
+        .arena-competitor-article > div:last-child { padding: 11px 13px !important; justify-content: center; gap: 9px !important; }
+        .arena-participant-name-overlay, .arena-moderator-video-badge { display: none; }
+        .arena-compact-participant-meta { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+        .arena-compact-participant-meta span, .arena-compact-role { color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+        .arena-compact-participant-meta strong { overflow: hidden; color: var(--text-main); font-size: 14px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+        .arena-compact-score-row > span { min-width: 38px !important; font-size: 34px !important; }
+        .arena-compact-score-row button { padding: 7px 0 !important; font-size: 11px !important; }
+        .arena-cell-mod article > div:last-child { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 5px; padding: 14px !important; text-align: left !important; }
         .arena-cell-mod article > div:last-child p { font-size: 15px !important; }
         .arena-media-bar { justify-content: center; }
         .arena-mod-controls { max-width: 1180px; margin: 0 auto; }
@@ -1425,7 +1438,8 @@ export default function ArenaLive() {
             flex-direction: row; gap: 8px; padding: 0 0 4px;
             overflow-x: auto; align-self: auto;
           }
-          .arena-stage-grid > div { min-width: 270px; }
+          .arena-stage-grid > div { min-width: 300px; }
+          .arena-competitor-article, .arena-cell-mod article { grid-template-columns: 120px minmax(0, 1fr); }
           .arena-cell-mod { order: 0; }
           .arena-media-bar {
             position: sticky; bottom: 0; z-index: 12; padding: 10px 12px;
