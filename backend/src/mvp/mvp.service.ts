@@ -1248,6 +1248,12 @@ export class MvpService {
   }
 
   async getNotifications(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: { id: true, notificationsEnabled: true },
+    });
+    if (user?.notificationsEnabled === false) return [];
+
     return this.notificationRepo.find({
       where: { userId },
       order: { createdAt: 'DESC' },
@@ -1344,6 +1350,8 @@ export class MvpService {
     if (dto.department !== undefined) user.department = dto.department?.trim() || null;
     if (dto.sectionName !== undefined) user.sectionName = this.normalizeSectionName(dto.sectionName);
     if (dto.canBeContacted !== undefined) user.canBeContacted = dto.canBeContacted;
+    if (dto.preferredTutorLanguage !== undefined) user.preferredTutorLanguage = dto.preferredTutorLanguage;
+    if (dto.notificationsEnabled !== undefined) user.notificationsEnabled = dto.notificationsEnabled;
 
     if (user.role === UserRole.STUDENT) {
       if (dto.classId !== undefined) {
@@ -1638,6 +1646,12 @@ export class MvpService {
   }
 
   private async createNotification(userId: string, title: string, message: string, type: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: { id: true, notificationsEnabled: true },
+    });
+    if (user?.notificationsEnabled === false) return null;
+
     const notif = this.notificationRepo.create({ userId, title, message, type });
     return this.notificationRepo.save(notif);
   }

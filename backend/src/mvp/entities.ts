@@ -146,6 +146,12 @@ export class User {
   @Column({ default: false })
   canBeContacted: boolean;
 
+  @Column({ type: 'text', default: 'fr' })
+  preferredTutorLanguage: 'fr' | 'ht';
+
+  @Column({ type: 'boolean', default: true })
+  notificationsEnabled: boolean;
+
   @Column({ type: 'boolean', nullable: true, default: null })
   acceptedPrivacyPolicy: boolean | null;
 

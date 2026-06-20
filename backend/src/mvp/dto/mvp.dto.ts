@@ -244,6 +244,15 @@ export class UpdateProfileDto {
   @IsOptional()
   canBeContacted?: boolean;
 
+  @IsString()
+  @IsIn(['fr', 'ht'])
+  @IsOptional()
+  preferredTutorLanguage?: 'fr' | 'ht';
+
+  @IsBoolean()
+  @IsOptional()
+  notificationsEnabled?: boolean;
+
   @IsUUID()
   @IsOptional()
   classId?: string;

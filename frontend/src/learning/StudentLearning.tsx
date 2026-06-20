@@ -9,6 +9,7 @@ type Props = {
   token: string
   mode: LearningMode
   onModeChange: (mode: LearningMode) => void
+  preferredLanguage?: TutorLanguage
 }
 
 const QUICK_PROMPTS: Record<TutorLanguage, string[]> = {
@@ -16,13 +17,13 @@ const QUICK_PROMPTS: Record<TutorLanguage, string[]> = {
   ht: ['Eksplike chapit sa a yon fason senp.', 'Ban mwen yon egzanp konkrè.', 'Rezime lide ki pi enpòtan yo.', 'Poze m twa kesyon pou verifye sa mwen konprann.'],
 }
 
-export default function StudentLearning({ token, mode, onModeChange }: Props) {
+export default function StudentLearning({ token, mode, onModeChange, preferredLanguage }: Props) {
   const [curriculum, setCurriculum] = useState<Curriculum | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState('')
   const [selectedChapterId, setSelectedChapterId] = useState('')
   const [chapter, setChapter] = useState<LearningChapter | null>(null)
   const [search, setSearch] = useState('')
-  const [language, setLanguage] = useState<TutorLanguage>('fr')
+  const [language, setLanguage] = useState<TutorLanguage>(preferredLanguage ?? 'fr')
   const [messages, setMessages] = useState<TutorMessage[]>([])
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)

@@ -12,8 +12,10 @@ import {
 } from '../correspondence/correspondenceApi'
 import type { ContestSession, InboxItem, Letter, OpenedAssignment, Thread, ThreadMessage } from '../correspondence/types'
 import StudentLearning from '../learning/StudentLearning'
+import AccountSecurity from '../account/AccountSecurity'
+import AccountPreferences from '../account/AccountPreferences'
 
-type Tab = 'home' | 'summary' | 'recommendations' | 'statistics' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence' | 'library' | 'ai'
+type Tab = 'home' | 'summary' | 'recommendations' | 'statistics' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence' | 'library' | 'ai' | 'security' | 'preferences'
 type CorrView = 'sessions' | 'write' | 'myletters' | 'inbox' | 'thread'
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
@@ -128,8 +130,6 @@ export default function StudentDashboard() {
     department: user?.department ?? '',
     sectionName: user?.sectionName ?? '',
     canBeContacted: user?.canBeContacted ?? false,
-    currentPassword: '',
-    newPassword: '',
   })
   const [profileMsg, setProfileMsg] = useState('')
   const [profileError, setProfileError] = useState('')
@@ -409,10 +409,6 @@ export default function StudentDashboard() {
     e.preventDefault()
     setProfileMsg('')
     setProfileError('')
-    if (profileForm.newPassword && !profileForm.currentPassword.trim()) {
-      setProfileError('Saisissez votre mot de passe actuel pour le modifier.')
-      return
-    }
     setProfileLoading(true)
     try {
       const body: Record<string, unknown> = {
@@ -425,17 +421,12 @@ export default function StudentDashboard() {
         sectionName: profileForm.sectionName || undefined,
         canBeContacted: profileForm.canBeContacted,
       }
-      if (profileForm.newPassword) {
-        body.newPassword = profileForm.newPassword
-        body.currentPassword = profileForm.currentPassword
-      }
       const updated = await apiCall<typeof user>('/auth/profile', {
         method: 'PATCH',
         body: JSON.stringify(body),
       }, accessToken)
       updateUser(updated!)
       setProfileMsg('Profil mis à jour avec succès !')
-      setProfileForm((f) => ({ ...f, currentPassword: '', newPassword: '' }))
     } catch (err) {
       setProfileError((err as { message: string }).message)
     } finally {
@@ -524,9 +515,8 @@ export default function StudentDashboard() {
       note: 'Profil',
       items: [
         { id: 'profile', label: 'Profil', onClick: () => openStudentTab('profile'), active: tab === 'profile' },
-        { id: 'security', label: 'Sécurité', muted: true, disabled: true },
-        { id: 'preferences', label: 'Préférences', muted: true, disabled: true },
-        { id: 'billing', label: 'Abonnements / paiements', muted: true, disabled: true },
+        { id: 'security', label: 'Sécurité', onClick: () => openStudentTab('security'), active: tab === 'security' },
+        { id: 'preferences', label: 'Préférences', onClick: () => openStudentTab('preferences'), active: tab === 'preferences' },
       ],
     },
   ]
@@ -543,6 +533,8 @@ export default function StudentDashboard() {
     { key: 'library', label: 'Bibliotheque' },
     { key: 'ai', label: 'Tuteur IA' },
     { key: 'profile', label: 'Profil' },
+    { key: 'security', label: 'Securite' },
+    { key: 'preferences', label: 'Preferences' },
   ]
 
   const avgScore =
@@ -1214,14 +1206,6 @@ export default function StudentDashboard() {
                     <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Accepter d’être contacté par Konesans+</span>
                   </label>
 
-                  <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 16, marginTop: 4 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 10 }}>Changer le mot de passe <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optionnel)</span></p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <input type="password" value={profileForm.currentPassword} onChange={(e) => setProfileForm({ ...profileForm, currentPassword: e.target.value })} className="field-input" placeholder="Mot de passe actuel" />
-                      <input type="password" value={profileForm.newPassword} onChange={(e) => setProfileForm({ ...profileForm, newPassword: e.target.value })} className="field-input" placeholder="Nouveau mot de passe" minLength={6} />
-                    </div>
-                  </div>
-
                   <button type="submit" disabled={profileLoading} className="btn btn-primary btn-full" style={{ marginTop: 4 }}>
                     {profileLoading ? 'Sauvegarde…' : 'Sauvegarder les modifications'}
                   </button>
@@ -1230,10 +1214,16 @@ export default function StudentDashboard() {
             </div>
           )}
 
+          {tab === 'security' && accessToken && <AccountSecurity token={accessToken} />}
+
+          {tab === 'preferences' && accessToken && user && (
+            <AccountPreferences token={accessToken} user={user} onUpdated={(updated) => { updateUser(updated); if (!updated.notificationsEnabled) setNotifications([]) }} />
+          )}
+
           {tab === 'arena' && <ArenaWorkspace embedded />}
 
           {(tab === 'library' || tab === 'ai') && accessToken && (
-            <StudentLearning token={accessToken} mode={tab} onModeChange={(mode) => setTab(mode)} />
+            <StudentLearning token={accessToken} mode={tab} onModeChange={(mode) => setTab(mode)} preferredLanguage={user?.preferredTutorLanguage} />
           )}
 
           {/* ── CORRESPONDANCE ── */}

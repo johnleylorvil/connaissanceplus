@@ -16,6 +16,8 @@ export type AuthUser = {
   department?: string | null
   sectionName?: string | null
   canBeContacted?: boolean
+  preferredTutorLanguage?: 'fr' | 'ht'
+  notificationsEnabled?: boolean
 }
 
 export type AuthState = {
@@ -66,6 +68,8 @@ export function normalizeAuthUser(
     department: user.department ?? null,
     sectionName: user.sectionName ?? user.className ?? null,
     canBeContacted: user.canBeContacted,
+    preferredTutorLanguage: user.preferredTutorLanguage === 'ht' ? 'ht' : 'fr',
+    notificationsEnabled: user.notificationsEnabled ?? true,
   }
 }
 
