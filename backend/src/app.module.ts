@@ -12,6 +12,7 @@ import { CorrespondenceModule } from './correspondence/correspondence.module';
 import { createTypeOrmOptions } from './database/typeorm.config';
 import { StudentInsightsModule } from './student-insights/student-insights.module';
 import { LearningModule } from './learning/learning.module';
+import { AdminInsightsModule } from './admin-insights/admin-insights.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { LearningModule } from './learning/learning.module';
     CorrespondenceModule,
     StudentInsightsModule,
     LearningModule,
+    AdminInsightsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

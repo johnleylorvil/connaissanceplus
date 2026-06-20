@@ -10,6 +10,9 @@ import {
 } from '../correspondence/correspondenceApi'
 import type { ContestSession, ContestSessionStatus, ModerationCase } from '../correspondence/types'
 import AdminLearningManager from '../learning/AdminLearningManager'
+import AdminInsightsView from '../admin-insights/AdminInsightsView'
+import { useAdminInsights } from '../admin-insights/useAdminInsights'
+import type { AdminInsightTab } from '../admin-insights/types'
 
 function getOtpErrorMessage(error: unknown, fallback: string) {
   const message = (error as { message?: string })?.message?.trim()
@@ -20,7 +23,7 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   return message
 }
 
-type Tab = 'overview' | 'levels' | 'subjects' | 'questions' | 'library' | 'students' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
+type Tab = 'overview' | 'indicators' | 'alerts' | 'levels' | 'subjects' | 'questions' | 'library' | 'students' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
 type CorrSubTab = 'sessions' | 'moderation'
 const CORR_STATUS_OPTIONS: ContestSessionStatus[] = ['draft', 'open', 'closed', 'scoring', 'published']
 const CORR_STATUS_FR: Record<ContestSessionStatus, string> = {
@@ -37,7 +40,6 @@ type Student = {
   id: string; firstName: string; lastName: string; email: string
   school: string | null; city: string | null; department: string | null; sectionName: string | null; createdAt: string
 }
-type Stats = { studentCount: number; questionCount: number; subjectCount: number; sessionCount: number }
 type Broadcast = {
   id: string; title: string; message: string
   targetType: 'all' | 'level' | 'class' | 'department' | 'city' | 'section' | 'filtered'; targetId: string | null
@@ -57,8 +59,7 @@ type Sponsor = {
 export default function AdminDashboard() {
   const { accessToken, logout } = useAuth()
   const [tab, setTab] = useState<Tab>('overview')
-
-  const [stats, setStats] = useState<Stats | null>(null)
+  const adminInsights = useAdminInsights(accessToken)
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
@@ -259,7 +260,6 @@ export default function AdminDashboard() {
   const loadAll = useCallback(() => {
     void callApi<SchoolClass[]>('/classes', setClasses)
     void callApi<Subject[]>('/subjects', setSubjects)
-    void callApi<Stats>('/admin/stats', (s) => setStats(s))
   }, [callApi])
 
   const loadQuestions = useCallback(() => {
@@ -591,14 +591,19 @@ export default function AdminDashboard() {
     setCorrSubTab(nextSubTab)
   }
 
+  const handleInsightNavigate = (action: { tab: AdminInsightTab; subTab?: 'moderation' }) => {
+    if (action.tab === 'correspondence') setCorrSubTab(action.subTab ?? 'sessions')
+    setTab(action.tab)
+  }
+
   const adminSidebarSections: DashboardSidebarSection[] = [
     {
       title: 'Tableau de bord',
       note: 'Pilotage',
       items: [
         { id: 'overview', label: 'Vue d\'ensemble', onClick: () => openAdminTab('overview'), active: tab === 'overview' },
-        { id: 'overview-alerts', label: 'Indicateurs clés', muted: true, disabled: true },
-        { id: 'overview-warnings', label: 'Alertes', muted: true, disabled: true },
+        { id: 'overview-alerts', label: 'Indicateurs clés', onClick: () => openAdminTab('indicators'), active: tab === 'indicators' },
+        { id: 'overview-warnings', label: 'Alertes', onClick: () => openAdminTab('alerts'), active: tab === 'alerts', badge: adminInsights.data?.alerts.length || undefined },
       ],
     },
     {
@@ -680,6 +685,8 @@ export default function AdminDashboard() {
 
   const adminMobileNavItems: { key: Tab; label: string }[] = [
     { key: 'overview', label: 'Vue d\'ensemble' },
+    { key: 'indicators', label: 'Indicateurs' },
+    { key: 'alerts', label: 'Alertes' },
     { key: 'levels', label: 'Classes' },
     { key: 'subjects', label: 'Matières' },
     { key: 'questions', label: 'Questions' },
@@ -715,7 +722,7 @@ export default function AdminDashboard() {
           <button onClick={logout} style={{ fontSize: 16, color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Quitter</button>
         </div>
 
-        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: 860 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'indicators' || tab === 'alerts' ? 1080 : 860 }}>
 
           {/* -- OVERVIEW -- */}
           {tab === 'overview' && (
@@ -723,19 +730,14 @@ export default function AdminDashboard() {
               <p className="overline" style={{ marginBottom: 8 }}>Administration</p>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 24 }}>Vue d'ensemble</h1>
 
-              <div className="responsive-four-col" style={{ border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden', marginBottom: 24, background: 'var(--rule)' }}>
-                {[
-                  { label: 'Étudiants', value: stats?.studentCount ?? '—' },
-                  { label: 'Questions', value: stats?.questionCount ?? '—' },
-                  { label: 'Matières', value: stats?.subjectCount ?? '—' },
-                  { label: 'Quiz complétés', value: stats?.sessionCount ?? '—' },
-                ].map((s) => (
-                  <div key={s.label} className="mobile-stat-card" style={{ background: '#fff', padding: '20px 16px' }}>
-                    <div className="display" style={{ fontSize: 28, color: 'var(--cobalt)' }}>{s.value}</div>
-                    <div style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 4 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
+              <AdminInsightsView
+                mode="overview"
+                data={adminInsights.data}
+                loading={adminInsights.loading}
+                error={adminInsights.error}
+                onRefresh={() => void adminInsights.refresh()}
+                onNavigate={handleInsightNavigate}
+              />
 
               <div className="responsive-two-col" style={{ gap: 16 }}>
                 <div className="card">
@@ -771,6 +773,14 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          )}
+
+          {tab === 'indicators' && (
+            <AdminInsightsView mode="indicators" data={adminInsights.data} loading={adminInsights.loading} error={adminInsights.error} onRefresh={() => void adminInsights.refresh()} onNavigate={handleInsightNavigate} />
+          )}
+
+          {tab === 'alerts' && (
+            <AdminInsightsView mode="alerts" data={adminInsights.data} loading={adminInsights.loading} error={adminInsights.error} onRefresh={() => void adminInsights.refresh()} onNavigate={handleInsightNavigate} />
           )}
 
           {/* -- CLASSES -- */}
