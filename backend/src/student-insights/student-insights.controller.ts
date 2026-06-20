@@ -6,7 +6,7 @@ import { StudentInsightsService } from './student-insights.service';
 
 type AuthenticatedRequest = { user: { id: string } };
 
-@Controller('student/insights')
+@Controller('api/student/insights')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.STUDENT)
 export class StudentInsightsController {
