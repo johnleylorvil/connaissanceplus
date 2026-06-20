@@ -9,6 +9,7 @@ import {
   adminListSessions, adminTriggerAssign, adminUpdateSession,
 } from '../correspondence/correspondenceApi'
 import type { ContestSession, ContestSessionStatus, ModerationCase } from '../correspondence/types'
+import AdminLearningManager from '../learning/AdminLearningManager'
 
 function getOtpErrorMessage(error: unknown, fallback: string) {
   const message = (error as { message?: string })?.message?.trim()
@@ -19,7 +20,7 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   return message
 }
 
-type Tab = 'overview' | 'levels' | 'subjects' | 'questions' | 'students' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
+type Tab = 'overview' | 'levels' | 'subjects' | 'questions' | 'library' | 'students' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
 type CorrSubTab = 'sessions' | 'moderation'
 const CORR_STATUS_OPTIONS: ContestSessionStatus[] = ['draft', 'open', 'closed', 'scoring', 'published']
 const CORR_STATUS_FR: Record<ContestSessionStatus, string> = {
@@ -609,7 +610,7 @@ export default function AdminDashboard() {
         { id: 'questions', label: 'Questions', onClick: () => openAdminTab('questions'), active: tab === 'questions' },
         { id: 'exams', label: 'Examens', muted: true, disabled: true },
         { id: 'certifications', label: 'Certifications', muted: true, disabled: true },
-        { id: 'library', label: 'Bibliothèque de contenus', muted: true, disabled: true },
+        { id: 'library', label: 'Bibliothèque de contenus', onClick: () => openAdminTab('library'), active: tab === 'library' },
       ],
     },
     {
@@ -682,6 +683,7 @@ export default function AdminDashboard() {
     { key: 'levels', label: 'Classes' },
     { key: 'subjects', label: 'Matières' },
     { key: 'questions', label: 'Questions' },
+    { key: 'library', label: 'Bibliotheque' },
     { key: 'students', label: 'Étudiants' },
     { key: 'correspondence', label: 'Correspondance' },
     { key: 'arena', label: 'Arena' },
@@ -940,6 +942,10 @@ export default function AdminDashboard() {
           )}
 
           {/* -- ÉTUDIANTS -- */}
+          {tab === 'library' && accessToken && (
+            <AdminLearningManager token={accessToken} classes={classes} subjects={subjects} />
+          )}
+
           {tab === 'students' && (
             <div>
               <p className="overline" style={{ marginBottom: 8 }}>Gestion</p>

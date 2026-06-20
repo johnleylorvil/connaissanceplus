@@ -11,8 +11,9 @@ import {
   getThread, listSessions, openAssignment, sendMessage, submitLetter, updateLetter,
 } from '../correspondence/correspondenceApi'
 import type { ContestSession, InboxItem, Letter, OpenedAssignment, Thread, ThreadMessage } from '../correspondence/types'
+import StudentLearning from '../learning/StudentLearning'
 
-type Tab = 'home' | 'summary' | 'recommendations' | 'statistics' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence'
+type Tab = 'home' | 'summary' | 'recommendations' | 'statistics' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence' | 'library' | 'ai'
 type CorrView = 'sessions' | 'write' | 'myletters' | 'inbox' | 'thread'
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
@@ -512,11 +513,10 @@ export default function StudentDashboard() {
     },
     {
       title: 'Apprentissage',
-      note: 'À venir',
+      note: 'Programme',
       items: [
-        { id: 'library', label: 'Bibliothèque de contenus', muted: true, disabled: true },
-        { id: 'pathways', label: 'Parcours', muted: true, disabled: true },
-        { id: 'revisions', label: 'Révisions', muted: true, disabled: true },
+        { id: 'library', label: 'Bibliothèque de contenus', onClick: () => openStudentTab('library'), active: tab === 'library' },
+        { id: 'ai', label: 'IA pédagogique', onClick: () => openStudentTab('ai'), active: tab === 'ai' },
       ],
     },
     {
@@ -540,6 +540,8 @@ export default function StudentDashboard() {
     { key: 'statistics', label: 'Statistiques' },
     { key: 'leaderboard', label: 'Classement' },
     { key: 'correspondence', label: 'Correspondance' },
+    { key: 'library', label: 'Bibliotheque' },
+    { key: 'ai', label: 'Tuteur IA' },
     { key: 'profile', label: 'Profil' },
   ]
 
@@ -588,7 +590,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'quiz' || tab === 'arena' ? 980 : 820 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'quiz' || tab === 'arena' || tab === 'library' || tab === 'ai' ? 1100 : 820 }}>
 
 
           {/* ── HOME ── */}
@@ -1229,6 +1231,10 @@ export default function StudentDashboard() {
           )}
 
           {tab === 'arena' && <ArenaWorkspace embedded />}
+
+          {(tab === 'library' || tab === 'ai') && accessToken && (
+            <StudentLearning token={accessToken} mode={tab} onModeChange={(mode) => setTab(mode)} />
+          )}
 
           {/* ── CORRESPONDANCE ── */}
           {tab === 'correspondence' && (

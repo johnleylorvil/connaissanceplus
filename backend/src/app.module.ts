@@ -11,6 +11,7 @@ import { SponsorsModule } from './sponsors/sponsors.module';
 import { CorrespondenceModule } from './correspondence/correspondence.module';
 import { createTypeOrmOptions } from './database/typeorm.config';
 import { StudentInsightsModule } from './student-insights/student-insights.module';
+import { LearningModule } from './learning/learning.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { StudentInsightsModule } from './student-insights/student-insights.modul
     SponsorsModule,
     CorrespondenceModule,
     StudentInsightsModule,
+    LearningModule,
   ],
   controllers: [AppController],
   providers: [AppService],
