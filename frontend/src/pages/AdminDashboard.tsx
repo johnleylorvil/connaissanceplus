@@ -12,6 +12,7 @@ import type { ContestSession, ContestSessionStatus, ModerationCase } from '../co
 import AdminLearningManager from '../learning/AdminLearningManager'
 import AdminInsightsView from '../admin-insights/AdminInsightsView'
 import AdminUsersView from '../admin-users/AdminUsersView'
+import AdminPublicLeaderboard from '../admin-competition/AdminPublicLeaderboard'
 import { useAdminInsights } from '../admin-insights/useAdminInsights'
 import type { AdminInsightTab } from '../admin-insights/types'
 
@@ -24,7 +25,7 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   return message
 }
 
-type Tab = 'overview' | 'indicators' | 'alerts' | 'levels' | 'subjects' | 'questions' | 'library' | 'users' | 'team' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
+type Tab = 'overview' | 'indicators' | 'alerts' | 'levels' | 'subjects' | 'questions' | 'library' | 'users' | 'team' | 'messages' | 'sponsors' | 'arena' | 'correspondence' | 'leaderboard'
 type CorrSubTab = 'sessions' | 'moderation'
 const CORR_STATUS_OPTIONS: ContestSessionStatus[] = ['draft', 'open', 'closed', 'scoring', 'published']
 const CORR_STATUS_FR: Record<ContestSessionStatus, string> = {
@@ -629,6 +630,13 @@ export default function AdminDashboard() {
       note: 'Messages',
       items: [
         { id: 'messages', label: 'Messages', onClick: () => openAdminTab('messages'), active: tab === 'messages' },
+      ],
+    },
+    {
+      title: 'Compétitions',
+      note: 'Concours',
+      items: [
+        { id: 'arena', label: 'Arena', onClick: () => openAdminTab('arena'), active: tab === 'arena' },
         {
           id: 'correspondence',
           label: 'Correspondance',
@@ -639,16 +647,7 @@ export default function AdminDashboard() {
             { id: 'corr-moderation', label: 'Modération', onClick: () => openAdminCorrespondence('moderation'), active: tab === 'correspondence' && corrSubTab === 'moderation' },
           ],
         },
-        { id: 'notifications', label: 'Notifications', muted: true, disabled: true },
-      ],
-    },
-    {
-      title: 'Compétitions',
-      note: 'Arena',
-      items: [
-        { id: 'arena', label: 'Arena', onClick: () => openAdminTab('arena'), active: tab === 'arena' },
-        { id: 'competition-sessions', label: 'Sessions live', muted: true, disabled: true },
-        { id: 'competition-ranking', label: 'Classements', muted: true, disabled: true },
+        { id: 'competition-ranking', label: 'Classement public', onClick: () => openAdminTab('leaderboard'), active: tab === 'leaderboard' },
       ],
     },
     {
@@ -656,8 +655,6 @@ export default function AdminDashboard() {
       note: 'Business',
       items: [
         { id: 'sponsors', label: 'Sponsors', onClick: () => openAdminTab('sponsors'), active: tab === 'sponsors' },
-        { id: 'payments', label: 'Paiements', muted: true, disabled: true },
-        { id: 'subscriptions', label: 'Abonnements', muted: true, disabled: true },
       ],
     },
     {
@@ -691,8 +688,9 @@ export default function AdminDashboard() {
     { key: 'library', label: 'Bibliotheque' },
     { key: 'users', label: 'Utilisateurs' },
     { key: 'team', label: 'Équipe' },
-    { key: 'correspondence', label: 'Correspondance' },
     { key: 'arena', label: 'Arena' },
+    { key: 'correspondence', label: 'Correspondance' },
+    { key: 'leaderboard', label: 'Classement' },
   ]
 
   return (
@@ -721,7 +719,7 @@ export default function AdminDashboard() {
           <button onClick={logout} style={{ fontSize: 16, color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Quitter</button>
         </div>
 
-        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: ['indicators', 'alerts', 'users', 'team'].includes(tab) ? 1080 : 860 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: ['indicators', 'alerts', 'users', 'team', 'leaderboard'].includes(tab) ? 1080 : 860 }}>
 
           {/* -- OVERVIEW -- */}
           {tab === 'overview' && (
@@ -781,6 +779,8 @@ export default function AdminDashboard() {
           {tab === 'alerts' && (
             <AdminInsightsView mode="alerts" data={adminInsights.data} loading={adminInsights.loading} error={adminInsights.error} onRefresh={() => void adminInsights.refresh()} onNavigate={handleInsightNavigate} />
           )}
+
+          {tab === 'leaderboard' && <AdminPublicLeaderboard classes={classes} />}
 
           {/* -- CLASSES -- */}
           {tab === 'levels' && (
