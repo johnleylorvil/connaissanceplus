@@ -11,6 +11,7 @@ import {
 import type { ContestSession, ContestSessionStatus, ModerationCase } from '../correspondence/types'
 import AdminLearningManager from '../learning/AdminLearningManager'
 import AdminInsightsView from '../admin-insights/AdminInsightsView'
+import AdminUsersView from '../admin-users/AdminUsersView'
 import { useAdminInsights } from '../admin-insights/useAdminInsights'
 import type { AdminInsightTab } from '../admin-insights/types'
 
@@ -23,7 +24,7 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   return message
 }
 
-type Tab = 'overview' | 'indicators' | 'alerts' | 'levels' | 'subjects' | 'questions' | 'library' | 'students' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
+type Tab = 'overview' | 'indicators' | 'alerts' | 'levels' | 'subjects' | 'questions' | 'library' | 'users' | 'team' | 'messages' | 'sponsors' | 'arena' | 'correspondence'
 type CorrSubTab = 'sessions' | 'moderation'
 const CORR_STATUS_OPTIONS: ContestSessionStatus[] = ['draft', 'open', 'closed', 'scoring', 'published']
 const CORR_STATUS_FR: Record<ContestSessionStatus, string> = {
@@ -57,7 +58,7 @@ type Sponsor = {
 }
 
 export default function AdminDashboard() {
-  const { accessToken, logout } = useAuth()
+  const { accessToken, user, logout } = useAuth()
   const [tab, setTab] = useState<Tab>('overview')
   const adminInsights = useAdminInsights(accessToken)
   const [classes, setClasses] = useState<SchoolClass[]>([])
@@ -352,7 +353,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (tab === 'questions') loadQuestions()
-    if (tab === 'students') void callApi<Student[]>('/admin/students', setStudents)
     if (tab === 'messages') {
       void callApi<Broadcast[]>('/admin/broadcasts', setBroadcasts)
       void callApi<Student[]>('/admin/students', setStudents)
@@ -613,8 +613,6 @@ export default function AdminDashboard() {
         { id: 'levels', label: 'Classes', onClick: () => openAdminTab('levels'), active: tab === 'levels' },
         { id: 'subjects', label: 'Matières', onClick: () => openAdminTab('subjects'), active: tab === 'subjects' },
         { id: 'questions', label: 'Questions', onClick: () => openAdminTab('questions'), active: tab === 'questions' },
-        { id: 'exams', label: 'Examens', muted: true, disabled: true },
-        { id: 'certifications', label: 'Certifications', muted: true, disabled: true },
         { id: 'library', label: 'Bibliothèque de contenus', onClick: () => openAdminTab('library'), active: tab === 'library' },
       ],
     },
@@ -622,8 +620,8 @@ export default function AdminDashboard() {
       title: 'Utilisateurs',
       note: 'Accès',
       items: [
-        { id: 'students', label: 'Étudiants', onClick: () => openAdminTab('students'), active: tab === 'students' },
-        { id: 'roles', label: 'Rôles et accès', muted: true, disabled: true },
+        { id: 'users', label: 'Tous les utilisateurs', onClick: () => openAdminTab('users'), active: tab === 'users' },
+        { id: 'team', label: 'Équipe administrative', onClick: () => openAdminTab('team'), active: tab === 'team' },
       ],
     },
     {
@@ -691,7 +689,8 @@ export default function AdminDashboard() {
     { key: 'subjects', label: 'Matières' },
     { key: 'questions', label: 'Questions' },
     { key: 'library', label: 'Bibliotheque' },
-    { key: 'students', label: 'Étudiants' },
+    { key: 'users', label: 'Utilisateurs' },
+    { key: 'team', label: 'Équipe' },
     { key: 'correspondence', label: 'Correspondance' },
     { key: 'arena', label: 'Arena' },
   ]
@@ -707,7 +706,7 @@ export default function AdminDashboard() {
         sections={adminSidebarSections}
         onLogout={logout}
         logoutLabel="Déconnexion"
-        footerNote="Architecture pensée pour accueillir examens, rapports, paiements et IA pédagogique."
+        footerNote="Administration des contenus, utilisateurs et activités de la plateforme."
       />
 
       {/* -- MAIN -- */}
@@ -722,7 +721,7 @@ export default function AdminDashboard() {
           <button onClick={logout} style={{ fontSize: 16, color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Quitter</button>
         </div>
 
-        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'indicators' || tab === 'alerts' ? 1080 : 860 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: ['indicators', 'alerts', 'users', 'team'].includes(tab) ? 1080 : 860 }}>
 
           {/* -- OVERVIEW -- */}
           {tab === 'overview' && (
@@ -955,51 +954,12 @@ export default function AdminDashboard() {
           {tab === 'library' && accessToken && (
             <AdminLearningManager token={accessToken} classes={classes} subjects={subjects} />
           )}
+          {tab === 'users' && accessToken && user && (
+            <AdminUsersView token={accessToken} currentUserId={user.id} mode="all" onCreateModerator={openCreateModModal} />
+          )}
 
-          {tab === 'students' && (
-            <div>
-              <p className="overline" style={{ marginBottom: 8 }}>Gestion</p>
-              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Étudiants</h1>
-
-              <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--rule)' }}>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-2)' }}>
-                    {students.length} étudiant{students.length !== 1 ? 's' : ''} enregistré{students.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Nom</th>
-                        <th>Email</th>
-                        <th>École</th>
-                        <th>Département</th>
-                        <th>Section</th>
-                        <th>Ville</th>
-                        <th>Inscrit le</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((s) => (
-                        <tr key={s.id}>
-                          <td style={{ fontWeight: 500 }}>{s.firstName} {s.lastName}</td>
-                          <td>{s.email}</td>
-                          <td>{s.school ?? '—'}</td>
-                          <td>{s.department ?? '—'}</td>
-                          <td>{s.sectionName ?? '—'}</td>
-                          <td>{s.city ?? '—'}</td>
-                          <td>{new Date(s.createdAt).toLocaleDateString('fr-HT')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {students.length === 0 && (
-                    <p style={{ textAlign: 'center', color: 'var(--ink-3)', padding: '32px', fontSize: 16 }}>Aucun étudiant enregistré.</p>
-                  )}
-                </div>
-              </div>
-            </div>
+          {tab === 'team' && accessToken && user && (
+            <AdminUsersView key={`team-${moderatorUsers.length}`} token={accessToken} currentUserId={user.id} mode="team" onCreateModerator={openCreateModModal} />
           )}
 
           {/* -- MESSAGES -- */}
@@ -1781,16 +1741,16 @@ export default function AdminDashboard() {
                         Assignez un modérateur (rôle MODERATOR) à chaque compétition active ou à venir.
                       </p>
                     </div>
-                    <button className="btn btn-primary btn-sm" onClick={openCreateModModal} style={{ flexShrink: 0 }}>
-                      + Créer un modérateur
+                    <button className="btn btn-primary btn-sm" onClick={() => setTab('team')} style={{ flexShrink: 0 }}>
+                      Gérer l'équipe
                     </button>
                   </div>
 
                   {moderatorUsers.length === 0 && (
                     <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 6, marginBottom: 20, fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                       <span>⚠️ Aucun modérateur trouvé. Créez un compte modérateur pour pouvoir assigner des compétitions.</span>
-                      <button className="btn btn-sm" style={{ background: '#fcd34d', color: '#92400e', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, borderRadius: 4, padding: '4px 12px' }} onClick={openCreateModModal}>
-                        Créer un modérateur
+                      <button className="btn btn-sm" style={{ background: '#fcd34d', color: '#92400e', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, borderRadius: 4, padding: '4px 12px' }} onClick={() => setTab('team')}>
+                        Gérer l'équipe
                       </button>
                     </div>
                   )}

@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, LessThan, MoreThan, Repository } from 'typeorm';
+import { Brackets, In, IsNull, LessThan, MoreThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
@@ -46,11 +46,13 @@ import {
   DuelAnswerDto,
   JoinMatchmakingDto,
   LoginDto,
+  ListAdminUsersDto,
   OtpResendDto,
   OtpVerificationDto,
   RegisterStudentDto,
   SendBroadcastDto,
   StartQuizDto,
+  SuspendUserDto,
   SubmitQuizDto,
   UpdateProfileDto,
 } from './dto/mvp.dto';
@@ -287,6 +289,9 @@ export class MvpService {
     const isValid = await bcrypt.compare(dto.password, user.password);
     if (!isValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Ce compte est suspendu. Contactez un administrateur.');
     }
 
     return this.buildAuthResponse(user);
@@ -1397,6 +1402,73 @@ export class MvpService {
     return students.map((s) => this.sanitizeUser(s));
   }
 
+  async getUsers(query: ListAdminUsersDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 25;
+    const builder = this.userRepo.createQueryBuilder('user')
+      .leftJoinAndSelect('user.academicClass', 'academicClass')
+      .orderBy('user.createdAt', 'DESC');
+
+    if (query.scope === 'team') {
+      builder.andWhere('user.role IN (:...teamRoles)', { teamRoles: [UserRole.ADMIN, UserRole.MODERATOR] });
+    } else if (query.role) {
+      builder.andWhere('user.role = :role', { role: query.role });
+    }
+    if (query.status) builder.andWhere('user.isActive = :isActive', { isActive: query.status === 'active' });
+    const search = query.search?.trim().toLowerCase();
+    if (search) {
+      builder.andWhere(new Brackets((where) => {
+        where.where('LOWER(user.firstName) LIKE :search', { search: `%${search}%` })
+          .orWhere('LOWER(user.lastName) LIKE :search', { search: `%${search}%` })
+          .orWhere('LOWER(user.email) LIKE :search', { search: `%${search}%` });
+      }));
+    }
+
+    const [users, total, students, moderators, admins, active, suspended] = await Promise.all([
+      builder.clone().skip((page - 1) * pageSize).take(pageSize).getMany(),
+      builder.getCount(),
+      this.userRepo.count({ where: { role: UserRole.STUDENT } }),
+      this.userRepo.count({ where: { role: UserRole.MODERATOR } }),
+      this.userRepo.count({ where: { role: UserRole.ADMIN } }),
+      this.userRepo.count({ where: query.scope === 'team' ? { role: In([UserRole.ADMIN, UserRole.MODERATOR]), isActive: true } : { isActive: true } }),
+      this.userRepo.count({ where: query.scope === 'team' ? { role: In([UserRole.ADMIN, UserRole.MODERATOR]), isActive: false } : { isActive: false } }),
+    ]);
+
+    return {
+      items: users.map((user) => this.sanitizeUser(user)),
+      pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+      countsByRole: { student: students, moderator: moderators, admin: admins },
+      countsByStatus: { active, suspended },
+    };
+  }
+
+  async suspendUser(adminId: string, userId: string, dto: SuspendUserDto) {
+    if (adminId === userId) throw new BadRequestException('Vous ne pouvez pas suspendre votre propre compte.');
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilisateur introuvable.');
+    if (!user.isActive) return this.sanitizeUser(user);
+    if (user.role === UserRole.ADMIN) {
+      const activeAdminCount = await this.userRepo.count({ where: { role: UserRole.ADMIN, isActive: true } });
+      if (activeAdminCount <= 1) {
+        throw new BadRequestException('Le dernier administrateur actif ne peut pas être suspendu.');
+      }
+    }
+    user.isActive = false;
+    user.suspendedAt = new Date();
+    user.suspendedByUserId = adminId;
+    user.suspensionReason = dto.reason.trim();
+    return this.sanitizeUser(await this.userRepo.save(user));
+  }
+
+  async reactivateUser(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilisateur introuvable.');
+    user.isActive = true;
+    user.suspendedAt = null;
+    user.suspendedByUserId = null;
+    user.suspensionReason = null;
+    return this.sanitizeUser(await this.userRepo.save(user));
+  }
   async googleAuth(profile: GoogleProfile) {
     const email = profile.emails?.[0]?.value;
     if (!email) throw new BadRequestException('Google account has no email');
@@ -1407,6 +1479,9 @@ export class MvpService {
     }
 
     if (user) {
+      if (!user.isActive) {
+        throw new UnauthorizedException('Ce compte est suspendu. Contactez un administrateur.');
+      }
       if (!user.googleId) {
         user.googleId = profile.id;
         await this.userRepo.save(user);
@@ -1826,8 +1901,8 @@ export class MvpService {
 
   listModerators() {
     return this.userRepo.find({
-      where: [{ role: UserRole.MODERATOR }, { role: UserRole.ADMIN }],
-      select: ['id', 'firstName', 'lastName', 'email', 'createdAt', 'role'],
+      where: [{ role: UserRole.MODERATOR, isActive: true }, { role: UserRole.ADMIN, isActive: true }],
+      select: ['id', 'firstName', 'lastName', 'email', 'createdAt', 'role', 'isActive'],
       order: { firstName: 'ASC', lastName: 'ASC' },
     });
   }

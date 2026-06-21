@@ -17,7 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { BroadcastTargetType, Difficulty, DuelMode, OptionChoice } from '../entities';
+import { BroadcastTargetType, Difficulty, DuelMode, OptionChoice, UserRole } from '../entities';
 import { HAITI_DEPARTMENTS } from '../constants/haiti-geography';
 
 export class CreateModeratorDto {
@@ -47,6 +47,44 @@ export class CreateModeratorDto {
   generatePassword?: boolean;
 }
 
+export class ListAdminUsersDto {
+  @IsEnum(UserRole)
+  @IsOptional()
+  role?: UserRole;
+
+  @IsIn(['active', 'suspended'])
+  @IsOptional()
+  status?: 'active' | 'suspended';
+
+  @IsString()
+  @MaxLength(100)
+  @IsOptional()
+  search?: string;
+
+  @IsIn(['team'])
+  @IsOptional()
+  scope?: 'team';
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  page = 1;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  pageSize = 25;
+}
+
+export class SuspendUserDto {
+  @IsString()
+  @MinLength(5)
+  @MaxLength(300)
+  reason: string;
+}
 export class RegisterStudentDto {
   @IsString()
   @IsNotEmpty()

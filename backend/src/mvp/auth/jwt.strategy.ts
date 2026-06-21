@@ -31,6 +31,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException('Invalid token user');
     }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Ce compte est suspendu. Contactez un administrateur.');
+    }
 
     return {
       id: user.id,

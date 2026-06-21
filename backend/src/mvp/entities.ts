@@ -158,6 +158,22 @@ export class User {
   @Column({ type: 'text', nullable: true })
   googleId: string | null;
 
+  @Column({ type: 'boolean', default: true })
+  isActive: boolean;
+
+  @Column({ type: dateTimeColumnType, nullable: true })
+  suspendedAt: Date | null;
+
+  @Column('uuid', { nullable: true })
+  suspendedByUserId: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'suspendedByUserId' })
+  suspendedBy: User | null;
+
+  @Column({ type: 'text', nullable: true })
+  suspensionReason: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

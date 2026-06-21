@@ -23,12 +23,14 @@ import {
   DuelAnswerDto,
   JoinMatchmakingDto,
   LoginDto,
+  ListAdminUsersDto,
   OtpResendDto,
   OtpVerificationDto,
   OralScoreDto,
   RegisterStudentDto,
   SendBroadcastDto,
   StartQuizDto,
+  SuspendUserDto,
   SubmitQuizDto,
   UpdateProfileDto,
 } from './dto/mvp.dto';
@@ -138,6 +140,28 @@ export class MvpController {
     return this.mvpService.getStudents();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/users')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  getUsers(@Query() query: ListAdminUsersDto) {
+    return this.mvpService.getUsers(query);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('admin/users/:id/suspend')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  suspendUser(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() dto: SuspendUserDto) {
+    return this.mvpService.suspendUser(request.user.id, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('admin/users/:id/reactivate')
+  reactivateUser(@Param('id') id: string) {
+    return this.mvpService.reactivateUser(id);
+  }
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post('admin/broadcast')
