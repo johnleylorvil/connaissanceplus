@@ -2763,3 +2763,11 @@
   .statistics-two-col { grid-template-columns: 1fr; }
   .statistics-chart { grid-template-columns: repeat(30, 18px); }
 }
+
+@media print {
+  body * { visibility: hidden !important; }
+  .admin-report-page, .admin-report-page * { visibility: visible !important; }
+  .admin-report-page { position: absolute; inset: 0; width: 100%; background: #fff; }
+  .admin-report-actions { display: none !important; }
+  .admin-report-page .card { box-shadow: none !important; }
+}

@@ -13,6 +13,7 @@ import { createTypeOrmOptions } from './database/typeorm.config';
 import { StudentInsightsModule } from './student-insights/student-insights.module';
 import { LearningModule } from './learning/learning.module';
 import { AdminInsightsModule } from './admin-insights/admin-insights.module';
+import { PlatformSettingsModule } from './platform-settings/platform-settings.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { AdminInsightsModule } from './admin-insights/admin-insights.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => createTypeOrmOptions(configService),
     }),
+    PlatformSettingsModule,
     MvpModule,
     ArenaModule,
     SponsorsModule,

@@ -2,11 +2,13 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Optional,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
+import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { Not, Repository } from 'typeorm';
 import {
   Assignment,
@@ -60,13 +62,16 @@ export class CorrespondenceService {
     @InjectRepository(ModerationCase) private readonly moderationRepo: Repository<ModerationCase>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Notification) private readonly notificationRepo: Repository<Notification>,
+    @Optional() private readonly platformSettings?: PlatformSettingsService,
   ) {}
 
   // ── Feature flag ─────────────────────────────────────────────────────────────
 
   assertFeatureEnabled(): void {
     const raw = this.configService.get<string>('FEATURE_CORRESPONDENCE_CONTEST', 'false');
-    const enabled = ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
+    const enabled = this.platformSettings
+      ? this.platformSettings.get().correspondenceEnabled
+      : ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
     if (!enabled) {
       throw new ServiceUnavailableException(
         'La fonctionnalité Concours de correspondance est désactivée. ' +
@@ -109,6 +114,7 @@ export class CorrespondenceService {
   }
 
   private async notifyUser(userId: string, title: string, message: string): Promise<void> {
+    if (this.platformSettings && !this.platformSettings.get().notificationsEnabled) return;
     try {
       const notification = this.notificationRepo.create({
         userId,

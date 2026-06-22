@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -60,6 +61,7 @@ import { Profile as GoogleProfile } from 'passport-google-oauth20';
 import * as crypto from 'crypto';
 import { HAITI_DEPARTMENTS } from './constants/haiti-geography';
 import { MailService } from './mail.service';
+import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 
 const QUIZ_QUESTION_COUNT = 10;
 const DUEL_QUESTION_COUNT = 10;
@@ -127,9 +129,14 @@ export class MvpService {
     private readonly duelAnswerRepo: Repository<DuelAnswer>,
     @InjectRepository(AdminBroadcast)
     private readonly adminBroadcastRepo: Repository<AdminBroadcast>,
+    @Optional() private readonly platformSettings?: PlatformSettingsService,
   ) {}
 
   async requestStudentRegistrationOtp(dto: RegisterStudentDto) {
+    if (this.platformSettings && !this.platformSettings.get().registrationEnabled) {
+      throw new ServiceUnavailableException('Les nouvelles inscriptions sont temporairement désactivées.');
+    }
+    this.platformSettings?.assertPassword(dto.password);
     if (!dto.acceptedPrivacyPolicy) {
       throw new BadRequestException("Vous devez accepter la politique de confidentialite pour vous inscrire.");
     }
@@ -245,6 +252,7 @@ export class MvpService {
   }
 
   async bootstrapAdmin(dto: BootstrapAdminDto) {
+    this.platformSettings?.assertPassword(dto.password);
     const setupKey = this.configService.get<string>('ADMIN_SETUP_KEY')?.trim();
     if (!setupKey) {
       throw new ServiceUnavailableException('Admin bootstrap is disabled');
@@ -1253,6 +1261,7 @@ export class MvpService {
   }
 
   async getNotifications(userId: string) {
+    if (this.platformSettings && !this.platformSettings.get().notificationsEnabled) return [];
     const user = await this.userRepo.findOne({
       where: { id: userId },
       select: { id: true, notificationsEnabled: true },
@@ -1340,6 +1349,7 @@ export class MvpService {
     if (!user) throw new NotFoundException('User not found');
 
     if (dto.newPassword) {
+      this.platformSettings?.assertPassword(dto.newPassword);
       if (!dto.currentPassword) {
         throw new BadRequestException('Current password required to change password');
       }
@@ -1487,6 +1497,10 @@ export class MvpService {
         await this.userRepo.save(user);
       }
       return this.buildAuthResponse(user);
+    }
+
+    if (this.platformSettings && !this.platformSettings.get().registrationEnabled) {
+      throw new ServiceUnavailableException('Les nouvelles inscriptions sont temporairement désactivées.');
     }
 
     // Create new user from Google profile
@@ -1721,6 +1735,7 @@ export class MvpService {
   }
 
   private async createNotification(userId: string, title: string, message: string, type: string) {
+    if (this.platformSettings && !this.platformSettings.get().notificationsEnabled) return null;
     const user = await this.userRepo.findOne({
       where: { id: userId },
       select: { id: true, notificationsEnabled: true },
@@ -1774,6 +1789,7 @@ export class MvpService {
   }
 
   async requestModeratorCreationOtp(dto: CreateModeratorDto) {
+    if (dto.password) this.platformSettings?.assertPassword(dto.password);
     const email = this.normalizeEmail(dto.email);
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) {

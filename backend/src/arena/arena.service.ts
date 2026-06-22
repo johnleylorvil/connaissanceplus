@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Optional,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -30,6 +31,7 @@ import {
   UpdateArenaPublicStreamDto,
 } from './arena.dto';
 import { Notification, Question, User, UserRole } from '../mvp/entities';
+import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 
 @Injectable()
 export class ArenaService {
@@ -52,6 +54,7 @@ export class ArenaService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
+    @Optional() private readonly platformSettings?: PlatformSettingsService,
   ) {}
 
   // ─────────────────────────────────────────────
@@ -114,7 +117,7 @@ export class ArenaService {
       ].filter((userId): userId is string => !!userId)),
     );
 
-    if (notificationRecipients.length > 0) {
+    if (notificationRecipients.length > 0 && (!this.platformSettings || this.platformSettings.get().notificationsEnabled)) {
       const scheduledLabel = competition.scheduledAt.toLocaleString('fr-HT');
       await this.notificationRepo.save(
         this.notificationRepo.create(

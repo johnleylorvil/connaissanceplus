@@ -1,6 +1,8 @@
 import {
   ForbiddenException,
   Injectable,
+  Optional,
+  ServiceUnavailableException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +22,7 @@ import {
   TutorMessageRole,
 } from './learning.entities';
 import { OpenAiTutorService } from './openai-tutor.service';
+import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 
 @Injectable()
 export class LearningService {
@@ -36,6 +39,7 @@ export class LearningService {
     @InjectRepository(AcademicClass)
     private readonly classRepo: Repository<AcademicClass>,
     private readonly openAiTutor: OpenAiTutorService,
+    @Optional() private readonly platformSettings?: PlatformSettingsService,
   ) {}
 
   async listAdminChapters(classId?: string, subjectId?: string) {
@@ -162,6 +166,9 @@ export class LearningService {
     chapterId: string,
     dto: SendTutorMessageDto,
   ) {
+    if (this.platformSettings && !this.platformSettings.get().tutorEnabled) {
+      throw new ServiceUnavailableException('Le tuteur pédagogique est temporairement désactivé.');
+    }
     const { chapter, subject, academicClass } =
       await this.requireStudentChapter(userId, chapterId);
     let conversation = await this.conversationRepo.findOne({
