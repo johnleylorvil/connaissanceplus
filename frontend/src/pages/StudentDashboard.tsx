@@ -261,10 +261,10 @@ export default function StudentDashboard() {
     }
   }
 
-  const quizModes: Array<{ id: QuizMode; label: string; detail: string }> = [
-    { id: 'chrono', label: 'Defi chrono', detail: '10 s par question' },
-    { id: 'training', label: 'Mode entrainement', detail: '20 s avec correction' },
-    { id: 'minute', label: 'Course minute', detail: '1 min et bouton Passer' },
+  const quizModes: Array<{ id: QuizMode; label: string; detail: string; cue: string }> = [
+    { id: 'chrono', label: 'Defi chrono', detail: '10 s par question', cue: '10s' },
+    { id: 'training', label: 'Mode entrainement', detail: '20 s avec correction', cue: '20s' },
+    { id: 'minute', label: 'Course minute', detail: '1 min avec Passer', cue: '60s' },
   ]
   const markAllRead = async () => {
     await apiCall('/notifications/read-all', { method: 'PATCH' }, accessToken).catch(() => {})
@@ -892,102 +892,72 @@ export default function StudentDashboard() {
           {/* ── QUIZ ── */}
           {tab === 'quiz' && (
             <div className="challenge-hub">
-              <div className="challenge-header">
-                <div>
-                  <p className="overline">Mode compétition</p>
-                  <h1 className="display challenge-title">Challenge</h1>
+              <section className="challenge-duel-card challenge-hero-card">
+                <div className="challenge-card-topline">
+                  <span className="challenge-ranked-badge">Classé</span>
+                  <span className="challenge-live-copy">Face-à-face en direct</span>
                 </div>
-                <div className="challenge-record">
-                  <span>{history.length}</span>
-                  <small>manches jouées</small>
-                </div>
-              </div>
 
-              <div className="challenge-layout">
-                <section className="challenge-duel-card">
-                  <div className="challenge-card-topline">
-                    <span className="challenge-ranked-badge">Classé</span>
-                    <span className="challenge-live-copy">Face-à-face en direct</span>
-                  </div>
-
-                  <div className="challenge-versus">
-                    <div className="challenge-player">
-                      <div className="challenge-avatar">{user?.firstName?.[0] ?? 'E'}</div>
-                      <span>{user?.firstName ?? 'Vous'}</span>
-                    </div>
-                    <div className="challenge-vs-mark">VS</div>
-                    <div className="challenge-player opponent">
-                      <div className="challenge-avatar">?</div>
-                      <span>Adversaire</span>
-                    </div>
-                  </div>
-
-                  <div className="challenge-duel-copy">
-                    <h2>Affrontement classé</h2>
-                    <p>
-                      Trouve un élève de ton niveau, prends la main au buzzer, puis gagne avec des réponses justes.
-                    </p>
-                  </div>
-
-                  {duelError && <div className="alert alert-error">{duelError}</div>}
-
-                  <div className="challenge-duel-form">
-                    <label className="field-label">Matière du duel</label>
-                    <select value={duelSubjectId} onChange={(e) => setDuelSubjectId(e.target.value)} className="field-input challenge-select">
-                      <option value="">Choisir une matière</option>
-                      {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-
-                    <div className="challenge-selected-subject">
-                      <span>Matière choisie</span>
-                      <strong>{selectedDuelSubject?.name ?? 'En attente de sélection'}</strong>
-                    </div>
-
-                    <button onClick={searchOpponent} disabled={duelLoading || !duelSubjectId} className="btn btn-primary btn-full challenge-duel-cta">
-                      {duelLoading ? (
-                        <>
-                          <span className="challenge-cta-loader" />
-                          Recherche d'un adversaire
-                        </>
-                      ) : (
-                        'Lancer le duel classé'
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="challenge-duel-stats">
-                    <div>
-                      <span>{bestScore}</span>
-                      <small>meilleur score</small>
-                    </div>
-                    <div>
-                      <span>{avgScore}</span>
-                      <small>moyenne</small>
-                    </div>
-                    <div>
-                      <span>{subjects.length}</span>
-                      <small>matières</small>
-                    </div>
-                  </div>
-                  <p className="challenge-human-note">
-                    Le duel démarre automatiquement dès qu'un adversaire est trouvé. Tu peux quitter la recherche à tout moment.
+                <div className="challenge-duel-copy">
+                  <p className="challenge-mini-label">Mode principal</p>
+                  <h1>Affrontement classé</h1>
+                  <p>
+                    Choisis une matière, trouve un élève de ton niveau, puis gagne la manche avec le meilleur score.
                   </p>
-                </section>
+                </div>
 
+                <div className="challenge-versus challenge-versus-hero">
+                  <div className="challenge-player">
+                    <div className="challenge-avatar">{user?.firstName?.[0] ?? 'E'}</div>
+                    <span>{user?.firstName ?? 'Vous'}</span>
+                  </div>
+                  <div className="challenge-vs-mark">VS</div>
+                  <div className="challenge-player opponent">
+                    <div className="challenge-avatar">?</div>
+                    <span>Adversaire</span>
+                  </div>
+                </div>
+
+                {duelError && <div className="alert alert-error">{duelError}</div>}
+
+                <div className="challenge-duel-form challenge-primary-form">
+                  <label className="field-label">Matière du duel</label>
+                  <select value={duelSubjectId} onChange={(e) => setDuelSubjectId(e.target.value)} className="field-input challenge-select">
+                    <option value="">Choisir une matière</option>
+                    {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+
+                  <div className="challenge-selected-subject">
+                    <span>Matière choisie</span>
+                    <strong>{selectedDuelSubject?.name ?? 'En attente de sélection'}</strong>
+                  </div>
+
+                  <button onClick={searchOpponent} disabled={duelLoading || !duelSubjectId} className="btn btn-primary btn-full challenge-duel-cta">
+                    {duelLoading ? (
+                      <>
+                        <span className="challenge-cta-loader" />
+                        Recherche d'un adversaire
+                      </>
+                    ) : (
+                      'Lancer le duel classé'
+                    )}
+                  </button>
+                </div>
+
+                <div className="challenge-reward-strip" aria-label="Progression personnelle">
+                  <div><span>{bestScore}</span><small>Record</small></div>
+                  <div><span>{avgScore}</span><small>Moyenne</small></div>
+                  <div><span>{history.length}</span><small>Manches</small></div>
+                  <div><span>{subjects.length}</span><small>Matières</small></div>
+                </div>
+              </section>
+
+              <div className="challenge-secondary-grid">
                 <aside className="challenge-training-card">
-                  <p className="overline">Entraînement</p>
-                  <h2>Manche individuelle</h2>
-                  <p>Prépare-toi avant d'entrer en classé. Même base de questions, moins de pression.</p>
-
-                  <div className="challenge-training-meta">
-                    <div>
-                      <span>{bestScore}</span>
-                      <small>record perso</small>
-                    </div>
-                    <div>
-                      <span>{history.length}</span>
-                      <small>manches</small>
-                    </div>
+                  <div className="challenge-training-heading">
+                    <p className="overline">Entraînement</p>
+                    <h2>Manche individuelle</h2>
+                    <p>Prépare-toi avant d'entrer en classé.</p>
                   </div>
 
                   {quizError && <div className="alert alert-error">{quizError}</div>}
@@ -1008,20 +978,31 @@ export default function StudentDashboard() {
                           onClick={() => setQuizMode(item.id)}
                           className={quizMode === item.id ? 'selected' : ''}
                         >
+                          <span className="quiz-mode-cue">{item.cue}</span>
                           <strong>{item.label}</strong>
                           <span>{item.detail}</span>
                         </button>
                       ))}
                     </div>
-                    <button onClick={startQuiz} disabled={quizLoading || !quizSubjectId} className="btn btn-ghost btn-full">
+                    <button onClick={startQuiz} disabled={quizLoading || !quizSubjectId} className="btn btn-ghost btn-full challenge-training-cta">
                       {quizLoading ? 'Chargement...' : "Commencer l'entrainement"}
                     </button>
                   </div>
                 </aside>
+
+                <section className="challenge-motivation-card">
+                  <p className="overline">Objectif du jour</p>
+                  <h2>Joue une manche, gagne de l'élan</h2>
+                  <div className="challenge-progress-ring"><span>{Math.min(history.length, 5)}/5</span></div>
+                  <p>{history.length >= 5 ? 'Objectif atteint. Continue pour garder le rythme.' : 'Termine 5 manches pour renforcer ta régularité.'}</p>
+                  <div className="challenge-micro-stats">
+                    <span>Série: {Math.min(history.length, 7)} jour(s)</span>
+                    <span>XP: {history.length * 25}</span>
+                  </div>
+                </section>
               </div>
             </div>
           )}
-
           {/* ── HISTORIQUE ── */}
           {tab === 'history' && (
             <div>
