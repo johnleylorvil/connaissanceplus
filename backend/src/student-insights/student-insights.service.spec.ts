@@ -9,6 +9,7 @@ type RepoMock = {
   create: jest.Mock;
   save: jest.Mock;
   remove: jest.Mock;
+  delete: jest.Mock;
 };
 
 const repo = (): RepoMock => ({
@@ -24,6 +25,7 @@ const repo = (): RepoMock => ({
     ),
   ),
   remove: jest.fn().mockResolvedValue(undefined),
+  delete: jest.fn().mockResolvedValue(undefined),
 });
 
 describe('StudentInsightsService', () => {
@@ -229,9 +231,64 @@ describe('StudentInsightsService', () => {
     );
 
     expect(result[0].title).toBe('Titre du matin');
+    expect(recommendationRepo.delete).toHaveBeenCalledWith({
+      userId: 'student',
+      recommendationDate: '2026-06-19',
+    });
     expect(recommendationRepo.remove).not.toHaveBeenCalled();
   });
 
+  it('rebuilds daily slots before saving to avoid slot conflicts', async () => {
+    recommendationRepo.find.mockResolvedValue([
+      {
+        id: 'saved',
+        userId: 'student',
+        recommendationDate: '2026-06-19',
+        slot: 2,
+        candidateKey: 'learning:math',
+        category: 'learning',
+        title: 'Titre du matin',
+        reason: 'Raison du matin',
+        action: { type: 'start_quiz', subjectId: 'math' },
+      },
+    ]);
+
+    const internals = service as unknown as {
+      syncDailyRecommendations: (
+        userId: string,
+        date: string,
+        candidates: Array<Record<string, unknown>>,
+      ) => Promise<StudentDailyRecommendation[]>;
+    };
+
+    await internals.syncDailyRecommendations('student', '2026-06-19', [
+      {
+        key: 'learning:math',
+        category: 'learning',
+        title: 'Titre recalcule',
+        reason: 'Nouvelle raison',
+        action: { type: 'start_quiz', subjectId: 'math' },
+        priority: 70,
+      },
+      {
+        key: 'competition:duel',
+        category: 'competition',
+        title: 'Duel',
+        reason: 'Continuer',
+        action: { type: 'open_duels' },
+        priority: 50,
+      },
+    ]);
+
+    expect(recommendationRepo.delete).toHaveBeenCalledWith({
+      userId: 'student',
+      recommendationDate: '2026-06-19',
+    });
+    expect(recommendationRepo.save).toHaveBeenCalledWith([
+      expect.objectContaining({ candidateKey: 'learning:math', slot: 0 }),
+      expect.objectContaining({ candidateKey: 'competition:duel', slot: 1 }),
+    ]);
+  });
   it('uses Haiti local time for the generated day', () => {
     const internals = service as unknown as {
       localDateKey: (date: Date) => string;

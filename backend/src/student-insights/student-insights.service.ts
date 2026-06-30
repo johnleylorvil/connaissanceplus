@@ -692,40 +692,29 @@ export class StudentInsightsService {
       where: { userId, recommendationDate },
       order: { slot: 'ASC' },
     });
-    const candidatesByKey = new Map(
-      candidates.map((candidate) => [candidate.key, candidate]),
+    const existingByKey = new Map(
+      existing.map((recommendation) => [
+        recommendation.candidateKey,
+        recommendation,
+      ]),
     );
-    const retained = existing.filter((recommendation) =>
-      candidatesByKey.has(recommendation.candidateKey),
-    );
-    const selectedKeys = new Set(
-      retained.map((recommendation) => recommendation.candidateKey),
-    );
-    const selected = [
-      ...retained,
-      ...candidates
-        .filter((candidate) => !selectedKeys.has(candidate.key))
-        .map((candidate) =>
-          this.recommendationRepo.create({
-            userId,
-            recommendationDate,
-            candidateKey: candidate.key,
-            category: candidate.category,
-            title: candidate.title,
-            reason: candidate.reason,
-            action: candidate.action,
-            slot: 0,
-          }),
-        ),
-    ].slice(0, 3);
-
-    const obsolete = existing.filter(
-      (recommendation) => !selected.includes(recommendation),
-    );
-    if (obsolete.length) await this.recommendationRepo.remove(obsolete);
-    selected.forEach((recommendation, slot) => {
-      recommendation.slot = slot;
+    const selected = candidates.slice(0, 3).map((candidate, slot) => {
+      const retained = existingByKey.get(candidate.key);
+      return this.recommendationRepo.create({
+        userId,
+        recommendationDate,
+        candidateKey: candidate.key,
+        category: retained?.category ?? candidate.category,
+        title: retained?.title ?? candidate.title,
+        reason: retained?.reason ?? candidate.reason,
+        action: retained?.action ?? candidate.action,
+        slot,
+      });
     });
+
+    if (existing.length) {
+      await this.recommendationRepo.delete({ userId, recommendationDate });
+    }
     return this.recommendationRepo.save(selected);
   }
 
