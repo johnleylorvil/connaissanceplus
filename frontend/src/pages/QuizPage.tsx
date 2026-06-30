@@ -96,9 +96,13 @@ export default function QuizPage() {
   const answersRef = useRef(answers)
   const submittedRef = useRef(submitted)
   const currentRef = useRef(current)
+  const advanceTimeoutRef = useRef<number | null>(null)
   useEffect(() => { answersRef.current = answers }, [answers])
   useEffect(() => { submittedRef.current = submitted }, [submitted])
   useEffect(() => { currentRef.current = current }, [current])
+  useEffect(() => () => {
+    if (advanceTimeoutRef.current) window.clearTimeout(advanceTimeoutRef.current)
+  }, [])
 
   const animatedScore = useCountUp(result?.score ?? 0)
   const animatedPct = useCountUp(result?.percentage ?? 0)
@@ -138,6 +142,7 @@ export default function QuizPage() {
   }, [accessToken, sessionId, submitting])
 
   const moveNextOrFinish = useCallback((nextAnswers: AnswerMap) => {
+    if (submittedRef.current) return
     const index = currentRef.current
     if (index >= questions.length - 1) {
       void submitQuiz(nextAnswers)
@@ -198,20 +203,23 @@ export default function QuizPage() {
   const answeredCount = Object.keys(answers).length
   const activeSeconds = modeConfig.global ? globalTimeLeft : questionTimeLeft
   const timerPct = Math.max(0, Math.min(100, (activeSeconds / Math.max(1, modeConfig.seconds)) * 100))
-  const correctionVisible = mode === 'training' && q && feedbackQuestionId === q.sessionQuestionId
+  const feedbackVisible = q && feedbackQuestionId === q.sessionQuestionId
+  const correctionVisible = mode === 'training' && feedbackVisible
 
   const selectAnswer = (option: OptionKey) => {
-    if (!q || submitted || submitting || correctionVisible) return
+    if (!q || submitted || submitting || feedbackVisible) return
     const nextAnswers = { ...answersRef.current, [q.sessionQuestionId]: option }
     answersRef.current = nextAnswers
     setAnswers(nextAnswers)
+    setFeedbackQuestionId(q.sessionQuestionId)
 
-    if (mode === 'training') {
-      setFeedbackQuestionId(q.sessionQuestionId)
-      return
-    }
+    if (mode === 'training') return
 
-    moveNextOrFinish(nextAnswers)
+    if (advanceTimeoutRef.current) window.clearTimeout(advanceTimeoutRef.current)
+    advanceTimeoutRef.current = window.setTimeout(() => {
+      advanceTimeoutRef.current = null
+      moveNextOrFinish(nextAnswers)
+    }, 550)
   }
 
   const skipQuestion = () => {
@@ -294,13 +302,13 @@ export default function QuizPage() {
           <div className="chalk-options-grid">
             {(Object.entries(q.options) as [OptionKey, string][]).map(([key, value]) => {
               const isSelected = selected === key
-              const showCorrect = correctionVisible && q.correctOption === key
-              const showWrong = correctionVisible && isSelected && !isCorrect
+              const showCorrect = feedbackVisible && q.correctOption === key
+              const showWrong = feedbackVisible && isSelected && !isCorrect
               return (
                 <button
                   key={key}
                   onClick={() => selectAnswer(key)}
-                  disabled={submitting || correctionVisible}
+                  disabled={submitting || feedbackVisible}
                   className={`chalk-option${isSelected ? ' selected' : ''}${showCorrect ? ' correct' : ''}${showWrong ? ' wrong' : ''}`}
                 >
                   <span>{key}</span>
