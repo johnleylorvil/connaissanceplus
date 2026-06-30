@@ -1,5 +1,4 @@
 import {
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEmail,
@@ -244,7 +243,6 @@ export class AnswerInputDto {
 
 export class SubmitQuizDto {
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => AnswerInputDto)
   answers: AnswerInputDto[];

@@ -17,6 +17,7 @@ import AccountPreferences from '../account/AccountPreferences'
 
 type Tab = 'home' | 'summary' | 'recommendations' | 'statistics' | 'quiz' | 'history' | 'leaderboard' | 'notifications' | 'profile' | 'arena' | 'correspondence' | 'library' | 'ai' | 'security' | 'preferences'
 type CorrView = 'sessions' | 'write' | 'myletters' | 'inbox' | 'thread'
+type QuizMode = 'chrono' | 'training' | 'minute'
 type SchoolClass = { id: string; name: string }
 type Subject = { id: string; name: string; classId: string }
 type HistoryEntry = {
@@ -53,6 +54,8 @@ type QuizStartResponse = {
     prompt: string
     options: { A: string; B: string; C: string; D: string }
     difficulty: string
+    correctOption: 'A' | 'B' | 'C' | 'D'
+    explanation: string | null
   }>
 }
 
@@ -115,6 +118,7 @@ export default function StudentDashboard() {
   const [insightsError, setInsightsError] = useState('')
 
   const [quizSubjectId, setQuizSubjectId] = useState('')
+  const [quizMode, setQuizMode] = useState<QuizMode>('chrono')
   const [quizLoading, setQuizLoading] = useState(false)
   const [quizError, setQuizError] = useState('')
   const [duelSubjectId, setDuelSubjectId] = useState('')
@@ -249,7 +253,7 @@ export default function StudentDashboard() {
         method: 'POST',
         body: JSON.stringify({ subjectId: quizSubjectId }),
       }, accessToken)
-      navigate(`/quiz/${data.sessionId}`, { state: { questions: data.questions } })
+      navigate(`/quiz/${data.sessionId}`, { state: { questions: data.questions, mode: quizMode } })
     } catch (err) {
       setQuizError((err as { message: string }).message)
     } finally {
@@ -257,6 +261,11 @@ export default function StudentDashboard() {
     }
   }
 
+  const quizModes: Array<{ id: QuizMode; label: string; detail: string }> = [
+    { id: 'chrono', label: 'Defi chrono', detail: '10 s par question' },
+    { id: 'training', label: 'Mode entrainement', detail: '20 s avec correction' },
+    { id: 'minute', label: 'Course minute', detail: '1 min et bouton Passer' },
+  ]
   const markAllRead = async () => {
     await apiCall('/notifications/read-all', { method: 'PATCH' }, accessToken).catch(() => {})
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
@@ -989,8 +998,23 @@ export default function StudentDashboard() {
                       <option value="">Choisir une matière</option>
                       {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
+                    <div className="quiz-mode-picker" role="radiogroup" aria-label="Mode de quiz">
+                      {quizModes.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={quizMode === item.id}
+                          onClick={() => setQuizMode(item.id)}
+                          className={quizMode === item.id ? 'selected' : ''}
+                        >
+                          <strong>{item.label}</strong>
+                          <span>{item.detail}</span>
+                        </button>
+                      ))}
+                    </div>
                     <button onClick={startQuiz} disabled={quizLoading || !quizSubjectId} className="btn btn-ghost btn-full">
-                      {quizLoading ? 'Chargement...' : "Commencer l'entraînement"}
+                      {quizLoading ? 'Chargement...' : "Commencer l'entrainement"}
                     </button>
                   </div>
                 </aside>

@@ -1,30 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { apiCall } from '../api/client'
+import { useAuth } from '../context/AuthContext'
+
+type OptionKey = 'A' | 'B' | 'C' | 'D'
+type QuizMode = 'chrono' | 'training' | 'minute'
 
 type Question = {
   sessionQuestionId: string
   questionId: string
   prompt: string
-  options: { A: string; B: string; C: string; D: string }
+  options: Record<OptionKey, string>
   difficulty: 'easy' | 'medium' | 'hard'
+  correctOption: OptionKey
+  explanation: string | null
 }
-type AnswerMap = Record<string, 'A' | 'B' | 'C' | 'D'>
+
+type Correction = {
+  sessionQuestionId: string
+  questionId: string
+  prompt: string
+  options: Record<OptionKey, string>
+  selectedOption: OptionKey | null
+  correctOption: OptionKey
+  isCorrect: boolean
+  explanation: string | null
+}
+
+type AnswerMap = Record<string, OptionKey | null>
 type SubmitResult = {
   sessionId: string
   score: number
   totalQuestions: number
   submittedAnswers: number
   percentage: number
+  corrections: Correction[]
 }
 
-const QUESTION_TIME_SECONDS = 10
-
-const difficultyColor: Record<string, string> = {
-  easy: 'var(--ok)',
-  medium: 'var(--gold)',
-  hard: 'var(--error)',
+const MODE_CONFIG: Record<QuizMode, { label: string; shortLabel: string; seconds: number; global: boolean }> = {
+  chrono: { label: 'Defi chrono', shortLabel: 'Chrono', seconds: 10, global: false },
+  training: { label: 'Mode entrainement', shortLabel: 'Entrainement', seconds: 20, global: false },
+  minute: { label: 'Course minute', shortLabel: 'Minute', seconds: 60, global: true },
 }
 
 const difficultyLabel: Record<string, string> = {
@@ -34,11 +50,11 @@ const difficultyLabel: Record<string, string> = {
 }
 
 const resultMessage = (pct: number) => {
-  if (pct === 100) return 'Parfait — vrai génie !'
-  if (pct >= 80)  return 'Excellent travail !'
-  if (pct >= 60)  return 'Bien joué !'
-  if (pct >= 40)  return 'Continue à t\'entraîner !'
-  return 'Tu peux mieux faire — relance une manche !'
+  if (pct === 100) return "Parfait, rien ne t'a echappe."
+  if (pct >= 80) return 'Excellent travail.'
+  if (pct >= 60) return 'Belle manche.'
+  if (pct >= 40) return 'Continue, tu progresses.'
+  return 'Reprends calmement et relance une manche.'
 }
 
 function useCountUp(target: number, duration = 900) {
@@ -63,34 +79,35 @@ export default function QuizPage() {
   const { accessToken } = useAuth()
 
   const questions: Question[] = location.state?.questions ?? []
+  const mode: QuizMode = location.state?.mode ?? 'chrono'
+  const modeConfig = MODE_CONFIG[mode]
   const [current, setCurrent] = useState(0)
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitted, setSubmitted] = useState(false)
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [questionTimeLeft, setQuestionTimeLeft] = useState(QUESTION_TIME_SECONDS)
-  const [questionKey, setQuestionKey] = useState(0)
+  const [questionTimeLeft, setQuestionTimeLeft] = useState(modeConfig.global ? 0 : modeConfig.seconds)
+  const [globalTimeLeft, setGlobalTimeLeft] = useState(modeConfig.global ? modeConfig.seconds : 0)
+  const [feedbackQuestionId, setFeedbackQuestionId] = useState<string | null>(null)
 
-  // Animated score counter
-  const animatedScore = useCountUp(result?.score ?? 0)
-  const animatedPct   = useCountUp(result?.percentage ?? 0)
-
-  // Ref to avoid stale closure in timer
+  const answersRef = useRef(answers)
+  const submittedRef = useRef(submitted)
   const currentRef = useRef(current)
+  useEffect(() => { answersRef.current = answers }, [answers])
+  useEffect(() => { submittedRef.current = submitted }, [submitted])
   useEffect(() => { currentRef.current = current }, [current])
 
-  const advanceQuestion = useCallback(() => {
-    setCurrent((prev) => {
-      const next = prev + 1
-      return next < questions.length ? next : prev
-    })
-    setQuestionKey((k) => k + 1)
-    setQuestionTimeLeft(QUESTION_TIME_SECONDS)
-  }, [questions.length])
+  const animatedScore = useCountUp(result?.score ?? 0)
+  const animatedPct = useCountUp(result?.percentage ?? 0)
 
-  const handleSubmit = useCallback(async () => {
-    if (submitting || submitted) return
+  useEffect(() => {
+    if (questions.length === 0) navigate('/dashboard')
+  }, [navigate, questions.length])
+
+  const submitQuiz = useCallback(async (finalAnswers: AnswerMap = answersRef.current) => {
+    if (submitting || submittedRef.current || !sessionId) return
+    submittedRef.current = true
     setSubmitting(true)
     setError('')
     try {
@@ -99,10 +116,9 @@ export default function QuizPage() {
         {
           method: 'POST',
           body: JSON.stringify({
-            answers: Object.entries(answers).map(([sessionQuestionId, selectedOption]) => ({
-              sessionQuestionId,
-              selectedOption,
-            })),
+            answers: Object.entries(finalAnswers)
+              .filter((entry): entry is [string, OptionKey] => entry[1] !== null)
+              .map(([sessionQuestionId, selectedOption]) => ({ sessionQuestionId, selectedOption })),
           }),
         },
         accessToken,
@@ -110,208 +126,206 @@ export default function QuizPage() {
       setResult(data)
       setSubmitted(true)
     } catch (err) {
+      submittedRef.current = false
+      setSubmitted(false)
       setError((err as { message: string }).message)
     } finally {
       setSubmitting(false)
     }
-  }, [accessToken, answers, sessionId, submitted, submitting])
+  }, [accessToken, sessionId, submitting])
 
-  useEffect(() => {
-    if (questions.length === 0) {
-      navigate('/dashboard')
+  const moveNextOrFinish = useCallback((nextAnswers: AnswerMap) => {
+    const index = currentRef.current
+    if (index >= questions.length - 1) {
+      void submitQuiz(nextAnswers)
+      return
     }
-  }, [navigate, questions.length])
+    setCurrent(index + 1)
+    setQuestionTimeLeft(modeConfig.global ? 0 : modeConfig.seconds)
+    setFeedbackQuestionId(null)
+  }, [modeConfig.global, modeConfig.seconds, questions.length, submitQuiz])
+
+  const markCurrentWrong = useCallback(() => {
+    const question = questions[currentRef.current]
+    if (!question || submittedRef.current) return answersRef.current
+    const nextAnswers = { ...answersRef.current, [question.sessionQuestionId]: null }
+    answersRef.current = nextAnswers
+    setAnswers(nextAnswers)
+    return nextAnswers
+  }, [questions])
 
   useEffect(() => {
-    if (submitted || questions.length === 0) return
-    setQuestionTimeLeft(QUESTION_TIME_SECONDS)
-    setQuestionKey((k) => k + 1)
-  }, [current, submitted, questions.length])
-
-  useEffect(() => {
-    if (submitted || questions.length === 0) return
-
-    const interval = setInterval(() => {
+    if (submitted || questions.length === 0 || modeConfig.global || feedbackQuestionId) return
+    setQuestionTimeLeft(modeConfig.seconds)
+    const interval = window.setInterval(() => {
       setQuestionTimeLeft((seconds) => {
         if (seconds <= 1) {
-          if (currentRef.current >= questions.length - 1) {
-            void handleSubmit()
-            return 0
+          const nextAnswers = markCurrentWrong()
+          if (mode === 'training') {
+            setFeedbackQuestionId(questions[currentRef.current]?.sessionQuestionId ?? null)
+          } else {
+            moveNextOrFinish(nextAnswers)
           }
-          advanceQuestion()
-          return QUESTION_TIME_SECONDS
+          return 0
         }
         return seconds - 1
       })
     }, 1000)
 
-    return () => clearInterval(interval)
-  }, [advanceQuestion, handleSubmit, submitted, questions.length])
+    return () => window.clearInterval(interval)
+  }, [feedbackQuestionId, markCurrentWrong, mode, modeConfig.global, modeConfig.seconds, moveNextOrFinish, questions, submitted])
+
+  useEffect(() => {
+    if (submitted || questions.length === 0 || !modeConfig.global) return
+    setGlobalTimeLeft(modeConfig.seconds)
+    const interval = window.setInterval(() => {
+      setGlobalTimeLeft((seconds) => {
+        if (seconds <= 1) {
+          void submitQuiz(answersRef.current)
+          return 0
+        }
+        return seconds - 1
+      })
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [modeConfig.global, modeConfig.seconds, questions.length, submitQuiz, submitted])
 
   const q = questions[current]
+  const answeredCount = Object.keys(answers).length
+  const activeSeconds = modeConfig.global ? globalTimeLeft : questionTimeLeft
+  const timerPct = Math.max(0, Math.min(100, (activeSeconds / Math.max(1, modeConfig.seconds)) * 100))
+  const correctionVisible = mode === 'training' && q && feedbackQuestionId === q.sessionQuestionId
 
-  const selectAnswer = (opt: 'A' | 'B' | 'C' | 'D') => {
-    if (submitted) return
-    setAnswers((prev) => ({ ...prev, [q.sessionQuestionId]: opt }))
+  const selectAnswer = (option: OptionKey) => {
+    if (!q || submitted || submitting || correctionVisible) return
+    const nextAnswers = { ...answersRef.current, [q.sessionQuestionId]: option }
+    answersRef.current = nextAnswers
+    setAnswers(nextAnswers)
+
+    if (mode === 'training') {
+      setFeedbackQuestionId(q.sessionQuestionId)
+      return
+    }
+
+    moveNextOrFinish(nextAnswers)
   }
 
-  const answeredCount = Object.keys(answers).length
-  const progress = ((current + 1) / questions.length) * 100
+  const skipQuestion = () => {
+    if (!q || submitted || submitting || mode !== 'minute') return
+    const nextAnswers = { ...answersRef.current, [q.sessionQuestionId]: null }
+    answersRef.current = nextAnswers
+    setAnswers(nextAnswers)
+    moveNextOrFinish(nextAnswers)
+  }
 
-  // Timer bar color
-  const timerPct = (questionTimeLeft / QUESTION_TIME_SECONDS) * 100
-  const timerColor = questionTimeLeft <= 3
-    ? 'var(--error)'
-    : questionTimeLeft <= 5
-    ? 'var(--gold)'
-    : 'var(--ok)'
+  const continueTraining = () => {
+    moveNextOrFinish(answersRef.current)
+  }
 
   if (submitted && result) {
-    const pct = result.percentage
-    const ringColor = pct >= 80 ? 'var(--ok)' : pct >= 50 ? 'var(--cobalt)' : 'var(--gold)'
-
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
-        <div className="card anim-pop-in" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
-          <p className="overline" style={{ marginBottom: 16 }}>Résultat final</p>
+      <div className="chalk-quiz-page result">
+        <section className="chalk-result-board anim-pop-in">
+          <p className="chalk-kicker">Resultat final</p>
+          <div className="chalk-result-score">{animatedScore}/{result.totalQuestions}</div>
+          <h1>{resultMessage(result.percentage)}</h1>
+          <div className="chalk-result-meter"><span style={{ width: `${animatedPct}%` }} /></div>
+          <p className="chalk-result-percent">{animatedPct}%</p>
 
-          {/* Animated score ring */}
-          <div className="result-score-ring" style={{ color: ringColor, borderColor: ringColor }}>
-            {animatedScore}/{result.totalQuestions}
+          <div className="chalk-correction-list">
+            {result.corrections.map((item, index) => (
+              <article key={item.sessionQuestionId} className={item.isCorrect ? 'correct' : 'wrong'}>
+                <div>
+                  <span>Q{index + 1}</span>
+                  <strong>{item.isCorrect ? 'Correct' : 'A revoir'}</strong>
+                </div>
+                <p>{item.prompt}</p>
+                <small>
+                  Ta reponse: {item.selectedOption ? `${item.selectedOption}. ${item.options[item.selectedOption]}` : 'aucune'}
+                  {' | '}Bonne reponse: {item.correctOption}. {item.options[item.correctOption]}
+                </small>
+                {item.explanation && <em>{item.explanation}</em>}
+              </article>
+            ))}
           </div>
 
-          {/* Result message */}
-          <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
-            {resultMessage(pct)}
-          </p>
-
-          {/* Percentage bar */}
-          <div style={{ height: 10, background: 'var(--rule)', borderRadius: 5, overflow: 'hidden', margin: '16px 0 6px' }}>
-            <div style={{
-              height: '100%',
-              width: `${pct}%`,
-              background: `linear-gradient(90deg, ${ringColor}, ${ringColor}bb)`,
-              borderRadius: 5,
-              transition: 'width 1.1s cubic-bezier(0.4,0,0.2,1)',
-            }} />
+          <div className="chalk-result-actions">
+            <button onClick={() => navigate('/dashboard', { replace: true })} className="btn btn-primary">Retour au tableau de bord</button>
+            <button onClick={() => navigate('/dashboard')} className="btn btn-ghost">Lancer une autre manche</button>
           </div>
-          <p className="display" style={{ fontSize: 40, color: ringColor, marginBottom: 24 }}>
-            {animatedPct}%
-          </p>
-
-          <div className="responsive-two-col" style={{ gap: 1, border: '1px solid var(--rule)', borderRadius: 10, overflow: 'hidden', background: 'var(--rule)', marginBottom: 20 }}>
-            <div style={{ background: '#fff', padding: '16px 10px' }}>
-              <div className="display" style={{ fontSize: 34, color: 'var(--ok)' }}>{result.score}</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Correctes</div>
-            </div>
-            <div style={{ background: '#fff', padding: '16px 10px' }}>
-              <div className="display" style={{ fontSize: 34, color: 'var(--error)' }}>{result.totalQuestions - result.score}</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Incorrectes</div>
-            </div>
-          </div>
-
-          <div style={{ background: 'rgba(27,53,99,0.04)', border: '1px solid rgba(27,53,99,0.1)', borderRadius: 8, padding: '12px 16px', marginBottom: 22 }}>
-            <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.6 }}>
-              Chaque bonne réponse améliore votre préparation. Le classement hebdomadaire dépend de vos performances en affrontement.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button onClick={() => navigate('/dashboard', { replace: true })} className="btn btn-primary btn-full">Retour au tableau de bord</button>
-            <button onClick={() => navigate('/dashboard')} className="btn btn-ghost btn-full">Lancer une autre manche</button>
-          </div>
-        </div>
+        </section>
       </div>
     )
   }
 
   if (!q) return null
 
+  const selected = answers[q.sessionQuestionId]
+  const isCorrect = selected === q.correctOption
+  const timerLabel = modeConfig.global ? `${globalTimeLeft}s` : `${questionTimeLeft}s`
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      {/* Header */}
-      <div style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/dashboard')} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Quitter</button>
-          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>Question {current + 1}/{questions.length}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 15, color: 'var(--ink-3)' }}>{answeredCount}/{questions.length} réponses</span>
-          <span style={{
-            fontFamily: 'monospace', fontWeight: 800, fontSize: 17,
-            padding: '4px 14px', borderRadius: 6,
-            background: questionTimeLeft <= 3 ? 'var(--error)' : questionTimeLeft <= 5 ? 'var(--gold)' : 'var(--cobalt)',
-            color: '#fff',
-            transition: 'background 0.3s',
-            animation: questionTimeLeft <= 3 ? 'timerPulse 0.5s ease infinite' : 'none',
-          }}>
-            {questionTimeLeft}s
-          </span>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="quiz-progress-bar-wrap">
-        <div className="quiz-progress-bar" style={{ width: `${progress}%` }} />
-      </div>
-
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
-        {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
-
-        {/* Timer bar */}
-        <div className="quiz-timer-bar-wrap">
-          <div
-            className={`quiz-timer-bar${questionTimeLeft <= 3 ? ' urgent' : ''}`}
-            style={{ width: `${timerPct}%`, background: timerColor }}
-          />
-        </div>
-
-        {/* Question card with slide-in animation keyed on question index */}
-        <div key={questionKey} className="card anim-slide-in" style={{ marginBottom: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: difficultyColor[q.difficulty], letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 20, background: `${difficultyColor[q.difficulty]}18` }}>
-              {difficultyLabel[q.difficulty]}
-            </span>
-            <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>{current + 1} / {questions.length}</span>
+    <div className="chalk-quiz-page">
+      <div className="chalk-board-shell">
+        <header className="chalk-board-top">
+          <button onClick={() => navigate('/dashboard')} className="chalk-exit-button">x</button>
+          <div>
+            <span>{modeConfig.label}</span>
+            <strong>Question {current + 1}/{questions.length}</strong>
           </div>
-          <p style={{ fontSize: 19, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.65 }}>{q.prompt}</p>
+          <b>{timerLabel}</b>
+        </header>
+
+        <div className="chalk-progress-track"><span style={{ width: `${timerPct}%` }} /></div>
+        <div className="chalk-stars" aria-hidden="true">
+          {questions.slice(0, Math.min(5, questions.length)).map((_, index) => <span key={index}>☆</span>)}
         </div>
 
-        {/* Options */}
-        <div key={`opts-${questionKey}`} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-          {(Object.entries(q.options) as [string, string][]).map(([key, value], i) => {
-            const selected = answers[q.sessionQuestionId] === key
-            return (
-              <button
-                key={key}
-                onClick={() => selectAnswer(key as 'A' | 'B' | 'C' | 'D')}
-                className={`quiz-option anim-fade-up${selected ? ' selected' : ''}`}
-                style={{ animationDelay: `${i * 0.06}s` }}
-              >
-                <span className="opt-key" data-key={key}>{key}</span>
-                <span>{value}</span>
-              </button>
-            )
-          })}
-        </div>
+        {error && <div className="alert alert-error">{error}</div>}
 
-        {/* Navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.65 }}>10 secondes par question — passage automatique.</p>
-          {current < questions.length - 1 ? (
-            <button onClick={advanceQuestion} className="btn btn-primary btn-sm">Suivant →</button>
-          ) : (
-            <button onClick={handleSubmit} disabled={submitting} className="btn btn-primary btn-sm">{submitting ? '…' : 'Terminer'}</button>
-          )}
-        </div>
+        <main className="chalk-question-stage anim-slide-in" key={q.sessionQuestionId}>
+          <p className="chalk-difficulty">{difficultyLabel[q.difficulty]}</p>
+          <h1>{q.prompt}</h1>
 
-        {answeredCount > 0 && (
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <button onClick={handleSubmit} disabled={submitting} className="btn btn-ghost btn-sm">
-              Terminer maintenant ({answeredCount}/{questions.length})
+          <div className="chalk-options-grid">
+            {(Object.entries(q.options) as [OptionKey, string][]).map(([key, value]) => {
+              const isSelected = selected === key
+              const showCorrect = correctionVisible && q.correctOption === key
+              const showWrong = correctionVisible && isSelected && !isCorrect
+              return (
+                <button
+                  key={key}
+                  onClick={() => selectAnswer(key)}
+                  disabled={submitting || correctionVisible}
+                  className={`chalk-option${isSelected ? ' selected' : ''}${showCorrect ? ' correct' : ''}${showWrong ? ' wrong' : ''}`}
+                >
+                  <span>{key}</span>
+                  <strong>{value}</strong>
+                </button>
+              )
+            })}
+          </div>
+        </main>
+
+        {correctionVisible && (
+          <section className={`chalk-feedback ${isCorrect ? 'correct' : 'wrong'}`}>
+            <strong>{isCorrect ? 'Bonne reponse' : 'Mauvaise reponse'}</strong>
+            <p>Bonne reponse: {q.correctOption}. {q.options[q.correctOption]}</p>
+            {q.explanation && <small>{q.explanation}</small>}
+            <button onClick={continueTraining} className="btn btn-primary btn-sm">
+              {current >= questions.length - 1 ? 'Terminer' : 'Continuer'}
             </button>
-          </div>
+          </section>
         )}
+
+        <footer className="chalk-board-bottom">
+          <span>{answeredCount}/{questions.length} reponses</span>
+          {mode === 'minute' && (
+            <button onClick={skipQuestion} disabled={submitting} className="btn btn-ghost btn-sm">Passer</button>
+          )}
+          <span>{modeConfig.shortLabel}</span>
+        </footer>
       </div>
     </div>
   )

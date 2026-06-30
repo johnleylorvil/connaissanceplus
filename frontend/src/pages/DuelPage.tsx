@@ -13,6 +13,8 @@ type DuelQuestion = {
   prompt: string
   options: { A: string; B: string; C: string; D: string }
   difficulty: 'easy' | 'medium' | 'hard'
+  correctOption?: 'A' | 'B' | 'C' | 'D'
+  explanation?: string | null
 }
 
 type ParticipantState = {
@@ -26,6 +28,7 @@ type ParticipantState = {
   answers: Array<{
     duelQuestionId: string
     position: number
+    selectedOption?: 'A' | 'B' | 'C' | 'D' | null
     isCorrect: boolean | null
   }>
 }
@@ -61,7 +64,7 @@ type DuelState = {
   myAnsweredCount: number
 }
 
-const QUESTION_TIME_SECONDS = 8
+const QUESTION_TIME_SECONDS = 60
 
 function adaptOralLiveState(
   data: Partial<DuelState> & { participants?: ParticipantState[] },
@@ -97,7 +100,6 @@ export default function DuelPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | null>(null)
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME_SECONDS)
 
   const isOralLive = duelState?.mode === 'oral_live'
@@ -129,11 +131,6 @@ export default function DuelPage() {
       setJoiningAudio(false)
     }
   }
-
-  const activeResponder = useMemo(
-    () => duelState?.participants.find((participant) => participant.userId === duelState.activeResponderUserId) ?? null,
-    [duelState],
-  )
   const duelStatus = duelState?.status
   const duelCanAnswer = duelState?.canAnswer
   const myAnsweredCount = duelState?.myAnsweredCount
@@ -191,33 +188,12 @@ export default function DuelPage() {
         accessToken,
       )
       setDuelState(data)
-      setSelectedOption(null)
     } catch (err) {
       setError((err as { message: string }).message)
     } finally {
       setSubmitting(false)
     }
   }, [accessToken, currentQuestion, duelId, duelState, submitting])
-
-  const buzz = useCallback(async () => {
-    if (!duelId || !duelState?.canBuzz || submitting) return
-
-    setSubmitting(true)
-    setError('')
-    try {
-      const data = await apiCall<DuelState>(
-        `/duels/${duelId}/buzz`,
-        { method: 'POST' },
-        accessToken,
-      )
-      setDuelState(data)
-      setSelectedOption(null)
-    } catch (err) {
-      setError((err as { message: string }).message)
-    } finally {
-      setSubmitting(false)
-    }
-  }, [accessToken, duelId, duelState?.canBuzz, submitting])
 
   useEffect(() => {
     void loadState()
@@ -236,8 +212,7 @@ export default function DuelPage() {
   useEffect(() => {
     if (duelStatus !== 'in_progress') return
     setTimeLeft(duelState?.responseSeconds ?? QUESTION_TIME_SECONDS)
-    setSelectedOption(null)
-  }, [currentQuestion?.duelQuestionId, duelState?.buzzerPhase, duelState?.responseSeconds, duelStatus, myAnsweredCount])
+  }, [currentQuestion?.duelQuestionId, duelState?.responseSeconds, duelStatus, myAnsweredCount])
 
   useEffect(() => {
     if (duelStatus !== 'in_progress' || !duelCanAnswer || isOralLive) return
@@ -383,26 +358,28 @@ export default function DuelPage() {
     )
   }
 
-  const timerMax = duelState.responseSeconds ?? QUESTION_TIME_SECONDS
+  const timerMax = QUESTION_TIME_SECONDS
   const timerPct = Math.max(0, Math.min(100, (timeLeft / Math.max(1, timerMax)) * 100))
   const timerBarColor = timeLeft <= 3 ? 'var(--error)' : timeLeft <= 5 ? 'var(--gold)' : 'var(--ok)'
   const questionKey = currentQuestion?.duelQuestionId ?? duelState.currentQuestionPosition ?? 0
   const isMine = (uid: string) => uid === duelState.currentUserId
   const isWinner = duelState.winnerUserId === duelState.currentUserId
-  const isSecondChance = Boolean(duelState.firstResponderUserId && duelState.firstResponderUserId !== duelState.activeResponderUserId)
   const me = duelState.participants.find((participant) => isMine(participant.userId)) ?? duelState.participants[0]
   const opponent = duelState.participants.find((participant) => !isMine(participant.userId))
-  const statusCopy = duelState.canAnswer
-    ? `À vous de répondre - ${timeLeft}s`
-    : activeResponder
-      ? `${activeResponder.name} répond${isSecondChance ? ' - deuxième chance' : ''}`
-      : 'Appuyez sur le buzzer pour répondre'
+  const statusCopy = duelState.status === 'in_progress'
+    ? `Course minute - ${timeLeft}s`
+    : 'Course minute'
   const resultTitle = duelState.winnerUserId ? (isWinner ? 'Victoire' : 'Défaite') : 'Égalité'
   const resultNote = duelState.winnerUserId
     ? isWinner
       ? 'Votre classement hebdomadaire va progresser.'
       : 'Analysez la manche et relancez un duel quand vous êtes prêt.'
-    : 'Score identique: la prochaine réponse rapide fera la différence.'
+    : 'Score identique: chaque bonne reponse compte dans la prochaine course.'
+
+  const myDuelCorrections = duelState.questions.map((question) => {
+    const answer = me?.answers.find((item) => item.duelQuestionId === question.duelQuestionId)
+    return { question, answer }
+  })
 
   return (
     <div className="duel-esport-shell">
@@ -525,10 +502,8 @@ export default function DuelPage() {
             </div>
             <p className="duel-question-helper">
               {duelState.canAnswer
-                ? 'Choisissez la meilleure réponse avant la fin du chrono.'
-                : duelState.canBuzz
-                  ? 'Appuyez sur le buzzer quand vous êtes prêt à répondre.'
-                  : 'Suivez la manche: la main peut changer après une mauvaise réponse.'}
+                ? 'Repondez au maximum de questions avant la fin de la minute.'
+                : 'La course est terminee ou en attente de synchronisation.'}
             </p>
 
             <div className="duel-center-timer">
@@ -541,9 +516,9 @@ export default function DuelPage() {
               {(Object.entries(currentQuestion.options) as ['A' | 'B' | 'C' | 'D', string][]).map(([key, value], i) => (
                 <button
                   key={key}
-                  onClick={() => duelState.canAnswer && setSelectedOption(key)}
+                  onClick={() => duelState.canAnswer && void submitAnswer(key)}
                   disabled={!duelState.canAnswer || submitting}
-                  className={`quiz-option duel-option anim-fade-up${selectedOption === key ? ' selected' : ''}`}
+                  className="quiz-option duel-option anim-fade-up"
                   style={{
                     animationDelay: `${i * 0.06}s`,
                     opacity: duelState.canAnswer ? 1 : 0.68,
@@ -570,22 +545,16 @@ export default function DuelPage() {
             )}
 
             <div className="duel-action-row">
-              {duelState.canBuzz && (
-                <button onClick={() => void buzz()} disabled={submitting} className="btn btn-primary duel-buzzer-button">
-                  {submitting ? '...' : 'Je réponds'}
-                </button>
-              )}
               {duelState.canAnswer && (
                 <button
-                  onClick={() => void submitAnswer(selectedOption ?? undefined)}
-                  disabled={submitting || !selectedOption}
-                  className="btn btn-primary duel-submit-button"
+                  onClick={() => void submitAnswer(undefined)}
+                  disabled={submitting}
+                  className="btn btn-ghost duel-submit-button"
                 >
-                  {submitting ? 'Validation...' : selectedOption ? `Valider ${selectedOption}` : 'Choisir une réponse'}
+                  {submitting ? 'Validation...' : 'Passer'}
                 </button>
               )}
-            </div>
-          </section>
+            </div>          </section>
         )}
 
         {duelState.status === 'completed' && (
@@ -605,7 +574,22 @@ export default function DuelPage() {
             ) : (
               <p>{resultNote}</p>
             )}
-            <p className="duel-rule-note">Règle finale: le meilleur score gagne.</p>
+            <p className="duel-rule-note">Regle finale: le meilleur score gagne.</p>
+            <div className="duel-corrections-list">
+              {myDuelCorrections.map(({ question, answer }) => (
+                <article key={question.duelQuestionId} className={answer?.isCorrect ? 'correct' : 'wrong'}>
+                  <div><span>Q{question.position}</span><strong>{answer?.isCorrect ? 'Correct' : 'A revoir'}</strong></div>
+                  <p>{question.prompt}</p>
+                  {question.correctOption && (
+                    <small>
+                      Ta reponse: {answer?.selectedOption ? `${answer.selectedOption}. ${question.options[answer.selectedOption]}` : 'aucune'}
+                      {' | '}Bonne reponse: {question.correctOption}. {question.options[question.correctOption]}
+                    </small>
+                  )}
+                  {question.explanation && <em>{question.explanation}</em>}
+                </article>
+              ))}
+            </div>
             <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
           </section>
         )}
