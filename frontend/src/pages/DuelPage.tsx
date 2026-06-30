@@ -65,6 +65,7 @@ type DuelState = {
 }
 
 const QUESTION_TIME_SECONDS = 60
+const cleanQuizPrompt = (prompt: string) => prompt.replace(/^\[[^\]]+\s+-\s+Q\d+\]\s*/i, '').trim()
 
 function adaptOralLiveState(
   data: Partial<DuelState> & { participants?: ParticipantState[] },
@@ -510,7 +511,7 @@ export default function DuelPage() {
               <span style={{ width: `${timerPct}%`, background: timerBarColor }} />
             </div>
 
-            <p className="duel-question-prompt">{currentQuestion.prompt}</p>
+            <p className="duel-question-prompt">{cleanQuizPrompt(currentQuestion.prompt)}</p>
 
             <div className="duel-options-list">
               {(Object.entries(currentQuestion.options) as ['A' | 'B' | 'C' | 'D', string][]).map(([key, value], i) => (
@@ -579,7 +580,7 @@ export default function DuelPage() {
               {myDuelCorrections.map(({ question, answer }) => (
                 <article key={question.duelQuestionId} className={answer?.isCorrect ? 'correct' : 'wrong'}>
                   <div><span>Q{question.position}</span><strong>{answer?.isCorrect ? 'Correct' : 'A revoir'}</strong></div>
-                  <p>{question.prompt}</p>
+                  <p>{cleanQuizPrompt(question.prompt)}</p>
                   {question.correctOption && (
                     <small>
                       Ta reponse: {answer?.selectedOption ? `${answer.selectedOption}. ${question.options[answer.selectedOption]}` : 'aucune'}

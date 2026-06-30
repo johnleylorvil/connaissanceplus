@@ -34,7 +34,7 @@ type SubmitResult = {
   totalQuestions: number
   submittedAnswers: number
   percentage: number
-  corrections: Correction[]
+  corrections?: Correction[]
 }
 
 const MODE_CONFIG: Record<QuizMode, { label: string; shortLabel: string; seconds: number; global: boolean }> = {
@@ -48,6 +48,8 @@ const difficultyLabel: Record<string, string> = {
   medium: 'Moyen',
   hard: 'Difficile',
 }
+
+const cleanQuizPrompt = (prompt: string) => prompt.replace(/^\[[^\]]+\s+-\s+Q\d+\]\s*/i, '').trim()
 
 const resultMessage = (pct: number) => {
   if (pct === 100) return "Parfait, rien ne t'a echappe."
@@ -100,6 +102,7 @@ export default function QuizPage() {
 
   const animatedScore = useCountUp(result?.score ?? 0)
   const animatedPct = useCountUp(result?.percentage ?? 0)
+  const corrections = result?.corrections ?? []
 
   useEffect(() => {
     if (questions.length === 0) navigate('/dashboard')
@@ -234,16 +237,16 @@ export default function QuizPage() {
           <p className="chalk-result-percent">{animatedPct}%</p>
 
           <div className="chalk-correction-list">
-            {result.corrections.map((item, index) => (
+            {corrections.map((item, index) => (
               <article key={item.sessionQuestionId} className={item.isCorrect ? 'correct' : 'wrong'}>
                 <div>
                   <span>Q{index + 1}</span>
                   <strong>{item.isCorrect ? 'Correct' : 'A revoir'}</strong>
                 </div>
-                <p>{item.prompt}</p>
+                <p>{cleanQuizPrompt(item.prompt)}</p>
                 <small>
-                  Ta reponse: {item.selectedOption ? `${item.selectedOption}. ${item.options[item.selectedOption]}` : 'aucune'}
-                  {' | '}Bonne reponse: {item.correctOption}. {item.options[item.correctOption]}
+                  Ta reponse: {item.selectedOption ? `${item.selectedOption}. ${item.options[item.selectedOption] ?? ''}` : 'aucune'}
+                  {' | '}Bonne reponse: {item.correctOption}. {item.options[item.correctOption] ?? ''}
                 </small>
                 {item.explanation && <em>{item.explanation}</em>}
               </article>
@@ -286,7 +289,7 @@ export default function QuizPage() {
 
         <main className="chalk-question-stage anim-slide-in" key={q.sessionQuestionId}>
           <p className="chalk-difficulty">{difficultyLabel[q.difficulty]}</p>
-          <h1>{q.prompt}</h1>
+          <h1>{cleanQuizPrompt(q.prompt)}</h1>
 
           <div className="chalk-options-grid">
             {(Object.entries(q.options) as [OptionKey, string][]).map(([key, value]) => {

@@ -538,12 +538,34 @@ export class MvpService {
       'quiz_result',
     );
 
+    const corrections = sessionQuestions.map((sessionQuestion) => {
+      const selectedOption = answerMap.get(sessionQuestion.id)?.selectedOption ?? null;
+      const question = sessionQuestion.question;
+
+      return {
+        sessionQuestionId: sessionQuestion.id,
+        questionId: question.id,
+        prompt: question.prompt,
+        options: {
+          A: question.optionA,
+          B: question.optionB,
+          C: question.optionC,
+          D: question.optionD,
+        },
+        selectedOption,
+        correctOption: question.correctOption,
+        isCorrect: selectedOption === question.correctOption,
+        explanation: question.explanation,
+      };
+    });
+
     return {
       sessionId: session.id,
       score,
       totalQuestions: sessionQuestions.length,
       submittedAnswers: answerEntities.length,
       percentage,
+      corrections,
     };
   }
 
