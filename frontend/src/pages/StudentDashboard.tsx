@@ -535,13 +535,13 @@ export default function StudentDashboard() {
     { key: 'recommendations', label: 'Conseils' },
     { key: 'quiz', label: 'Challenge' },
     { key: 'history', label: 'Historique' },
-    { key: 'statistics', label: 'Statistiques' },
-    { key: 'leaderboard', label: 'Classement' },
-    { key: 'correspondence', label: 'Correspondance' },
-    { key: 'library', label: 'Bibliotheque' },
+    { key: 'statistics', label: 'Stats' },
+    { key: 'leaderboard', label: 'Rang' },
+    { key: 'correspondence', label: 'Lettres' },
+    { key: 'library', label: 'Manuel' },
     { key: 'profile', label: 'Profil' },
-    { key: 'security', label: 'Securite' },
-    { key: 'preferences', label: 'Preferences' },
+    { key: 'security', label: 'Sécurité' },
+    { key: 'preferences', label: 'Préférences' },
   ]
 
   const avgScore =
