@@ -1,3 +1,4 @@
+import { cleanQuizPrompt } from '../../utils/cleanQuizPrompt'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -818,7 +819,7 @@ export default function ArenaLive() {
     arenaApi
       .getArenaQuestion(currentQuestion.questionId, accessToken)
       .then((q) => {
-        if (!cancelled) setQuestionPrompt(q.prompt)
+        if (!cancelled) setQuestionPrompt(cleanQuizPrompt(q.prompt))
       })
       .catch(() => {
         if (!cancelled) setQuestionPrompt(null)

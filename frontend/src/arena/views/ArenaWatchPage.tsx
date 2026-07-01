@@ -1,3 +1,4 @@
+import { cleanQuizPrompt } from '../../utils/cleanQuizPrompt'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Hls from 'hls.js'
@@ -369,7 +370,7 @@ export default function ArenaWatchPage() {
     let cancelled = false
     arenaApi.getArenaQuestion(currentQuestion.questionId, accessToken)
       .then((question) => {
-        if (!cancelled) setQuestionPrompt(question.prompt)
+        if (!cancelled) setQuestionPrompt(cleanQuizPrompt(question.prompt))
       })
       .catch(() => {
         if (!cancelled) setQuestionPrompt(null)

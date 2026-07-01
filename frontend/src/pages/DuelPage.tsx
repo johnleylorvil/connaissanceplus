@@ -6,6 +6,7 @@ import { useDuelSocket } from '../duel/useDuelSocket'
 import { useChimeMeeting, type ChimeJoinInfo } from '../duel/useChimeMeeting'
 import DuelOralModeratorPanel from '../duel/DuelOralModeratorPanel'
 import { userHome } from '../auth/authRules'
+import { cleanQuizPrompt } from '../utils/cleanQuizPrompt'
 
 type DuelQuestion = {
   duelQuestionId: string
@@ -65,7 +66,6 @@ type DuelState = {
 }
 
 const QUESTION_TIME_SECONDS = 60
-const cleanQuizPrompt = (prompt: string) => prompt.replace(/^\[[^\]]+\s+-\s+Q\d+\]\s*/i, '').trim()
 
 function adaptOralLiveState(
   data: Partial<DuelState> & { participants?: ParticipantState[] },

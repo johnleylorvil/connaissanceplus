@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { apiCall } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { cleanQuizPrompt } from '../utils/cleanQuizPrompt'
 
 type OptionKey = 'A' | 'B' | 'C' | 'D'
 type QuizMode = 'chrono' | 'training' | 'minute'
@@ -49,7 +50,6 @@ const difficultyLabel: Record<string, string> = {
   hard: 'Difficile',
 }
 
-const cleanQuizPrompt = (prompt: string) => prompt.replace(/^\[[^\]]+\s+-\s+Q\d+\]\s*/i, '').trim()
 
 const resultMessage = (pct: number) => {
   if (pct === 100) return "Parfait, rien ne t'a echappe."

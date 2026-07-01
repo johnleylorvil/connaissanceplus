@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
+import { cleanQuizPrompt } from '../utils/cleanQuizPrompt'
 import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type VerifyModeratorOtpResponse, type ModeratorOtpRequestResponse } from '../arena/arenaApi'
 import DashboardSidebar, { type DashboardSidebarSection } from '../components/DashboardSidebar'
 import { HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
@@ -943,7 +944,7 @@ export default function AdminDashboard() {
                 <div style={{ maxHeight: 380, overflowY: 'auto', border: '1px solid var(--rule)', borderRadius: 6 }}>
                   {questions.map((q, i, arr) => (
                     <div key={q.id} style={{ padding: '12px 14px', borderBottom: i < arr.length - 1 ? '1px solid var(--rule)' : 'none' }}>
-                      <p style={{ fontSize: 16, fontWeight: 500, color: 'var(--ink)', marginBottom: 9 }}>{q.prompt}</p>
+                      <p style={{ fontSize: 16, fontWeight: 500, color: 'var(--ink)', marginBottom: 9 }}>{cleanQuizPrompt(q.prompt)}</p>
                       <div className="responsive-two-col" style={{ gap: 4, marginBottom: 9 }}>
                         {(['A', 'B', 'C', 'D'] as const).map((opt) => (
                           <span key={opt} style={{ fontSize: 14, padding: '4px 10px', borderRadius: 4, background: q.correctOption === opt ? 'var(--ok-bg)' : 'var(--stone)', color: q.correctOption === opt ? 'var(--ok)' : 'var(--ink-3)', fontWeight: q.correctOption === opt ? 600 : 400 }}>

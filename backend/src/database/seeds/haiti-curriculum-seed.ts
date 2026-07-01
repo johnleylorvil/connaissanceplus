@@ -81,6 +81,12 @@ function promptPrefix(profile: ClassProfile, index: number): string {
   return `[${profile.name} - Q${index + 1}]`;
 }
 
+function cleanGeneratedPrompt(prompt: string): string {
+  return prompt
+    .replace(/^\s*(?:\[[^\]]+\s+-\s+Q\d+\]\s*)+/i, '')
+    .replace(/^\s*(?:\[(?=[^\]]*(?:annee|année|fondamentale|secondaire|\bAF\b|\bNS\d?\b|\bS\d\b))[^\]]+\]\s*)+/i, '')
+    .trim();
+}
 function optionsFor(correct: string, wrong: string[], index: number): { options: OptionSet; correctOption: OptionChoice } {
   const keys = [OptionChoice.A, OptionChoice.B, OptionChoice.C, OptionChoice.D];
   const correctKey = keys[index % keys.length];
@@ -218,18 +224,28 @@ async function seed() {
       for (const subjectName of profile.subjects) {
         const subject = await ensureSubject(subjectRepo, academicClass.id, subjectName);
         const existingQuestions = await questionRepo.find({ where: { classId: academicClass.id, subjectId: subject.id }, select: { id: true, prompt: true } });
-        const existingPrompts = new Set(existingQuestions.map((question) => question.prompt));
+        const questionsToClean = existingQuestions
+          .map((question) => ({ question, prompt: cleanGeneratedPrompt(question.prompt) }))
+          .filter((item) => item.prompt !== item.question.prompt);
+        if (!DRY_RUN) {
+          for (const item of questionsToClean) {
+            await questionRepo.update(item.question.id, { prompt: item.prompt });
+            item.question.prompt = item.prompt;
+          }
+        }
+        const existingPrompts = new Set(existingQuestions.map((question) => cleanGeneratedPrompt(question.prompt)));
         const toCreate: Question[] = [];
 
         for (let index = 0; existingQuestions.length + toCreate.length < QUESTIONS_PER_SUBJECT && index < QUESTIONS_PER_SUBJECT * 3; index += 1) {
           const generated = generateQuestion(profile, subjectName, index);
+          generated.prompt = cleanGeneratedPrompt(generated.prompt);
           if (existingPrompts.has(generated.prompt)) continue;
           existingPrompts.add(generated.prompt);
           toCreate.push(questionRepo.create({ classId: academicClass.id, subjectId: subject.id, prompt: generated.prompt, optionA: generated.options.A, optionB: generated.options.B, optionC: generated.options.C, optionD: generated.options.D, correctOption: generated.correctOption, difficulty: generated.difficulty, explanation: generated.explanation }));
         }
 
         if (!DRY_RUN && toCreate.length > 0) await questionRepo.save(toCreate, { chunk: 100 });
-        summary.push(`${profile.name} / ${subjectName}: ${existingQuestions.length} existantes, ${toCreate.length} ajoutees${DRY_RUN ? ' (dry-run)' : ''}`);
+        summary.push(`${profile.name} / ${subjectName}: ${existingQuestions.length} existantes, ${questionsToClean.length} nettoyees, ${toCreate.length} ajoutees${DRY_RUN ? ' (dry-run)' : ''}`);
       }
     }
 
