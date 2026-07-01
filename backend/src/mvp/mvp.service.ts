@@ -692,6 +692,17 @@ export class MvpService {
       }
 
       if (waitingDuel) {
+        // Guard: verify the waiting duel still has its questions (they could have been cascade-deleted).
+        const questionCount = await manager.getRepository(DuelMatchQuestion).count({
+          where: { duelMatchId: waitingDuel.id },
+        });
+        if (questionCount === 0) {
+          // Cancel the broken waiting duel and fall through to create a fresh one.
+          waitingDuel.status = DuelStatus.CANCELLED;
+          waitingDuel.completedAt = txNow;
+          await txDuelRepo.save(waitingDuel);
+          // Fall through to the "no waiting duel" branch below.
+        } else {
         // Join the existing waiting duel
         waitingDuel.playerTwoId = userId;
         waitingDuel.status = DuelStatus.IN_PROGRESS;
@@ -730,6 +741,7 @@ export class MvpService {
           status: waitingDuel.status,
           competitionId: waitingDuel.competitionId,
         };
+        } // end else (questions exist)
       }
 
       // No valid waiting duel found — create a new one
@@ -853,6 +865,14 @@ export class MvpService {
       }),
     ]);
 
+    // If the duel is still in_progress but has no questions (e.g. source questions were deleted),
+    // cancel it so the players aren't stuck on a blank page.
+    if (duelMatch.status === DuelStatus.IN_PROGRESS && duelQuestions.length === 0) {
+      duelMatch.status = DuelStatus.CANCELLED;
+      duelMatch.completedAt = new Date();
+      await this.duelMatchRepo.save(duelMatch);
+    }
+
     const duelQuestionIds = duelQuestions.map((question) => question.id);
     const answers =
       duelQuestionIds.length > 0
@@ -874,8 +894,13 @@ export class MvpService {
       ? answers.filter((answer) => answer.duelMatchQuestionId === currentQuestion.id)
       : [];
     const now = Date.now();
-    const globalTimeLeft = duelMatch.responseDeadlineAt
-      ? Math.max(0, Math.ceil((duelMatch.responseDeadlineAt.getTime() - now) / 1000))
+    const effectiveDeadline =
+      duelMatch.responseDeadlineAt ??
+      (duelMatch.startedAt
+        ? new Date(duelMatch.startedAt.getTime() + DUEL_GLOBAL_SECONDS * 1000)
+        : null);
+    const globalTimeLeft = effectiveDeadline
+      ? Math.max(0, Math.ceil((effectiveDeadline.getTime() - now) / 1000))
       : DUEL_GLOBAL_SECONDS;
 
     return {
@@ -1565,14 +1590,24 @@ export class MvpService {
   private async applyExpiredMinuteDuelDeadline(duelMatch: DuelMatch) {
     if (
       duelMatch.mode !== DuelMode.QCM ||
-      duelMatch.status !== DuelStatus.IN_PROGRESS ||
-      !duelMatch.responseDeadlineAt ||
-      duelMatch.responseDeadlineAt.getTime() > Date.now()
+      duelMatch.status !== DuelStatus.IN_PROGRESS
     ) {
       return;
     }
 
-    await this.completeMinuteDuel(duelMatch, duelMatch.responseDeadlineAt);
+    // Use the explicit deadline or fall back to startedAt + global seconds for legacy duels
+    // that were created before responseDeadlineAt was tracked.
+    const effectiveDeadline =
+      duelMatch.responseDeadlineAt ??
+      (duelMatch.startedAt
+        ? new Date(duelMatch.startedAt.getTime() + DUEL_GLOBAL_SECONDS * 1000)
+        : null);
+
+    if (!effectiveDeadline || effectiveDeadline.getTime() > Date.now()) {
+      return;
+    }
+
+    await this.completeMinuteDuel(duelMatch, effectiveDeadline);
   }
 
   private async completeMinuteDuelIfReady(duelMatch: DuelMatch) {

@@ -495,6 +495,28 @@ export default function DuelPage() {
           </section>
         )}
 
+        {duelState.status === 'in_progress' && !currentQuestion && (
+          <section className="duel-matchmaking-panel anim-fade-up">
+            {duelState.questions.length === 0 ? (
+              <>
+                <p className="overline">Erreur</p>
+                <h1 className="display">Questions introuvables</h1>
+                <p className="duel-wait-copy">Les questions de ce duel ne sont plus disponibles. Le duel a été annulé.</p>
+                <div className="duel-wait-actions">
+                  <button onClick={() => void loadState()} className="btn btn-ghost btn-sm">Actualiser</button>
+                  <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="overline">En attente</p>
+                <h1 className="display">Vous avez terminé vos questions</h1>
+                <p className="duel-wait-copy">En attente que votre adversaire termine sa course. Le résultat s'affichera automatiquement.</p>
+              </>
+            )}
+          </section>
+        )}
+
         {duelState.status === 'in_progress' && currentQuestion && (
           <section key={questionKey} className="duel-question-panel anim-slide-in">
             <div className="duel-question-topline">
