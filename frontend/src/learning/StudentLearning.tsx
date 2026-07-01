@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import MarkdownContent from './MarkdownContent'
 import { getCurriculum, getLearningChapter, getTutorConversation, sendTutorMessage } from './learningApi'
 import type { Curriculum, LearningChapter, TutorLanguage, TutorMessage } from './types'
@@ -12,29 +12,71 @@ type Props = {
   preferredLanguage?: TutorLanguage
 }
 
-const QUICK_PROMPTS: Record<TutorLanguage, string[]> = {
-  fr: [
-    'Explique ce chapitre simplement.',
-    'Donne-moi un exemple concret.',
-    'Resume les idees essentielles.',
-    'Pose-moi trois questions pour verifier ma comprehension.',
-  ],
-  ht: [
-    'Eksplike chapit sa a yon fason senp.',
-    'Ban mwen yon egzanp konkret.',
-    'Rezime lide ki pi enpotan yo.',
-    'Poze m twa kesyon pou verifye sa mwen konprann.',
-  ],
+type TutorAction = {
+  id: string
+  label: string
+  helper: string
+  prompt: Record<TutorLanguage, string>
 }
 
-const THEME_PROMPTS: Array<{ label: string; prompt: Record<TutorLanguage, string> }> = [
-  { label: 'Resume', prompt: { fr: 'Fais un resume clair du chapitre selectionne.', ht: 'Fe yon rezime kle sou chapit mwen chwazi a.' } },
-  { label: 'Explication simple', prompt: { fr: 'Explique ce chapitre avec des mots simples.', ht: 'Eksplike chapit sa a ak mo ki senp.' } },
-  { label: 'Exemple', prompt: { fr: 'Donne un exemple concret lie a ce chapitre.', ht: 'Ban mwen yon egzanp konkret ki mache ak chapit sa a.' } },
-  { label: 'Exercice', prompt: { fr: 'Prepare un petit exercice avec correction sur ce chapitre.', ht: 'Prepare yon ti egzesis ak koreksyon sou chapit sa a.' } },
+const TUTOR_ACTIONS: TutorAction[] = [
+  {
+    id: 'summary',
+    label: 'Resumer',
+    helper: 'Idees essentielles',
+    prompt: {
+      fr: 'Resume le chapitre officiel selectionne en gardant seulement les idees essentielles. Termine par 3 points a retenir.',
+      ht: 'Fe yon rezime chapit ofisyel mwen chwazi a. Mete 3 lide prensipal pou m sonje.',
+    },
+  },
+  {
+    id: 'simple',
+    label: 'Simplifier',
+    helper: 'Explication claire',
+    prompt: {
+      fr: 'Explique le passage autour de ma position de lecture avec des mots simples, sans sortir du document officiel.',
+      ht: 'Eksplike pati mwen ap li a ak mo ki senp, san soti nan dokiman ofisyel la.',
+    },
+  },
+  {
+    id: 'examples',
+    label: 'Exemples',
+    helper: 'Situations concretes',
+    prompt: {
+      fr: 'Donne des exemples concrets lies au chapitre selectionne, puis indique quelle idee du chapitre chaque exemple illustre.',
+      ht: 'Ban mwen egzanp konkret ki mache ak chapit la, epi di ki lide nan chapit la chak egzanp montre.',
+    },
+  },
+  {
+    id: 'practice',
+    label: 'Exercices',
+    helper: 'Avec correction',
+    prompt: {
+      fr: 'Cree 4 exercices progressifs bases uniquement sur ce chapitre, avec correction et explication courte.',
+      ht: 'Kreye 4 egzesis ki baze selman sou chapit sa a, avek koreksyon ak ti eksplikasyon.',
+    },
+  },
+  {
+    id: 'quiz',
+    label: 'Quiz',
+    helper: 'Verifier la comprehension',
+    prompt: {
+      fr: 'Genere un mini quiz de 5 questions a choix multiple a partir du chapitre officiel, puis donne les reponses corrigees.',
+      ht: 'Fe yon ti quiz 5 kesyon chwa miltip sou chapit ofisyel la, epi bay koreksyon yo.',
+    },
+  },
+  {
+    id: 'references',
+    label: 'Passages',
+    helper: 'Retrouver la source',
+    prompt: {
+      fr: 'Retrouve les passages pertinents du chapitre pour repondre a ma question. Cite les idees et explique ou regarder dans le document.',
+      ht: 'Chache pasaj ki pi enpotan nan chapit la pou reponn kesyon mwen. Eksplike kote pou m gade nan dokiman an.',
+    },
+  },
 ]
 
-export default function StudentLearning({ token, mode, onModeChange, preferredLanguage }: Props) {
+export default function StudentLearning({ token, mode: _mode, onModeChange, preferredLanguage }: Props) {
   const [curriculum, setCurriculum] = useState<Curriculum | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState('')
   const [selectedChapterId, setSelectedChapterId] = useState('')
@@ -49,6 +91,8 @@ export default function StudentLearning({ token, mode, onModeChange, preferredLa
   const [error, setError] = useState('')
   const [tutorError, setTutorError] = useState('')
   const [lastQuestion, setLastQuestion] = useState('')
+  const [readingProgress, setReadingProgress] = useState(0)
+  const readerRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -71,9 +115,11 @@ export default function StudentLearning({ token, mode, onModeChange, preferredLa
     if (!selectedChapterId) {
       setChapter(null)
       setMessages([])
+      setReadingProgress(0)
       return
     }
     setChapterLoading(true)
+    setReadingProgress(0)
     getLearningChapter(selectedChapterId, token)
       .then(setChapter)
       .catch((err: { message?: string }) => setError(err.message ?? 'Impossible de charger ce chapitre.'))
@@ -110,8 +156,10 @@ export default function StudentLearning({ token, mode, onModeChange, preferredLa
   }, [curriculum, search])
 
   const selectedSubject = curriculum?.subjects.find((subject) => subject.id === selectedSubjectId)
+  const selectedChapterSummary = selectedSubject?.chapters.find((item) => item.id === selectedChapterId)
   const hasPublishedChapters = Boolean(curriculum?.subjects.some((subject) => subject.chapters.length > 0))
   const totalChapters = curriculum?.subjects.reduce((sum, subject) => sum + subject.chapters.length, 0) ?? 0
+  const currentBookTitle = selectedSubject ? `Livre officiel de ${selectedSubject.name}` : 'Livre officiel'
 
   const selectSubject = (subjectId: string) => {
     const subject = curriculum?.subjects.find((item) => item.id === subjectId)
@@ -119,6 +167,7 @@ export default function StudentLearning({ token, mode, onModeChange, preferredLa
     setSelectedChapterId(subject?.chapters[0]?.id ?? '')
     setChapter(null)
     setMessages([])
+    setReadingProgress(0)
     setError('')
   }
 
@@ -126,17 +175,26 @@ export default function StudentLearning({ token, mode, onModeChange, preferredLa
     setSelectedSubjectId(subjectId)
     setSelectedChapterId(chapterId)
     setMessages([])
+    setReadingProgress(0)
     setError('')
+  }
+
+  const updateReadingProgress = () => {
+    const node = readerRef.current
+    if (!node) return
+    const max = node.scrollHeight - node.clientHeight
+    setReadingProgress(max <= 0 ? 100 : Math.min(100, Math.max(0, Math.round((node.scrollTop / max) * 100))))
   }
 
   const submitQuestion = async (question: string) => {
     const clean = question.trim()
     if (!clean || !selectedChapterId || sending) return
+    const contextAwareQuestion = `${clean}\n\nContexte automatique: classe ${curriculum?.class?.name ?? ''}, matiere ${selectedSubject?.name ?? ''}, livre ${currentBookTitle}, chapitre ${chapter?.title ?? selectedChapterSummary?.title ?? ''}, position de lecture environ ${readingProgress}%. Reponds uniquement a partir du document officiel et renvoie vers les passages pertinents quand c'est utile.`
     setSending(true)
     setTutorError('')
     setLastQuestion(clean)
     try {
-      const response = await sendTutorMessage(selectedChapterId, language, clean, token)
+      const response = await sendTutorMessage(selectedChapterId, language, contextAwareQuestion, token)
       setMessages((current) => [...current, ...response.messages])
       setDraft('')
       onModeChange('ai')
@@ -152,178 +210,146 @@ export default function StudentLearning({ token, mode, onModeChange, preferredLa
     void submitQuestion(draft)
   }
 
-  if (loading) return <div className="card learning-empty">Chargement de votre programme...</div>
+  if (loading) return <div className="card learning-empty">Chargement de votre manuel intelligent...</div>
   if (error && !curriculum) return <div className="alert alert-error">{error}</div>
-  if (!curriculum?.class) return <div className="card learning-empty">Completez votre classe dans votre profil pour acceder au programme.</div>
+  if (!curriculum?.class) return <div className="card learning-empty">Completez votre classe dans votre profil pour acceder au manuel officiel.</div>
 
   return (
-    <div className="learning-page learning-hub-page">
-      <header className="learning-hub-hero">
+    <div className="learning-page smart-manual-page">
+      <header className="smart-manual-topbar">
         <div>
-          <p className="overline">Programme de {curriculum.class.name}</p>
-          <h1 className="display">Bibliotheque intelligente</h1>
-          <p>
-            Explorez les documents officiels par matiere, ouvrez les chapitres publies,
-            puis demandez au tuteur IA de les resumer ou de les expliquer.
-          </p>
+          <p className="overline">Manuel scolaire intelligent</p>
+          <h1 className="display">{currentBookTitle}</h1>
+          <p>Le document officiel reste au centre. Le tuteur IA comprend automatiquement la classe, la matiere, le livre, le chapitre et votre position de lecture.</p>
         </div>
-        <nav className="learning-hub-nav" aria-label="Navigation apprentissage">
-          <button className={mode === 'library' ? 'active' : ''} onClick={() => onModeChange('library')} type="button">Contenus</button>
-          <button onClick={() => document.getElementById('learning-themes')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} type="button">Themes</button>
-          <button className={mode === 'ai' ? 'active' : ''} onClick={() => onModeChange('ai')} type="button">Tuteur IA</button>
-        </nav>
+        <div className="smart-manual-progress" aria-label="Progression de lecture">
+          <span>{readingProgress}%</span>
+          <small>lecture</small>
+        </div>
       </header>
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <section className="learning-search-panel" aria-label="Recherche dans la bibliotheque">
+      <section className="smart-manual-search" aria-label="Recherche dans le manuel">
         <label>
-          <span>Recherche dans les documents officiels</span>
-          <input
-            className="field-input"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Matiere, chapitre ou theme"
-          />
+          <span>Rechercher dans les matieres, livres et chapitres</span>
+          <input className="field-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ex: fractions, revolution, cycle de l'eau" />
         </label>
-        <div className="learning-search-stats" aria-label="Couverture du programme">
-          <strong>{curriculum.subjects.length}</strong>
-          <span>matieres</span>
-          <strong>{totalChapters}</strong>
-          <span>chapitres publies</span>
+        <div>
+          <strong>{curriculum.subjects.length}</strong><span>matieres</span>
+          <strong>{totalChapters}</strong><span>chapitres</span>
         </div>
       </section>
 
       {!hasPublishedChapters && (
-        <section className="learning-notice">
+        <section className="smart-manual-empty-note">
           <strong>Aucun chapitre publie pour le moment.</strong>
-          <span>
-            Les matieres de votre classe sont deja listees ci-dessous. Les chapitres apparaitront
-            des que l'administration publiera les contenus officiels.
-          </span>
+          <span>Les matieres de votre classe sont visibles. Les livres et chapitres officiels apparaitront ici apres publication par l'administration.</span>
         </section>
       )}
 
-      <section className="learning-hub-grid">
-        <aside className="learning-document-rail" aria-label="Documents officiels par matiere">
-          <div className="learning-section-title">
-            <p className="overline">Documents officiels</p>
-            <h2>Matieres</h2>
+      <section className="smart-manual-shell">
+        <aside className="manual-navigation" aria-label="Navigation classe matiere livre chapitre">
+          <div className="manual-nav-block class-block">
+            <span>Classe</span>
+            <strong>{curriculum.class.name}</strong>
           </div>
 
-          <div className="learning-book-list">
-            {filteredSubjects.map((subject) => (
-              <button
-                key={subject.id}
-                type="button"
-                className={`learning-book-card ${subject.id === selectedSubjectId ? 'active' : ''}`}
-                onClick={() => selectSubject(subject.id)}
-              >
-                <span>{subject.name.slice(0, 3).toUpperCase()}</span>
-                <div>
+          <div className="manual-nav-block">
+            <div className="manual-nav-heading"><span>Matieres</span><small>{filteredSubjects.length}</small></div>
+            <div className="manual-subject-list">
+              {filteredSubjects.map((subject) => (
+                <button key={subject.id} type="button" className={subject.id === selectedSubjectId ? 'active' : ''} onClick={() => selectSubject(subject.id)}>
                   <strong>{subject.name}</strong>
-                  <small>{subject.chapters.length} chapitre{subject.chapters.length > 1 ? 's' : ''} publie{subject.chapters.length > 1 ? 's' : ''}</small>
-                </div>
-              </button>
-            ))}
-            {filteredSubjects.length === 0 && <p className="learning-muted">Aucune matiere ne correspond a cette recherche.</p>}
+                  <small>{subject.chapters.length} chapitre{subject.chapters.length > 1 ? 's' : ''}</small>
+                </button>
+              ))}
+              {filteredSubjects.length === 0 && <p className="learning-muted">Aucune matiere trouvee.</p>}
+            </div>
+          </div>
+
+          <div className="manual-nav-block">
+            <div className="manual-nav-heading"><span>Livre</span><small>officiel</small></div>
+            <article className="manual-book-card">
+              <div>{selectedSubject?.name.slice(0, 3).toUpperCase() ?? 'DOC'}</div>
+              <strong>{currentBookTitle}</strong>
+              <small>Programme de {curriculum.class.name}</small>
+            </article>
+          </div>
+
+          <div className="manual-nav-block">
+            <div className="manual-nav-heading"><span>Chapitres</span><small>{selectedSubject?.chapters.length ?? 0}</small></div>
+            <div className="manual-chapter-list">
+              {selectedSubject?.chapters.map((item, index) => (
+                <button key={item.id} type="button" className={item.id === selectedChapterId ? 'active' : ''} onClick={() => selectChapter(selectedSubject.id, item.id)}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <div><strong>{item.title}</strong><small>{item.summary}</small></div>
+                </button>
+              ))}
+              {selectedSubject && selectedSubject.chapters.length === 0 && <p className="learning-muted">Aucun chapitre publie.</p>}
+            </div>
           </div>
         </aside>
 
-        <main className="learning-chapter-stage">
-          <div className="learning-section-title">
-            <p className="overline">{selectedSubject?.name ?? 'Matiere'}</p>
-            <h2>Chapitres et contenu</h2>
+        <main className="manual-reader-column">
+          <div className="manual-breadcrumb" aria-label="Fil d'Ariane">
+            <span>{curriculum.class.name}</span>
+            <span>{selectedSubject?.name ?? 'Matiere'}</span>
+            <span>{currentBookTitle}</span>
+            <strong>{chapter?.title ?? selectedChapterSummary?.title ?? 'Chapitre'}</strong>
           </div>
 
-          <div className="learning-chapter-tabs">
-            {selectedSubject?.chapters.map((item, index) => (
-              <button
-                key={item.id}
-                className={item.id === selectedChapterId ? 'active' : ''}
-                onClick={() => selectChapter(selectedSubject.id, item.id)}
-                type="button"
-              >
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <strong>{item.title}</strong>
-                <small>{item.summary}</small>
-              </button>
-            ))}
-            {selectedSubject && selectedSubject.chapters.length === 0 && (
-              <div className="learning-empty-inline">
-                <strong>Aucun chapitre publie dans cette matiere.</strong>
-                <span>Le document officiel existe dans le programme, mais son contenu n'est pas encore publie.</span>
-              </div>
-            )}
-          </div>
-
-          <article className="learning-reader learning-smart-reader">
+          <article ref={readerRef} onScroll={updateReadingProgress} className="manual-reader" aria-label="Texte officiel du chapitre">
             {chapterLoading ? <p>Chargement du chapitre...</p> : chapter ? (
               <>
-                <p className="overline">{chapter.subject.name}</p>
-                <h2 className="display">{chapter.title}</h2>
-                <p className="learning-chapter-summary">{chapter.summary}</p>
+                <div className="manual-reader-header">
+                  <p className="overline">Document officiel</p>
+                  <h2>{chapter.title}</h2>
+                  <p>{chapter.summary}</p>
+                </div>
                 <MarkdownContent content={chapter.content} />
               </>
             ) : (
-              <div className="learning-empty-inline reader-empty">
-                <strong>Choisissez un chapitre publie.</strong>
-                <span>Le contenu officiel complet s'affichera ici avec ses titres, exemples et explications.</span>
+              <div className="manual-reader-placeholder">
+                <strong>Choisissez un chapitre.</strong>
+                <span>Le texte officiel occupera cette zone de lecture.</span>
               </div>
             )}
           </article>
         </main>
 
-        <aside className="learning-ai-dock" aria-label="Tuteur IA pedagogique">
-          <div className="learning-section-title">
-            <p className="overline">IA pedagogique</p>
-            <h2>Analyse du chapitre</h2>
-          </div>
-
-          <div className="learning-ai-context">
-            <span>Source active</span>
-            <strong>{chapter?.title ?? selectedSubject?.name ?? 'Aucun chapitre selectionne'}</strong>
-            <p>
-              {chapter
-                ? "Le tuteur utilise le chapitre selectionne et l'historique de cette conversation."
-                : 'Selectionnez un chapitre publie pour activer les resumes, recherches par theme et explications personnalisees.'}
-            </p>
-          </div>
-
-          <label className="learning-language-field">
-            <span className="field-label">Langue du tuteur</span>
+        <aside className="manual-ai-panel" aria-label="Tuteur IA contextuel">
+          <div className="manual-ai-header">
+            <div>
+              <p className="overline">Tuteur IA</p>
+              <h2>Copilote du manuel</h2>
+            </div>
             <select className="field-input" value={language} onChange={(event) => { setLanguage(event.target.value as TutorLanguage); setMessages([]) }}>
               <option value="fr">Francais</option>
-              <option value="ht">Kreyol ayisyen</option>
+              <option value="ht">Kreyol</option>
             </select>
-          </label>
+          </div>
 
-          <div id="learning-themes" className="learning-theme-cloud" aria-label="Themes et actions rapides">
-            {THEME_PROMPTS.map((theme) => (
-              <button
-                key={theme.label}
-                type="button"
-                disabled={!selectedChapterId || sending}
-                onClick={() => void submitQuestion(theme.prompt[language])}
-              >
-                {theme.label}
+          <div className="manual-ai-context">
+            <span>Contexte automatique</span>
+            <strong>{chapter?.title ?? selectedSubject?.name ?? 'Aucun chapitre'}</strong>
+            <p>{selectedChapterId ? `Position de lecture: ${readingProgress}%. Le tuteur repond a partir du document officiel.` : 'Selectionnez un chapitre pour activer le tuteur.'}</p>
+          </div>
+
+          <div className="manual-ai-actions">
+            {TUTOR_ACTIONS.map((action) => (
+              <button key={action.id} type="button" disabled={!selectedChapterId || sending} onClick={() => void submitQuestion(action.prompt[language])}>
+                <strong>{action.label}</strong>
+                <small>{action.helper}</small>
               </button>
             ))}
           </div>
 
-          <div className="learning-quick-prompts">
-            {QUICK_PROMPTS[language].map((prompt) => (
-              <button key={prompt} disabled={!selectedChapterId || sending} onClick={() => void submitQuestion(prompt)} type="button">
-                {prompt}
-              </button>
-            ))}
-          </div>
-
-          <div className="learning-chat learning-smart-chat" aria-live="polite">
+          <div className="manual-ai-chat" aria-live="polite">
             {messages.length === 0 ? (
-              <div className="learning-chat-empty">
-                <strong>{selectedChapterId ? 'Posez votre premiere question.' : 'IA en attente de chapitre.'}</strong>
-                <span>{selectedChapterId ? 'Le tuteur utilisera le contenu officiel selectionne.' : 'Publiez ou choisissez un chapitre pour commencer.'}</span>
+              <div className="manual-ai-empty">
+                <strong>{selectedChapterId ? 'Demandez sans expliquer le contexte.' : 'IA en attente du chapitre.'}</strong>
+                <span>{selectedChapterId ? 'Le tuteur connait deja le livre, le chapitre et votre lecture.' : 'Ouvrez un chapitre pour commencer.'}</span>
               </div>
             ) : messages.map((message) => (
               <div key={message.id} className={`learning-message ${message.role}`}>
@@ -331,21 +357,13 @@ export default function StudentLearning({ token, mode, onModeChange, preferredLa
                 <MarkdownContent content={message.content} />
               </div>
             ))}
-            {sending && <div className="learning-message assistant"><span>Tuteur Konesans+</span><p>Preparation de l'explication...</p></div>}
+            {sending && <div className="learning-message assistant"><span>Tuteur Konesans+</span><p>Analyse du passage...</p></div>}
           </div>
 
           {tutorError && <div className="alert alert-error learning-tutor-error">{tutorError}{lastQuestion && <button onClick={() => void submitQuestion(lastQuestion)} disabled={sending}>Reessayer</button>}</div>}
 
-          <form className="learning-chat-form learning-smart-form" onSubmit={handleSubmit}>
-            <textarea
-              className="field-input"
-              maxLength={2000}
-              rows={3}
-              value={draft}
-              disabled={!selectedChapterId}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder={selectedChapterId ? (language === 'ht' ? 'Ekri kesyon ou la...' : 'Ecrivez votre question...') : 'Selectionnez un chapitre publie pour poser une question.'}
-            />
+          <form className="manual-ai-form" onSubmit={handleSubmit}>
+            <textarea className="field-input" rows={3} maxLength={2000} disabled={!selectedChapterId} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={selectedChapterId ? 'Posez votre question sur ce passage...' : 'Selectionnez un chapitre pour poser une question.'} />
             <button className="btn btn-primary" disabled={sending || !draft.trim() || !selectedChapterId}>Envoyer</button>
           </form>
         </aside>
