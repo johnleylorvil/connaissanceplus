@@ -8,6 +8,7 @@ export type DashboardSidebarNode = {
   disabled?: boolean
   muted?: boolean
   badge?: ReactNode
+  icon?: ReactNode
   children?: DashboardSidebarNode[]
 }
 
@@ -41,6 +42,7 @@ function SidebarNode({ node, depth = 0 }: { node: DashboardSidebarNode; depth?: 
         className={`sidebar-item${node.active ? ' active' : ''}${node.muted ? ' muted' : ''}${node.disabled ? ' disabled' : ''}`}
         style={{ paddingInlineStart: 12 + depth * 16 }}
       >
+        {node.icon ? <span className="sidebar-item-icon">{node.icon}</span> : null}
         <span className="sidebar-item-label">{node.label}</span>
         {node.badge ? <span className="sidebar-item-badge">{node.badge}</span> : null}
         {hasChildren && <span className="sidebar-item-caret">›</span>}

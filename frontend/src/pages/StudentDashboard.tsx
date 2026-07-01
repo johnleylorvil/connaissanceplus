@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Activity, Bell, BookOpen, ChartNoAxesCombined, GraduationCap, Home, Library, LockKeyhole, Mail, Medal, Settings, Swords, Trophy, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
 import ArenaWorkspace from '../arena/ArenaWorkspace'
@@ -480,52 +481,52 @@ export default function StudentDashboard() {
       title: 'Tableau de bord',
       note: 'Point d\'entrée',
       items: [
-        { id: 'home', label: 'Accueil', onClick: () => openStudentTab('home'), active: tab === 'home' },
-        { id: 'home-summary', label: 'Résumé personnel', onClick: () => openStudentTab('summary'), active: tab === 'summary' },
-        { id: 'home-reco', label: 'Recommandations du jour', onClick: () => openStudentTab('recommendations'), active: tab === 'recommendations' },
+        { id: 'home', label: 'Accueil', icon: <Home size={16} />, onClick: () => openStudentTab('home'), active: tab === 'home' },
+        { id: 'home-summary', label: 'Résumé personnel', icon: <ChartNoAxesCombined size={16} />, onClick: () => openStudentTab('summary'), active: tab === 'summary' },
+        { id: 'home-reco', label: 'Recommandations du jour', icon: <GraduationCap size={16} />, onClick: () => openStudentTab('recommendations'), active: tab === 'recommendations' },
       ],
     },
     {
       title: 'Compétitions',
       note: 'Quiz et défis',
       items: [
-        { id: 'quiz', label: 'Challenge', onClick: () => openStudentTab('quiz'), active: tab === 'quiz' },
-        { id: 'arena', label: 'Arena', onClick: () => openStudentTab('arena'), active: tab === 'arena' },
-        { id: 'leaderboard', label: 'Classement', onClick: () => openStudentTab('leaderboard'), active: tab === 'leaderboard' },
+        { id: 'quiz', label: 'Challenge', icon: <Swords size={16} />, onClick: () => openStudentTab('quiz'), active: tab === 'quiz' },
+        { id: 'arena', label: 'Arena', icon: <Trophy size={16} />, onClick: () => openStudentTab('arena'), active: tab === 'arena' },
+        { id: 'leaderboard', label: 'Classement', icon: <Medal size={16} />, onClick: () => openStudentTab('leaderboard'), active: tab === 'leaderboard' },
       ],
     },
     {
       title: 'Correspondance',
       note: 'Échanges',
       items: [
-        { id: 'corr-sessions', label: 'Concours', onClick: () => openStudentCorrespondence('sessions'), active: tab === 'correspondence' && corrView === 'sessions' },
-        { id: 'corr-myletters', label: 'Mes lettres', onClick: () => openStudentCorrespondence('myletters'), active: tab === 'correspondence' && corrView === 'myletters' },
-        { id: 'corr-inbox', label: 'Boîte de réception', onClick: () => openStudentCorrespondence('inbox'), active: tab === 'correspondence' && corrView === 'inbox' },
+        { id: 'corr-sessions', label: 'Concours', icon: <Mail size={16} />, onClick: () => openStudentCorrespondence('sessions'), active: tab === 'correspondence' && corrView === 'sessions' },
+        { id: 'corr-myletters', label: 'Mes lettres', icon: <BookOpen size={16} />, onClick: () => openStudentCorrespondence('myletters'), active: tab === 'correspondence' && corrView === 'myletters' },
+        { id: 'corr-inbox', label: 'Boîte de réception', icon: <Bell size={16} />, onClick: () => openStudentCorrespondence('inbox'), active: tab === 'correspondence' && corrView === 'inbox' },
       ],
     },
     {
       title: 'Activité',
       note: 'Suivi',
       items: [
-        { id: 'history', label: 'Historique', onClick: () => openStudentTab('history'), active: tab === 'history' },
-        { id: 'notifications', label: 'Notifications', onClick: () => openStudentTab('notifications'), active: tab === 'notifications', badge: unreadCount > 0 ? unreadCount : undefined },
-        { id: 'stats', label: 'Statistiques', onClick: () => openStudentTab('statistics'), active: tab === 'statistics' },
+        { id: 'history', label: 'Historique', icon: <Activity size={16} />, onClick: () => openStudentTab('history'), active: tab === 'history' },
+        { id: 'notifications', label: 'Notifications', icon: <Bell size={16} />, onClick: () => openStudentTab('notifications'), active: tab === 'notifications', badge: unreadCount > 0 ? unreadCount : undefined },
+        { id: 'stats', label: 'Statistiques', icon: <ChartNoAxesCombined size={16} />, onClick: () => openStudentTab('statistics'), active: tab === 'statistics' },
       ],
     },
     {
       title: 'Apprentissage',
       note: 'Programme',
       items: [
-        { id: 'library', label: 'Bibliotheque intelligente', onClick: () => openStudentTab('library'), active: tab === 'library' || tab === 'ai' },
+        { id: 'library', label: 'Bibliothèque intelligente', icon: <Library size={16} />, onClick: () => openStudentTab('library'), active: tab === 'library' || tab === 'ai' },
       ],
     },
     {
       title: 'Compte',
       note: 'Profil',
       items: [
-        { id: 'profile', label: 'Profil', onClick: () => openStudentTab('profile'), active: tab === 'profile' },
-        { id: 'security', label: 'Sécurité', onClick: () => openStudentTab('security'), active: tab === 'security' },
-        { id: 'preferences', label: 'Préférences', onClick: () => openStudentTab('preferences'), active: tab === 'preferences' },
+        { id: 'profile', label: 'Profil', icon: <User size={16} />, onClick: () => openStudentTab('profile'), active: tab === 'profile' },
+        { id: 'security', label: 'Sécurité', icon: <LockKeyhole size={16} />, onClick: () => openStudentTab('security'), active: tab === 'security' },
+        { id: 'preferences', label: 'Préférences', icon: <Settings size={16} />, onClick: () => openStudentTab('preferences'), active: tab === 'preferences' },
       ],
     },
   ]
@@ -563,23 +564,23 @@ export default function StudentDashboard() {
       : podiumRows
 
   return (
-    <div className="dashboard-shell flex">
+    <div className="dashboard-shell student-dashboard-shell flex">
       <DashboardSidebar
         portalLabel="Dashboard étudiant"
         identityLabel={`${user?.firstName ?? 'Étudiant'} ${user?.lastName ?? ''}`.trim()}
         identityCaption={classes.find((c) => c.id === user?.classId)?.name ?? 'Génie scolaire'}
-        identityMeta="Navigation hiérarchique"
+        identityMeta="Espace étudiant"
         avatarText={user?.firstName?.[0] ?? 'E'}
         sections={studentSidebarSections}
         onLogout={logout}
         logoutLabel="Déconnexion"
-        footerNote="Suivez vos activités, vos résultats et votre progression."
+        footerNote="Un espace unique pour jouer, apprendre et progresser."
       />
 
       {/* ── MAIN ── */}
       <main className="flex-1" style={{ marginLeft: 0, paddingBottom: 80 }} >
         {/* Mobile top bar */}
-        <div className="md:hidden" style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="md:hidden student-mobile-topbar">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
             <span className="brand" style={{ fontSize: 16, color: 'var(--cobalt)' }}>Konesans</span>
             <span className="brand" style={{ fontSize: 16, color: 'var(--gold)' }}>+</span>
@@ -590,7 +591,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'quiz' || tab === 'arena' || tab === 'library' || tab === 'ai' ? 1100 : 820 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'home' ? 1540 : tab === 'quiz' || tab === 'arena' || tab === 'library' || tab === 'ai' ? 1100 : 820 }}>
 
 
 
@@ -1472,3 +1473,4 @@ export default function StudentDashboard() {
     </div>
   )
 }
+

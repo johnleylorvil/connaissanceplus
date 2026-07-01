@@ -4,16 +4,16 @@ import { useAuth } from '../../context/AuthContext'
 import { arenaApi, type ArenaCompetition } from '../arenaApi'
 
 const T = {
-  bgCard: '#0c1120',
-  bgHover: '#111828',
-  border: 'rgba(255,255,255,0.09)',
-  text: '#f8fafc',
-  textMuted: 'rgba(255,255,255,0.55)',
-  textSoft: 'rgba(255,255,255,0.35)',
-  gold: '#e6c27a',
-  green: '#4fc66a',
-  blue: '#6ca8f5',
-  red: '#ff4d4d',
+  bgCard: '#ffffff',
+  bgHover: '#f8fafc',
+  border: '#e5e7eb',
+  text: '#0f172a',
+  textMuted: '#64748b',
+  textSoft: '#94a3b8',
+  gold: '#b7791f',
+  green: '#166534',
+  blue: '#0f172a',
+  red: '#b91c1c',
 }
 
 function getInitials(name: string) {
@@ -133,18 +133,14 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
       ? 'rgba(230,194,122,.28)'
       : T.border
 
-  const cardBg = isLive
-    ? `radial-gradient(ellipse at 50% 0%, rgba(255,55,55,.08) 0%, ${T.bgCard} 70%)`
-    : comp.status === 'approved' && isAssignedMatch
-      ? `radial-gradient(ellipse at 50% 0%, rgba(230,194,122,.05) 0%, ${T.bgCard} 70%)`
-      : T.bgCard
+  const cardBg = comp.status === 'approved' && isAssignedMatch ? '#fffbeb' : T.bgCard
 
   let actionEl: React.ReactNode = null
   if (isLive) {
     actionEl = (
       <button
         onClick={() => navigate(`/arena/live/${comp.id}`)}
-        style={{ padding: '7px 14px', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, #ff5252, #c0292e)', color: '#fff', fontSize: 12, fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }}
+        style={{ padding: '7px 14px', borderRadius: 999, border: 'none', background: '#0f172a', color: '#fff', fontSize: 12, fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }}
       >
         {isAdmin || isModerator ? 'Gérer →' : 'Rejoindre →'}
       </button>
@@ -204,10 +200,10 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
       }}
     >
       {isLive && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, #ff4d4d88, transparent)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#b91c1c' }} />
       )}
       {comp.status === 'approved' && isAssignedMatch && !isLive && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${T.gold}44, transparent)` }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: T.gold }} />
       )}
 
       {/* Header: name + meta + action */}
