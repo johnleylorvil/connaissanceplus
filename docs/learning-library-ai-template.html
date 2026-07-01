@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Konesans+ - Bibliotheque intelligente</title>
+  <link rel="stylesheet" href="./learning-library-ai-template.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>Konesans<span>+</span></strong>
+        <small>Programme officiel</small>
+      </div>
+
+      <nav class="side-nav" aria-label="Navigation principale">
+        <a class="active" href="#library">Bibliotheque</a>
+        <a href="#themes">Themes</a>
+        <a href="#assistant">IA pedagogique</a>
+        <a href="#progress">Progression</a>
+      </nav>
+
+      <section class="filter-card" aria-labelledby="filter-title">
+        <h2 id="filter-title">Filtres</h2>
+        <label>
+          <span>Classe</span>
+          <select>
+            <option>7e annee fondamentale</option>
+            <option>8e annee fondamentale</option>
+            <option>9e annee fondamentale</option>
+          </select>
+        </label>
+        <label>
+          <span>Matiere</span>
+          <select>
+            <option>Toutes les matieres</option>
+            <option>Mathematiques</option>
+            <option>Sciences experimentales</option>
+            <option>Francais</option>
+            <option>Histoire et geographie</option>
+          </select>
+        </label>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Bibliotheque officielle + tuteur IA</p>
+          <h1>Explorer les contenus par classe, matiere et theme</h1>
+        </div>
+        <button class="secondary-action" type="button">Historique</button>
+      </header>
+
+      <section class="search-panel" aria-label="Recherche de contenus">
+        <label class="search-box">
+          <span>Rechercher dans les documents officiels</span>
+          <input type="search" placeholder="Ex: fractions, revolution haitienne, cycle de l'eau">
+        </label>
+        <button class="primary-action" type="button">Rechercher</button>
+      </section>
+
+      <section id="library" class="content-grid">
+        <div class="library-column">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Documents valides</p>
+              <h2>Livres et programmes</h2>
+            </div>
+            <button class="text-action" type="button">Tout voir</button>
+          </div>
+
+          <article class="book-card selected">
+            <div class="book-mark">MAT</div>
+            <div>
+              <p>7e annee fondamentale</p>
+              <h3>Mathematiques - Programme officiel</h3>
+              <span>12 chapitres disponibles</span>
+            </div>
+          </article>
+
+          <article class="book-card">
+            <div class="book-mark science">SCI</div>
+            <div>
+              <p>7e annee fondamentale</p>
+              <h3>Sciences experimentales</h3>
+              <span>9 chapitres disponibles</span>
+            </div>
+          </article>
+
+          <article class="book-card">
+            <div class="book-mark language">FRA</div>
+            <div>
+              <p>7e annee fondamentale</p>
+              <h3>Francais et communication</h3>
+              <span>15 chapitres disponibles</span>
+            </div>
+          </article>
+        </div>
+
+        <div class="chapter-column">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Mathematiques</p>
+              <h2>Chapitres</h2>
+            </div>
+            <span class="status-pill">Document officiel</span>
+          </div>
+
+          <div class="chapter-list">
+            <button class="chapter-row active" type="button">
+              <span>01</span>
+              <strong>Fractions et nombres decimaux</strong>
+              <small>Definitions, operations, problemes</small>
+            </button>
+            <button class="chapter-row" type="button">
+              <span>02</span>
+              <strong>Proportionnalite</strong>
+              <small>Tableaux, pourcentages, situations concretes</small>
+            </button>
+            <button class="chapter-row" type="button">
+              <span>03</span>
+              <strong>Geometrie plane</strong>
+              <small>Angles, triangles, figures usuelles</small>
+            </button>
+            <button class="chapter-row" type="button">
+              <span>04</span>
+              <strong>Mesures et grandeurs</strong>
+              <small>Longueur, masse, aire, volume</small>
+            </button>
+          </div>
+        </div>
+
+        <aside id="assistant" class="ai-panel">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">IA pedagogique</p>
+              <h2>Reponse personnalisee</h2>
+            </div>
+          </div>
+
+          <div class="ai-context">
+            <span>Source active</span>
+            <strong>Fractions et nombres decimaux</strong>
+            <p>L'IA repond uniquement avec le chapitre selectionne et les documents officiels relies.</p>
+          </div>
+
+          <div id="themes" class="theme-cloud" aria-label="Themes frequents">
+            <button type="button">Definition</button>
+            <button type="button">Exemple</button>
+            <button type="button">Resume</button>
+            <button type="button">Exercice</button>
+            <button type="button">Explication simple</button>
+          </div>
+
+          <div class="answer-card">
+            <p class="assistant-label">Tuteur Konesans+</p>
+            <h3>Resume rapide</h3>
+            <p>Une fraction represente une partie d'un tout. Le numerateur indique combien de parties sont prises, et le denominateur indique en combien de parties egales le tout est partage.</p>
+            <ul>
+              <li>Identifier le denominateur.</li>
+              <li>Comparer des fractions avec le meme denominateur.</li>
+              <li>Transformer une fraction simple en nombre decimal.</li>
+            </ul>
+          </div>
+
+          <form class="ai-form">
+            <label>
+              <span>Demander une explication</span>
+              <textarea rows="4" placeholder="Ex: Explique ce chapitre avec un exemple de la vie quotidienne."></textarea>
+            </label>
+            <button class="primary-action" type="button">Envoyer a l'IA</button>
+          </form>
+        </aside>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
