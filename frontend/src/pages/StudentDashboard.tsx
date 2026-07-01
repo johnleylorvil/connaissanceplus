@@ -591,7 +591,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: tab === 'home' ? 1540 : tab === 'quiz' || tab === 'arena' || tab === 'library' || tab === 'ai' ? 1100 : 820 }}>
+        <div className={`dashboard-main md:ml-[292px]${tab === 'home' ? ' student-home-main' : ''}`} style={{ maxWidth: tab === 'home' ? 1260 : tab === 'quiz' || tab === 'arena' || tab === 'library' || tab === 'ai' ? 1100 : 820 }}>
 
 
 

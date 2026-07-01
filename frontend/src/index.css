@@ -4349,3 +4349,172 @@ body { background: #fafaf8; color: #0f172a; }
   .student-dashboard-shell .dashboard-main { padding-inline: 14px; }
   .student-dashboard-shell .insights-heading { flex-direction: column; }
 }
+/* Home page correction: no horizontal overflow, calmer command center */
+.student-home-main {
+  width: auto;
+  margin-right: auto;
+}
+
+.student-home-main .student-command {
+  max-width: 1260px;
+  overflow: hidden;
+}
+
+.student-home-main .student-command-header {
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0;
+}
+
+.student-home-main .student-command-header h1 {
+  font-size: clamp(24px, 2.4vw, 32px);
+}
+
+.student-home-main .student-command-header p {
+  max-width: 720px;
+}
+
+.student-home-main .student-command-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  width: 100%;
+}
+
+.student-home-main .student-command-main,
+.student-home-main .student-command-aside,
+.student-home-main .student-card,
+.student-home-main .student-section {
+  min-width: 0;
+}
+
+.student-home-main .student-stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.student-home-main .student-stat-card {
+  min-height: 128px;
+  padding: 14px;
+}
+
+.student-home-main .student-stat-card strong {
+  font-size: clamp(20px, 2vw, 27px);
+}
+
+.student-home-main .student-play-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.student-home-main .student-mode-card {
+  min-height: 156px;
+  padding: 14px;
+}
+
+.student-home-main .student-mode-card h3 {
+  font-size: 14px;
+}
+
+.student-home-main .student-mode-card p,
+.student-home-main .student-stat-card > span:not(.student-icon-box) {
+  font-size: 12px;
+}
+
+.student-home-main .student-section,
+.student-home-main .student-section-card,
+.student-home-main .student-panel-card {
+  padding: 14px;
+}
+
+.student-home-main .student-two-column {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 14px;
+}
+
+.student-home-main .student-command-aside {
+  display: flex;
+  gap: 14px;
+}
+
+.student-home-main .student-panel-card {
+  overflow: hidden;
+}
+
+.student-home-main .student-panel-header h2,
+.student-home-main .student-section-heading h2 {
+  font-size: 16px;
+}
+
+.student-home-main .student-tabs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.student-home-main .student-tabs button {
+  min-width: 0;
+  padding-inline: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-home-main .student-timeline-item {
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+}
+
+.student-home-main .student-timeline-item em {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-home-main .student-competition-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.student-home-main .student-link-button {
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .student-dashboard-shell .student-home-main {
+    width: calc(100vw - 292px);
+    max-width: calc(100vw - 292px) !important;
+    padding-right: 18px;
+  }
+}
+
+@media (max-width: 1320px) {
+  .student-home-main .student-command-layout {
+    grid-template-columns: 1fr;
+  }
+  .student-home-main .student-command-aside {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1080px) {
+  .student-home-main .student-stats-grid,
+  .student-home-main .student-play-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .student-home-main .student-command-aside {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .student-home-main .student-command {
+    overflow: visible;
+  }
+  .student-home-main .student-command-header {
+    align-items: flex-start;
+  }
+  .student-home-main .student-command-header-actions {
+    position: static;
+  }
+  .student-home-main .student-stats-grid,
+  .student-home-main .student-play-grid,
+  .student-home-main .student-two-column {
+    grid-template-columns: 1fr;
+  }
+}
