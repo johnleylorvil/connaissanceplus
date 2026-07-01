@@ -515,8 +515,7 @@ export default function StudentDashboard() {
       title: 'Apprentissage',
       note: 'Programme',
       items: [
-        { id: 'library', label: 'Bibliothèque de contenus', onClick: () => openStudentTab('library'), active: tab === 'library' },
-        { id: 'ai', label: 'IA pédagogique', onClick: () => openStudentTab('ai'), active: tab === 'ai' },
+        { id: 'library', label: 'Bibliotheque intelligente', onClick: () => openStudentTab('library'), active: tab === 'library' || tab === 'ai' },
       ],
     },
     {
@@ -540,7 +539,6 @@ export default function StudentDashboard() {
     { key: 'leaderboard', label: 'Classement' },
     { key: 'correspondence', label: 'Correspondance' },
     { key: 'library', label: 'Bibliotheque' },
-    { key: 'ai', label: 'Tuteur IA' },
     { key: 'profile', label: 'Profil' },
     { key: 'security', label: 'Securite' },
     { key: 'preferences', label: 'Preferences' },
