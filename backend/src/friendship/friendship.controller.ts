@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Patch, Post, Req, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../mvp/auth/jwt-auth.guard';
 import { FriendRequestDto } from './friendship.dto';
 import { FriendshipService } from './friendship.service';
@@ -14,6 +14,11 @@ type AuthenticatedRequest = {
 export class FriendshipController {
   constructor(private readonly friendshipService: FriendshipService) {}
 
+
+  @Get()
+  listFriends(@Req() request: AuthenticatedRequest) {
+    return this.friendshipService.listFriendships(request.user.id);
+  }
   @Post('request')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   requestFriend(@Req() request: AuthenticatedRequest, @Body() dto: FriendRequestDto) {

@@ -48,6 +48,19 @@ type Notification = {
   isRead: boolean
   createdAt: string
 }
+
+type FriendProfile = {
+  userId: string
+  name: string
+  academicLevelName: string | null
+  avatarUrl: string | null
+}
+type FriendshipSummary = {
+  incoming: Array<{ id: string; status: 'pending'; createdAt: string; requester: FriendProfile | null }>
+  outgoing: Array<{ id: string; status: 'pending'; createdAt: string; addressee: FriendProfile | null }>
+  friends: Array<{ id: string; status: 'accepted'; friend: FriendProfile | null }>
+}
+
 type QuizStartResponse = {
   sessionId: string
   questions: Array<{
@@ -104,6 +117,71 @@ const insightActionLabel = (action: InsightAction) => {
     case 'view_history': return 'Voir mon historique'
   }
 }
+
+function FriendRequestsPanel({
+  friendships,
+  error,
+  acceptingId,
+  onAccept,
+}: {
+  friendships: FriendshipSummary
+  error: string
+  acceptingId: string | null
+  onAccept: (id: string) => void
+}) {
+  const hasIncoming = friendships.incoming.length > 0
+  const hasOutgoing = friendships.outgoing.length > 0
+  const hasFriends = friendships.friends.length > 0
+
+  return (
+    <section className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 14 }}>
+        <div>
+          <p className="overline" style={{ marginBottom: 4 }}>Amis</p>
+          <h2 style={{ margin: 0, color: 'var(--cobalt)', fontSize: 22 }}>Demandes d'amis</h2>
+        </div>
+        {hasIncoming && <span className="badge">{friendships.incoming.length}</span>}
+      </div>
+
+      {error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{error}</div>}
+
+      {!hasIncoming && !hasOutgoing && !hasFriends ? (
+        <p style={{ margin: 0, color: 'var(--ink-3)' }}>Aucune demande d'ami pour le moment.</p>
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          {friendships.incoming.map((request) => (
+            <article key={request.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, border: '1px solid var(--rule)', borderRadius: 8, background: '#fff' }}>
+              <div className="profile-avatar-upload" style={{ width: 48, height: 48, margin: 0, flexShrink: 0 }}>
+                {request.requester?.avatarUrl ? <img src={request.requester.avatarUrl} alt="" /> : <span>{request.requester?.name?.[0] ?? 'E'}</span>}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ display: 'block', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{request.requester?.name ?? 'Étudiant'}</strong>
+                <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>{request.requester?.academicLevelName ?? 'Niveau académique non renseigné'}</span>
+              </div>
+              <button className="btn btn-primary btn-sm" disabled={acceptingId === request.id} onClick={() => onAccept(request.id)}>
+                {acceptingId === request.id ? 'Acceptation...' : 'Accepter'}
+              </button>
+            </article>
+          ))}
+
+          {friendships.outgoing.length > 0 && (
+            <div style={{ display: 'grid', gap: 8, paddingTop: hasIncoming ? 8 : 0 }}>
+              <p className="overline" style={{ margin: 0 }}>Envoyées</p>
+              {friendships.outgoing.map((request) => (
+                <article key={request.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, border: '1px solid var(--rule)', borderRadius: 8, background: 'var(--surface)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ display: 'block', color: 'var(--ink)' }}>{request.addressee?.name ?? 'Étudiant'}</strong>
+                    <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>Demande envoyée</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
 export default function StudentDashboard() {
   const { user, accessToken, logout, updateUser } = useAuth()
   const navigate = useNavigate()
@@ -115,6 +193,9 @@ export default function StudentDashboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notificationError, setNotificationError] = useState('')
+  const [friendships, setFriendships] = useState<FriendshipSummary>({ incoming: [], outgoing: [], friends: [] })
+  const [friendshipError, setFriendshipError] = useState('')
+  const [acceptingFriendId, setAcceptingFriendId] = useState<string | null>(null)
   const [insights, setInsights] = useState<StudentInsights | null>(null)
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [insightsError, setInsightsError] = useState('')
@@ -163,7 +244,8 @@ export default function StudentDashboard() {
   const [corrError, setCorrError] = useState('')
   const corrSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length
+  const incomingFriendCount = friendships.incoming.length
+  const unreadCount = notifications.filter((n) => !n.isRead).length + incomingFriendCount
 
   useEffect(() => {
     setProfileForm((current) => ({
@@ -208,6 +290,11 @@ export default function StudentDashboard() {
     () => apiCall<Notification[]>('/notifications', {}, accessToken).then(setNotifications).catch(() => {}),
     [accessToken],
   )
+
+  const loadFriendships = useCallback(
+    () => apiCall<FriendshipSummary>('/friends', {}, accessToken).then(setFriendships).catch(() => {}),
+    [accessToken],
+  )
   const loadInsights = useCallback(async () => {
     if (!accessToken) return
     setInsightsLoading(true)
@@ -224,13 +311,15 @@ export default function StudentDashboard() {
   useEffect(() => {
     apiCall<SchoolClass[]>('/classes').then(setClasses).catch(() => {})
     loadNotifications()
-  }, [loadNotifications])
+    loadFriendships()
+  }, [loadFriendships, loadNotifications])
 
   useEffect(() => {
     if (!accessToken) return
 
     const refreshNotifications = () => {
       loadNotifications()
+      loadFriendships()
     }
 
     const intervalId = window.setInterval(refreshNotifications, 10000)
@@ -240,14 +329,14 @@ export default function StudentDashboard() {
       window.clearInterval(intervalId)
       window.removeEventListener('focus', refreshNotifications)
     }
-  }, [accessToken, loadNotifications])
+  }, [accessToken, loadFriendships, loadNotifications])
 
   useEffect(() => {
     if (tab === 'home' || tab === 'history') loadHistory()
     if (tab === 'leaderboard') loadLeaderboard()
-    if (tab === 'notifications') loadNotifications()
+    if (tab === 'notifications') { loadNotifications(); loadFriendships() }
     if (tab === 'home' || tab === 'summary' || tab === 'recommendations' || tab === 'statistics') void loadInsights()
-  }, [loadHistory, loadInsights, loadLeaderboard, loadNotifications, tab])
+  }, [loadFriendships, loadHistory, loadInsights, loadLeaderboard, loadNotifications, tab])
 
   const startQuiz = async () => {
     setQuizError('')
@@ -281,6 +370,20 @@ export default function StudentDashboard() {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n))
   }
 
+
+  const acceptFriendRequest = async (friendshipId: string) => {
+    if (acceptingFriendId) return
+    setFriendshipError('')
+    setAcceptingFriendId(friendshipId)
+    try {
+      await apiCall(`/friends/${friendshipId}/accept`, { method: 'PATCH' }, accessToken)
+      await loadFriendships()
+    } catch (err) {
+      setFriendshipError((err as { message?: string }).message ?? "Impossible d'accepter cette demande.")
+    } finally {
+      setAcceptingFriendId(null)
+    }
+  }
   const deleteNotification = async (id: string) => {
     setNotificationError('')
     try {
@@ -1136,14 +1239,22 @@ export default function StudentDashboard() {
 
           {/* -- NOTIFICATIONS -- */}
           {tab === 'notifications' && (
-            <NotificationCenter
-              notifications={notifications}
-              onMarkAllRead={markAllRead}
-              onMarkOneRead={markOneRead}
-              onDelete={deleteNotification}
-              onNavigate={(targetTab) => setTab(targetTab as Tab)}
-              error={notificationError}
+            <>
+              <FriendRequestsPanel
+                friendships={friendships}
+                error={friendshipError}
+                acceptingId={acceptingFriendId}
+                onAccept={(id) => void acceptFriendRequest(id)}
+              />
+              <NotificationCenter
+                notifications={notifications}
+                onMarkAllRead={markAllRead}
+                onMarkOneRead={markOneRead}
+                onDelete={deleteNotification}
+                onNavigate={(targetTab) => setTab(targetTab as Tab)}
+                error={notificationError}
             />
+            </>
           )}
 
           {/* -- PROFIL -- */}
@@ -1233,7 +1344,7 @@ export default function StudentDashboard() {
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                     <input type="checkbox" checked={profileForm.canBeContacted} onChange={(e) => setProfileForm({ ...profileForm, canBeContacted: e.target.checked })} style={{ accentColor: 'var(--cobalt)', width: 15, height: 15 }} />
-                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Accepter d’être contacté par Konesans+</span>
+                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Accepter d'être contacté par Konesans+</span>
                   </label>
 
                   <button type="submit" disabled={profileLoading} className="btn btn-primary btn-full" style={{ marginTop: 4 }}>

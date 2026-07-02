@@ -4,6 +4,22 @@ import { Repository } from 'typeorm';
 import { Friendship, FriendshipStatus } from './friendship.entity';
 import { User } from '../mvp/entities';
 
+type FriendshipProfile = {
+  userId: string;
+  name: string;
+  academicLevelName: string | null;
+  avatarUrl: string | null;
+};
+
+function toFriendshipProfile(user?: User | null): FriendshipProfile | null {
+  if (!user) return null;
+  return {
+    userId: user.id,
+    name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'Utilisateur',
+    academicLevelName: user.academicClass?.name ?? null,
+    avatarUrl: user.avatarUrl ?? null,
+  };
+}
 @Injectable()
 export class FriendshipService {
   constructor(
@@ -12,6 +28,44 @@ export class FriendshipService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
   ) {}
+
+
+  async listFriendships(userId: string) {
+    const rows = await this.friendshipRepo.find({
+      where: [
+        { requesterUserId: userId },
+        { addresseeUserId: userId },
+      ],
+      relations: ['requester', 'requester.academicClass', 'addressee', 'addressee.academicClass'],
+      order: { updatedAt: 'DESC' },
+    });
+
+    return {
+      incoming: rows
+        .filter((item) => item.addresseeUserId === userId && item.status === FriendshipStatus.PENDING)
+        .map((item) => ({
+          id: item.id,
+          status: item.status,
+          createdAt: item.createdAt,
+          requester: toFriendshipProfile(item.requester),
+        })),
+      outgoing: rows
+        .filter((item) => item.requesterUserId === userId && item.status === FriendshipStatus.PENDING)
+        .map((item) => ({
+          id: item.id,
+          status: item.status,
+          createdAt: item.createdAt,
+          addressee: toFriendshipProfile(item.addressee),
+        })),
+      friends: rows
+        .filter((item) => item.status === FriendshipStatus.ACCEPTED)
+        .map((item) => ({
+          id: item.id,
+          status: item.status,
+          friend: toFriendshipProfile(item.requesterUserId === userId ? item.addressee : item.requester),
+        })),
+    };
+  }
 
   async requestFriend(requesterUserId: string, addresseeUserId: string) {
     if (requesterUserId === addresseeUserId) {
