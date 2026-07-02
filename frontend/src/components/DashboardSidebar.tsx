@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+﻿import type { ReactNode } from 'react'
 
 export type DashboardSidebarNode = {
   id: string
@@ -24,6 +24,7 @@ type DashboardSidebarProps = {
   identityCaption?: string
   identityMeta?: string
   avatarText?: string
+  avatarUrl?: string | null
   sections: DashboardSidebarSection[]
   onLogout: () => void
   logoutLabel: string
@@ -45,7 +46,7 @@ function SidebarNode({ node, depth = 0 }: { node: DashboardSidebarNode; depth?: 
         {node.icon ? <span className="sidebar-item-icon">{node.icon}</span> : null}
         <span className="sidebar-item-label">{node.label}</span>
         {node.badge ? <span className="sidebar-item-badge">{node.badge}</span> : null}
-        {hasChildren && <span className="sidebar-item-caret">›</span>}
+        {hasChildren && <span className="sidebar-item-caret">â€º</span>}
       </button>
 
       {hasChildren && (
@@ -63,6 +64,7 @@ export default function DashboardSidebar({
   identityCaption,
   identityMeta,
   avatarText,
+  avatarUrl,
   sections,
   onLogout,
   logoutLabel,
@@ -79,7 +81,9 @@ export default function DashboardSidebar({
       </div>
 
       <div className="dashboard-sidebar-identity">
-        {avatarText ? (
+        {avatarUrl ? (
+          <img className="dashboard-sidebar-avatar" src={avatarUrl} alt="" />
+        ) : avatarText ? (
           <div className="dashboard-sidebar-avatar">{avatarText}</div>
         ) : null}
         <div style={{ minWidth: 0 }}>
@@ -112,3 +116,7 @@ export default function DashboardSidebar({
     </aside>
   )
 }
+
+
+
+

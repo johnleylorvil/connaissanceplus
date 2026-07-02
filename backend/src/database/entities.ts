@@ -36,6 +36,7 @@ import {
 import { StudentDailyRecommendation } from '../student-insights/student-daily-recommendation.entity';
 import { Chapter, TutorConversation, TutorMessage } from '../learning/learning.entities';
 import { PlatformSettings } from '../platform-settings/platform-settings.entity';
+import { Friendship } from '../friendship/friendship.entity';
 
 export const databaseEntities = [
   AcademicClass,
@@ -72,4 +73,6 @@ export const databaseEntities = [
   TutorConversation,
   TutorMessage,
   PlatformSettings,
+  Friendship,
 ];
+

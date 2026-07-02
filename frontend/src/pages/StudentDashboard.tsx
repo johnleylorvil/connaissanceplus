@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+﻿import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Activity, Bell, BookOpen, ChartNoAxesCombined, GraduationCap, Home, Library, LockKeyhole, Mail, Medal, Settings, Swords, Trophy, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -63,7 +63,7 @@ type QuizStartResponse = {
 
 type MatchmakingResponse = {
   duelId: string
-  status: 'waiting' | 'in_progress' | 'completed'
+  status: 'waiting' | 'matched' | 'in_progress' | 'completed'
   competitionId: string
 }
 type InsightAction =
@@ -89,15 +89,15 @@ type StudentInsights = {
 }
 
 
-const insightValue = (value: number | null, suffix = '') => value === null ? '—' : value + suffix
+const insightValue = (value: number | null, suffix = '') => value === null ? 'â€”' : value + suffix
 const trendText = (trend: number | null) => {
   if (trend === null) return 'Pas encore de comparaison'
-  if (trend === 0) return 'Stable par rapport à la période précédente'
-  return (trend > 0 ? '+' : '') + trend + ' points par rapport à la période précédente'
+  if (trend === 0) return 'Stable par rapport Ã  la pÃ©riode prÃ©cÃ©dente'
+  return (trend > 0 ? '+' : '') + trend + ' points par rapport Ã  la pÃ©riode prÃ©cÃ©dente'
 }
 const insightActionLabel = (action: InsightAction) => {
   switch (action.type) {
-    case 'start_quiz': return 'Lancer cet entraînement'
+    case 'start_quiz': return 'Lancer cet entraÃ®nement'
     case 'open_duels': return 'Ouvrir les duels'
     case 'open_arena': return 'Ouvrir Arena'
     case 'open_correspondence': return 'Ouvrir Correspondance'
@@ -124,6 +124,7 @@ export default function StudentDashboard() {
   const [quizLoading, setQuizLoading] = useState(false)
   const [quizError, setQuizError] = useState('')
   const [duelSubjectId, setDuelSubjectId] = useState('')
+  const [duelDuration, setDuelDuration] = useState<3 | 5 | 10>(3)
   const [duelLoading, setDuelLoading] = useState(false)
   const [duelError, setDuelError] = useState('')
 
@@ -131,6 +132,7 @@ export default function StudentDashboard() {
     firstName: user?.firstName ?? '',
     lastName: user?.lastName ?? '',
     classId: user?.classId ?? '',
+    gender: user?.gender ?? '',
     school: user?.school ?? '',
     city: user?.city ?? '',
     department: user?.department ?? '',
@@ -140,9 +142,10 @@ export default function StudentDashboard() {
   const [profileMsg, setProfileMsg] = useState('')
   const [profileError, setProfileError] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
   const cityOptions = profileForm.department ? HAITI_CITIES_BY_DEPARTMENT[profileForm.department as keyof typeof HAITI_CITIES_BY_DEPARTMENT] ?? [] : []
 
-  // ── Correspondence state ─────────────────────────────────────────────────────
+  // â”€â”€ Correspondence state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [corrView, setCorrView] = useState<CorrView>('sessions')
   const [corrSessions, setCorrSessions] = useState<ContestSession[]>([])
   const [corrSelectedSession, setCorrSelectedSession] = useState<ContestSession | null>(null)
@@ -248,7 +251,7 @@ export default function StudentDashboard() {
 
   const startQuiz = async () => {
     setQuizError('')
-    if (!quizSubjectId) { setQuizError('Choisissez une matière.'); return }
+    if (!quizSubjectId) { setQuizError('Choisissez une matiÃ¨re.'); return }
     setQuizLoading(true)
     try {
       const data = await apiCall<QuizStartResponse>('/quizzes/start', {
@@ -291,7 +294,7 @@ export default function StudentDashboard() {
   const searchOpponent = async () => {
     setDuelError('')
     if (!duelSubjectId) {
-      setDuelError('Choisissez une matière.')
+      setDuelError('Choisissez une matiÃ¨re.')
       return
     }
 
@@ -299,7 +302,7 @@ export default function StudentDashboard() {
     try {
       const data = await apiCall<MatchmakingResponse>('/duels/matchmaking/join', {
         method: 'POST',
-        body: JSON.stringify({ subjectId: duelSubjectId }),
+        body: JSON.stringify({ subjectId: duelSubjectId, durationMinutes: duelDuration }),
       }, accessToken)
       navigate(`/duel/${data.duelId}`)
     } catch (err) {
@@ -309,7 +312,7 @@ export default function StudentDashboard() {
     }
   }
 
-  // ── Correspondence handlers ─────────────────────────────────────────────────
+  // â”€â”€ Correspondence handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadCorrSessions = useCallback(async () => {
     if (!accessToken) return
     setCorrLoading(true); setCorrError('')
@@ -426,6 +429,7 @@ export default function StudentDashboard() {
         firstName: profileForm.firstName,
         lastName: profileForm.lastName,
         classId: profileForm.classId || undefined,
+        gender: profileForm.gender || undefined,
         school: profileForm.school || undefined,
         city: profileForm.city || undefined,
         department: profileForm.department || undefined,
@@ -437,7 +441,7 @@ export default function StudentDashboard() {
         body: JSON.stringify(body),
       }, accessToken)
       updateUser(updated!)
-      setProfileMsg('Profil mis à jour avec succès !')
+      setProfileMsg('Profil mis Ã  jour avec succÃ¨s !')
     } catch (err) {
       setProfileError((err as { message: string }).message)
     } finally {
@@ -445,6 +449,23 @@ export default function StudentDashboard() {
     }
   }
 
+  const uploadAvatar = async (file: File) => {
+    if (!accessToken) return
+    setAvatarLoading(true)
+    setProfileError('')
+    setProfileMsg('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const updated = await apiCall<typeof user>('/auth/profile/avatar', { method: 'POST', body: formData }, accessToken)
+      updateUser(updated!)
+      setProfileMsg('Photo de profil mise a jour.')
+    } catch (err) {
+      setProfileError((err as { message?: string }).message ?? 'Upload impossible.')
+    } finally {
+      setAvatarLoading(false)
+    }
+  }
   const openStudentTab = (nextTab: Tab) => {
     setTab(nextTab)
   }
@@ -479,16 +500,16 @@ export default function StudentDashboard() {
   const studentSidebarSections: DashboardSidebarSection[] = [
     {
       title: 'Tableau de bord',
-      note: 'Point d\'entrée',
+      note: 'Point d\'entrÃ©e',
       items: [
         { id: 'home', label: 'Accueil', icon: <Home size={16} />, onClick: () => openStudentTab('home'), active: tab === 'home' },
-        { id: 'home-summary', label: 'Résumé personnel', icon: <ChartNoAxesCombined size={16} />, onClick: () => openStudentTab('summary'), active: tab === 'summary' },
+        { id: 'home-summary', label: 'RÃ©sumÃ© personnel', icon: <ChartNoAxesCombined size={16} />, onClick: () => openStudentTab('summary'), active: tab === 'summary' },
         { id: 'home-reco', label: 'Recommandations du jour', icon: <GraduationCap size={16} />, onClick: () => openStudentTab('recommendations'), active: tab === 'recommendations' },
       ],
     },
     {
-      title: 'Compétitions',
-      note: 'Quiz et défis',
+      title: 'CompÃ©titions',
+      note: 'Quiz et dÃ©fis',
       items: [
         { id: 'quiz', label: 'Challenge', icon: <Swords size={16} />, onClick: () => openStudentTab('quiz'), active: tab === 'quiz' },
         { id: 'arena', label: 'Arena', icon: <Trophy size={16} />, onClick: () => openStudentTab('arena'), active: tab === 'arena' },
@@ -497,15 +518,15 @@ export default function StudentDashboard() {
     },
     {
       title: 'Correspondance',
-      note: 'Échanges',
+      note: 'Ã‰changes',
       items: [
         { id: 'corr-sessions', label: 'Concours', icon: <Mail size={16} />, onClick: () => openStudentCorrespondence('sessions'), active: tab === 'correspondence' && corrView === 'sessions' },
         { id: 'corr-myletters', label: 'Mes lettres', icon: <BookOpen size={16} />, onClick: () => openStudentCorrespondence('myletters'), active: tab === 'correspondence' && corrView === 'myletters' },
-        { id: 'corr-inbox', label: 'Boîte de réception', icon: <Bell size={16} />, onClick: () => openStudentCorrespondence('inbox'), active: tab === 'correspondence' && corrView === 'inbox' },
+        { id: 'corr-inbox', label: 'BoÃ®te de rÃ©ception', icon: <Bell size={16} />, onClick: () => openStudentCorrespondence('inbox'), active: tab === 'correspondence' && corrView === 'inbox' },
       ],
     },
     {
-      title: 'Activité',
+      title: 'ActivitÃ©',
       note: 'Suivi',
       items: [
         { id: 'history', label: 'Historique', icon: <Activity size={16} />, onClick: () => openStudentTab('history'), active: tab === 'history' },
@@ -517,7 +538,7 @@ export default function StudentDashboard() {
       title: 'Apprentissage',
       note: 'Programme',
       items: [
-        { id: 'library', label: 'Bibliothèque intelligente', icon: <Library size={16} />, onClick: () => openStudentTab('library'), active: tab === 'library' || tab === 'ai' },
+        { id: 'library', label: 'BibliothÃ¨que intelligente', icon: <Library size={16} />, onClick: () => openStudentTab('library'), active: tab === 'library' || tab === 'ai' },
       ],
     },
     {
@@ -525,15 +546,15 @@ export default function StudentDashboard() {
       note: 'Profil',
       items: [
         { id: 'profile', label: 'Profil', icon: <User size={16} />, onClick: () => openStudentTab('profile'), active: tab === 'profile' },
-        { id: 'security', label: 'Sécurité', icon: <LockKeyhole size={16} />, onClick: () => openStudentTab('security'), active: tab === 'security' },
-        { id: 'preferences', label: 'Préférences', icon: <Settings size={16} />, onClick: () => openStudentTab('preferences'), active: tab === 'preferences' },
+        { id: 'security', label: 'SÃ©curitÃ©', icon: <LockKeyhole size={16} />, onClick: () => openStudentTab('security'), active: tab === 'security' },
+        { id: 'preferences', label: 'PrÃ©fÃ©rences', icon: <Settings size={16} />, onClick: () => openStudentTab('preferences'), active: tab === 'preferences' },
       ],
     },
   ]
 
   const studentMobileNavItems: { key: Tab; label: string }[] = [
     { key: 'home', label: 'Accueil' },
-    { key: 'summary', label: 'Résumé' },
+    { key: 'summary', label: 'RÃ©sumÃ©' },
     { key: 'recommendations', label: 'Conseils' },
     { key: 'quiz', label: 'Challenge' },
     { key: 'history', label: 'Historique' },
@@ -542,8 +563,8 @@ export default function StudentDashboard() {
     { key: 'correspondence', label: 'Lettres' },
     { key: 'library', label: 'Manuel' },
     { key: 'profile', label: 'Profil' },
-    { key: 'security', label: 'Sécurité' },
-    { key: 'preferences', label: 'Préférences' },
+    { key: 'security', label: 'SÃ©curitÃ©' },
+    { key: 'preferences', label: 'PrÃ©fÃ©rences' },
   ]
 
   const avgScore =
@@ -566,18 +587,19 @@ export default function StudentDashboard() {
   return (
     <div className="dashboard-shell student-dashboard-shell flex">
       <DashboardSidebar
-        portalLabel="Dashboard étudiant"
-        identityLabel={`${user?.firstName ?? 'Étudiant'} ${user?.lastName ?? ''}`.trim()}
-        identityCaption={classes.find((c) => c.id === user?.classId)?.name ?? 'Génie scolaire'}
-        identityMeta="Espace étudiant"
+        portalLabel="Dashboard Ã©tudiant"
+        identityLabel={`${user?.firstName ?? 'Ã‰tudiant'} ${user?.lastName ?? ''}`.trim()}
+        identityCaption={classes.find((c) => c.id === user?.classId)?.name ?? 'GÃ©nie scolaire'}
+        identityMeta="Espace Ã©tudiant"
         avatarText={user?.firstName?.[0] ?? 'E'}
+        avatarUrl={user?.avatarUrl}
         sections={studentSidebarSections}
         onLogout={logout}
-        logoutLabel="Déconnexion"
+        logoutLabel="DÃ©connexion"
         footerNote="Un espace unique pour jouer, apprendre et progresser."
       />
 
-      {/* ── MAIN ── */}
+      {/* â”€â”€ MAIN â”€â”€ */}
       <main className="flex-1" style={{ marginLeft: 0, paddingBottom: 80 }} >
         {/* Mobile top bar */}
         <div className="md:hidden student-mobile-topbar">
@@ -620,8 +642,8 @@ export default function StudentDashboard() {
               <div className="insights-heading">
                 <div>
                   <p className="overline">30 derniers jours</p>
-                  <h1 className="display">Résumé personnel</h1>
-                  <p>Vos activités restent séparées pour montrer clairement où vous progressez.</p>
+                  <h1 className="display">RÃ©sumÃ© personnel</h1>
+                  <p>Vos activitÃ©s restent sÃ©parÃ©es pour montrer clairement oÃ¹ vous progressez.</p>
                 </div>
                 <button className="btn btn-ghost btn-sm" onClick={() => void loadInsights()} disabled={insightsLoading}>Actualiser</button>
               </div>
@@ -634,8 +656,8 @@ export default function StudentDashboard() {
                   <div className="responsive-three-col insights-overview">
                     {[
                       { label: 'Jours actifs', value: insights.period.activeDays },
-                      { label: 'Activités récentes', value: insights.summary.quizzes.periodSessions + insights.summary.duels.periodParticipations + insights.summary.arena.periodCompetitions + insights.summary.correspondence.periodLettersSubmitted },
-                      { label: 'Matières pratiquées', value: insights.summary.subjects.filter((subject) => subject.answered > 0).length },
+                      { label: 'ActivitÃ©s rÃ©centes', value: insights.summary.quizzes.periodSessions + insights.summary.duels.periodParticipations + insights.summary.arena.periodCompetitions + insights.summary.correspondence.periodLettersSubmitted },
+                      { label: 'MatiÃ¨res pratiquÃ©es', value: insights.summary.subjects.filter((subject) => subject.answered > 0).length },
                     ].map((stat) => (
                       <div className="mobile-stat-card" key={stat.label}>
                         <strong className="display">{stat.value}</strong>
@@ -650,61 +672,61 @@ export default function StudentDashboard() {
                       <h2>Quiz individuels</h2>
                       <div className="insight-metrics">
                         <div><strong>{insights.summary.quizzes.periodSessions}</strong><span>sur 30 jours</span></div>
-                        <div><strong>{insightValue(insights.summary.quizzes.accuracy, '%')}</strong><span>de précision</span></div>
+                        <div><strong>{insightValue(insights.summary.quizzes.accuracy, '%')}</strong><span>de prÃ©cision</span></div>
                         <div><strong>{insights.summary.quizzes.totalSessions}</strong><span>au total</span></div>
                       </div>
-                      <p className="insight-trend">{trendText(insights.summary.quizzes.trend)} · {insights.summary.quizzes.previousSessions} session(s) sur la période précédente</p>
+                      <p className="insight-trend">{trendText(insights.summary.quizzes.trend)} Â· {insights.summary.quizzes.previousSessions} session(s) sur la pÃ©riode prÃ©cÃ©dente</p>
                     </section>
 
                     <section className="card insight-domain">
-                      <p className="overline">Face-à-face</p>
+                      <p className="overline">Face-Ã -face</p>
                       <h2>Duels</h2>
                       <div className="insight-metrics">
                         <div><strong>{insights.summary.duels.wins}</strong><span>victoires</span></div>
-                        <div><strong>{insights.summary.duels.losses}</strong><span>défaites</span></div>
-                        <div><strong>{insightValue(insights.summary.duels.accuracy, '%')}</strong><span>de précision</span></div>
+                        <div><strong>{insights.summary.duels.losses}</strong><span>dÃ©faites</span></div>
+                        <div><strong>{insightValue(insights.summary.duels.accuracy, '%')}</strong><span>de prÃ©cision</span></div>
                       </div>
-                      <p className="insight-trend">{trendText(insights.summary.duels.trend)} · {insights.summary.duels.previousParticipations} duel(s) sur la période précédente</p>
+                      <p className="insight-trend">{trendText(insights.summary.duels.trend)} Â· {insights.summary.duels.previousParticipations} duel(s) sur la pÃ©riode prÃ©cÃ©dente</p>
                     </section>
 
                     <section className="card insight-domain">
-                      <p className="overline">Compétitions</p>
+                      <p className="overline">CompÃ©titions</p>
                       <h2>Arena</h2>
                       <div className="insight-metrics">
                         <div><strong>{insights.summary.arena.periodCompetitions}</strong><span>sur 30 jours</span></div>
-                        <div><strong>{insights.summary.arena.periodPoints}</strong><span>points récents</span></div>
+                        <div><strong>{insights.summary.arena.periodPoints}</strong><span>points rÃ©cents</span></div>
                         <div><strong>{insights.summary.arena.totalWins}</strong><span>victoires totales</span></div>
                       </div>
-                      <p className="insight-trend">Période précédente : {insights.summary.arena.previousCompetitions} compétition(s), {insights.summary.arena.previousPoints} points · {insights.summary.arena.upcomingRegistrations} inscription(s) à venir</p>
+                      <p className="insight-trend">PÃ©riode prÃ©cÃ©dente : {insights.summary.arena.previousCompetitions} compÃ©tition(s), {insights.summary.arena.previousPoints} points Â· {insights.summary.arena.upcomingRegistrations} inscription(s) Ã  venir</p>
                     </section>
 
                     <section className="card insight-domain">
-                      <p className="overline">Échanges</p>
+                      <p className="overline">Ã‰changes</p>
                       <h2>Correspondance</h2>
                       <div className="insight-metrics">
-                        <div><strong>{insights.summary.correspondence.periodLettersSubmitted}</strong><span>lettres récentes</span></div>
-                        <div><strong>{insights.summary.correspondence.periodMessagesSent}</strong><span>messages récents</span></div>
-                        <div><strong>{insights.summary.correspondence.unopenedAssignments + insights.summary.correspondence.awaitingReplies}</strong><span>à traiter</span></div>
+                        <div><strong>{insights.summary.correspondence.periodLettersSubmitted}</strong><span>lettres rÃ©centes</span></div>
+                        <div><strong>{insights.summary.correspondence.periodMessagesSent}</strong><span>messages rÃ©cents</span></div>
+                        <div><strong>{insights.summary.correspondence.unopenedAssignments + insights.summary.correspondence.awaitingReplies}</strong><span>Ã  traiter</span></div>
                       </div>
-                      <p className="insight-trend">Période précédente : {insights.summary.correspondence.previousLettersSubmitted} lettre(s), {insights.summary.correspondence.previousMessagesSent} message(s) · {insights.summary.correspondence.totalLettersSubmitted} lettre(s) au total</p>
+                      <p className="insight-trend">PÃ©riode prÃ©cÃ©dente : {insights.summary.correspondence.previousLettersSubmitted} lettre(s), {insights.summary.correspondence.previousMessagesSent} message(s) Â· {insights.summary.correspondence.totalLettersSubmitted} lettre(s) au total</p>
                     </section>
                   </div>
 
                   <section className="card insight-subjects">
                     <div>
-                      <p className="overline">Par matière</p>
-                      <h2>Points forts et priorités</h2>
+                      <p className="overline">Par matiÃ¨re</p>
+                      <h2>Points forts et prioritÃ©s</h2>
                     </div>
                     {insights.summary.subjects.length === 0 ? (
-                      <p className="insight-trend">Complétez votre classe pour commencer votre suivi par matière.</p>
+                      <p className="insight-trend">ComplÃ©tez votre classe pour commencer votre suivi par matiÃ¨re.</p>
                     ) : insights.summary.subjects.map((subject) => (
                       <div className="insight-subject-row" key={subject.subjectId}>
                         <div>
                           <strong>{subject.subjectName}</strong>
-                          <span>{subject.answered} réponse(s) analysée(s)</span>
+                          <span>{subject.answered} rÃ©ponse(s) analysÃ©e(s)</span>
                         </div>
                         <span className={'insight-level ' + subject.level}>
-                          {subject.level === 'strong' ? 'Point fort' : subject.level === 'needs_work' ? 'À renforcer' : 'Données à compléter'}
+                          {subject.level === 'strong' ? 'Point fort' : subject.level === 'needs_work' ? 'Ã€ renforcer' : 'DonnÃ©es Ã  complÃ©ter'}
                         </span>
                         <strong>{insightValue(subject.accuracy, '%')}</strong>
                       </div>
@@ -722,15 +744,15 @@ export default function StudentDashboard() {
                 <div>
                   <p className="overline">Programme du {insights?.generatedFor ? new Date(insights.generatedFor + 'T12:00:00').toLocaleDateString('fr-HT') : 'jour'}</p>
                   <h1 className="display">Recommandations du jour</h1>
-                  <p>Trois actions concrètes, choisies selon vos priorités et conservées pour la journée.</p>
+                  <p>Trois actions concrÃ¨tes, choisies selon vos prioritÃ©s et conservÃ©es pour la journÃ©e.</p>
                 </div>
                 <button className="btn btn-ghost btn-sm" onClick={() => void loadInsights()} disabled={insightsLoading}>Actualiser</button>
               </div>
 
               {insightsError && <div className="alert alert-error">{insightsError}</div>}
-              {insightsLoading && !insights && <div className="card insights-empty">Préparation de votre programme...</div>}
+              {insightsLoading && !insights && <div className="card insights-empty">PrÃ©paration de votre programme...</div>}
               {insights && insights.recommendations.length === 0 && (
-                <div className="card insights-empty">Aucune action prioritaire aujourd'hui. Votre parcours est à jour.</div>
+                <div className="card insights-empty">Aucune action prioritaire aujourd'hui. Votre parcours est Ã  jour.</div>
               )}
               {insights && (
                 <div className="recommendation-grid">
@@ -738,7 +760,7 @@ export default function StudentDashboard() {
                     <article className={'card recommendation-card ' + recommendation.category} key={recommendation.id}>
                       <div className="recommendation-topline">
                         <span>0{index + 1}</span>
-                        <span>{recommendation.category === 'learning' ? 'Apprentissage' : recommendation.category === 'competition' ? 'Compétition' : 'Participation'}</span>
+                        <span>{recommendation.category === 'learning' ? 'Apprentissage' : recommendation.category === 'competition' ? 'CompÃ©tition' : 'Participation'}</span>
                       </div>
                       <h2>{recommendation.title}</h2>
                       <p>{recommendation.reason}</p>
@@ -757,9 +779,9 @@ export default function StudentDashboard() {
             <div className="statistics-page">
               <div className="insights-heading">
                 <div>
-                  <p className="overline">Analyse détaillée</p>
+                  <p className="overline">Analyse dÃ©taillÃ©e</p>
                   <h1 className="display">Statistiques</h1>
-                  <p>Visualisez votre rythme, vos performances par matière et votre bilan compétitif.</p>
+                  <p>Visualisez votre rythme, vos performances par matiÃ¨re et votre bilan compÃ©titif.</p>
                 </div>
                 <button className="btn btn-ghost btn-sm" onClick={() => void loadInsights()} disabled={insightsLoading}>Actualiser</button>
               </div>
@@ -771,9 +793,9 @@ export default function StudentDashboard() {
                 <>
                   <section className="statistics-kpi-grid">
                     {[
-                      { label: 'Quiz terminés', value: insights.summary.quizzes.totalSessions },
-                      { label: 'Duels terminés', value: insights.summary.duels.totalParticipations },
-                      { label: 'Arena disputées', value: insights.summary.arena.totalCompetitions },
+                      { label: 'Quiz terminÃ©s', value: insights.summary.quizzes.totalSessions },
+                      { label: 'Duels terminÃ©s', value: insights.summary.duels.totalParticipations },
+                      { label: 'Arena disputÃ©es', value: insights.summary.arena.totalCompetitions },
                       { label: 'Lettres soumises', value: insights.summary.correspondence.totalLettersSubmitted },
                     ].map((item) => (
                       <div className="card statistics-kpi" key={item.label}>
@@ -786,14 +808,14 @@ export default function StudentDashboard() {
                   <section className="card statistics-chart-card">
                     <div className="statistics-section-heading">
                       <div>
-                        <p className="overline">Régularité</p>
-                        <h2>Activité des 30 derniers jours</h2>
+                        <p className="overline">RÃ©gularitÃ©</p>
+                        <h2>ActivitÃ© des 30 derniers jours</h2>
                       </div>
                       <strong>{insights.period.activeDays} jour(s) actif(s)</strong>
                     </div>
-                    <div className="statistics-chart" role="img" aria-label="Activités quotidiennes sur les 30 derniers jours">
+                    <div className="statistics-chart" role="img" aria-label="ActivitÃ©s quotidiennes sur les 30 derniers jours">
                       {insights.summary.activityTimeline.map((day, index) => (
-                        <div className="statistics-day" key={day.date} title={day.date + ' : ' + day.total + ' activité(s)'}>
+                        <div className="statistics-day" key={day.date} title={day.date + ' : ' + day.total + ' activitÃ©(s)'}>
                           <div className="statistics-bar-track">
                             <div className="statistics-bar" style={{ height: Math.max(4, Math.round((day.total / maxDailyActivity) * 100)) + '%' }}>
                               {day.total > 0 && <span>{day.total}</span>}
@@ -815,17 +837,17 @@ export default function StudentDashboard() {
                     <section className="card statistics-subject-card">
                       <div className="statistics-section-heading">
                         <div>
-                          <p className="overline">Précision</p>
-                          <h2>Résultats par matière</h2>
+                          <p className="overline">PrÃ©cision</p>
+                          <h2>RÃ©sultats par matiÃ¨re</h2>
                         </div>
                       </div>
                       {insights.summary.subjects.length === 0 ? (
-                        <p className="insight-trend">Aucune matière analysée pour le moment.</p>
+                        <p className="insight-trend">Aucune matiÃ¨re analysÃ©e pour le moment.</p>
                       ) : insights.summary.subjects.map((subject) => (
                         <div className="statistics-subject" key={subject.subjectId}>
                           <div>
                             <strong>{subject.subjectName}</strong>
-                            <span>{subject.correct}/{subject.answered} bonnes réponses</span>
+                            <span>{subject.correct}/{subject.answered} bonnes rÃ©ponses</span>
                           </div>
                           <strong>{insightValue(subject.accuracy, '%')}</strong>
                           <div className="statistics-progress">
@@ -838,21 +860,21 @@ export default function StudentDashboard() {
                     <section className="card statistics-record-card">
                       <div className="statistics-section-heading">
                         <div>
-                          <p className="overline">Compétition</p>
+                          <p className="overline">CompÃ©tition</p>
                           <h2>Bilan personnel</h2>
                         </div>
                       </div>
                       <div className="statistics-record-group">
                         <h3>Duels</h3>
                         <div><span>Victoires</span><strong>{insights.summary.duels.wins}</strong></div>
-                        <div><span>Défaites</span><strong>{insights.summary.duels.losses}</strong></div>
-                        <div><span>Égalités</span><strong>{insights.summary.duels.draws}</strong></div>
-                        <div><span>Précision récente</span><strong>{insightValue(insights.summary.duels.accuracy, '%')}</strong></div>
+                        <div><span>DÃ©faites</span><strong>{insights.summary.duels.losses}</strong></div>
+                        <div><span>Ã‰galitÃ©s</span><strong>{insights.summary.duels.draws}</strong></div>
+                        <div><span>PrÃ©cision rÃ©cente</span><strong>{insightValue(insights.summary.duels.accuracy, '%')}</strong></div>
                       </div>
                       <div className="statistics-record-group">
                         <h3>Arena</h3>
                         <div><span>Victoires</span><strong>{insights.summary.arena.totalWins}</strong></div>
-                        <div><span>Compétitions</span><strong>{insights.summary.arena.totalCompetitions}</strong></div>
+                        <div><span>CompÃ©titions</span><strong>{insights.summary.arena.totalCompetitions}</strong></div>
                         <div><span>Points sur 30 jours</span><strong>{insights.summary.arena.periodPoints}</strong></div>
                       </div>
                     </section>
@@ -863,26 +885,26 @@ export default function StudentDashboard() {
           )}
 
 
-          {/* ── QUIZ ── */}
+          {/* â”€â”€ QUIZ â”€â”€ */}
           {tab === 'quiz' && (
             <div className="challenge-hub">
               <section className="challenge-duel-card challenge-hero-card">
                 <div className="challenge-card-topline">
-                  <span className="challenge-ranked-badge">Classé</span>
-                  <span className="challenge-live-copy">Face-à-face en direct</span>
+                  <span className="challenge-ranked-badge">ClassÃ©</span>
+                  <span className="challenge-live-copy">Face-Ã -face en direct</span>
                 </div>
 
                 <div className="challenge-duel-copy">
                   <p className="challenge-mini-label">Mode principal</p>
-                  <h1>Affrontement classé</h1>
+                  <h1>Affrontement classÃ©</h1>
                   <p>
-                    Choisis une matière, trouve un élève de ton niveau, puis gagne la manche avec le meilleur score.
+                    Choisis une matiÃ¨re, trouve un Ã©lÃ¨ve de ton niveau, puis gagne la manche avec le meilleur score.
                   </p>
                 </div>
 
                 <div className="challenge-versus challenge-versus-hero">
                   <div className="challenge-player">
-                    <div className="challenge-avatar">{user?.firstName?.[0] ?? 'E'}</div>
+                    <div className="challenge-avatar">{user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user?.firstName?.[0] ?? 'E'}</div>
                     <span>{user?.firstName ?? 'Vous'}</span>
                   </div>
                   <div className="challenge-vs-mark">VS</div>
@@ -895,15 +917,28 @@ export default function StudentDashboard() {
                 {duelError && <div className="alert alert-error">{duelError}</div>}
 
                 <div className="challenge-duel-form challenge-primary-form">
-                  <label className="field-label">Matière du duel</label>
+                  <label className="field-label">MatiÃ¨re du duel</label>
                   <select value={duelSubjectId} onChange={(e) => setDuelSubjectId(e.target.value)} className="field-input challenge-select">
-                    <option value="">Choisir une matière</option>
+                    <option value="">Choisir une matiÃ¨re</option>
                     {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
 
+                                    <div className="challenge-duration-picker">
+                    <span>Duree</span>
+                    {[3, 5, 10].map((minutes) => (
+                      <button
+                        key={minutes}
+                        type="button"
+                        className={duelDuration === minutes ? 'selected' : ''}
+                        onClick={() => setDuelDuration(minutes as 3 | 5 | 10)}
+                      >
+                        {minutes} min
+                      </button>
+                    ))}
+                  </div>
                   <div className="challenge-selected-subject">
-                    <span>Matière choisie</span>
-                    <strong>{selectedDuelSubject?.name ?? 'En attente de sélection'}</strong>
+                    <span>MatiÃ¨re choisie</span>
+                    <strong>{selectedDuelSubject?.name ?? 'En attente de sÃ©lection'}</strong>
                   </div>
 
                   <button onClick={searchOpponent} disabled={duelLoading || !duelSubjectId} className="btn btn-primary btn-full challenge-duel-cta">
@@ -913,7 +948,7 @@ export default function StudentDashboard() {
                         Recherche d'un adversaire
                       </>
                     ) : (
-                      'Lancer le duel classé'
+                      'Lancer le duel classÃ©'
                     )}
                   </button>
                 </div>
@@ -922,24 +957,24 @@ export default function StudentDashboard() {
                   <div><span>{bestScore}</span><small>Record</small></div>
                   <div><span>{avgScore}</span><small>Moyenne</small></div>
                   <div><span>{history.length}</span><small>Manches</small></div>
-                  <div><span>{subjects.length}</span><small>Matières</small></div>
+                  <div><span>{subjects.length}</span><small>MatiÃ¨res</small></div>
                 </div>
               </section>
 
               <div className="challenge-secondary-grid">
                 <aside className="challenge-training-card">
                   <div className="challenge-training-heading">
-                    <p className="overline">Entraînement</p>
+                    <p className="overline">EntraÃ®nement</p>
                     <h2>Manche individuelle</h2>
-                    <p>Prépare-toi avant d'entrer en classé.</p>
+                    <p>PrÃ©pare-toi avant d'entrer en classÃ©.</p>
                   </div>
 
                   {quizError && <div className="alert alert-error">{quizError}</div>}
 
                   <div className="challenge-training-form">
-                    <label className="field-label">Matière</label>
+                    <label className="field-label">MatiÃ¨re</label>
                     <select value={quizSubjectId} onChange={(e) => setQuizSubjectId(e.target.value)} className="field-input">
-                      <option value="">Choisir une matière</option>
+                      <option value="">Choisir une matiÃ¨re</option>
                       {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                     <div className="quiz-mode-picker" role="radiogroup" aria-label="Mode de quiz">
@@ -966,26 +1001,26 @@ export default function StudentDashboard() {
 
                 <section className="challenge-motivation-card">
                   <p className="overline">Objectif du jour</p>
-                  <h2>Joue une manche, gagne de l'élan</h2>
+                  <h2>Joue une manche, gagne de l'Ã©lan</h2>
                   <div className="challenge-progress-ring"><span>{Math.min(history.length, 5)}/5</span></div>
-                  <p>{history.length >= 5 ? 'Objectif atteint. Continue pour garder le rythme.' : 'Termine 5 manches pour renforcer ta régularité.'}</p>
+                  <p>{history.length >= 5 ? 'Objectif atteint. Continue pour garder le rythme.' : 'Termine 5 manches pour renforcer ta rÃ©gularitÃ©.'}</p>
                   <div className="challenge-micro-stats">
-                    <span>Série: {Math.min(history.length, 7)} jour(s)</span>
+                    <span>SÃ©rie: {Math.min(history.length, 7)} jour(s)</span>
                     <span>XP: {history.length * 25}</span>
                   </div>
                 </section>
               </div>
             </div>
           )}
-          {/* ── HISTORIQUE ── */}
+          {/* â”€â”€ HISTORIQUE â”€â”€ */}
           {tab === 'history' && (
             <div>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Historique</h1>
 
               {history.length === 0 ? (
                 <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--ink-3)', marginBottom: 16 }}>Aucune manche enregistrée pour le moment.</p>
-                  <button onClick={() => setTab('quiz')} className="btn btn-primary btn-sm">Lancer ma première manche</button>
+                  <p style={{ color: 'var(--ink-3)', marginBottom: 16 }}>Aucune manche enregistrÃ©e pour le moment.</p>
+                  <button onClick={() => setTab('quiz')} className="btn btn-primary btn-sm">Lancer ma premiÃ¨re manche</button>
                 </div>
               ) : (
                 <div style={{ border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden' }}>
@@ -996,7 +1031,7 @@ export default function StudentDashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                           <div>
                             <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{h.subjectName}</p>
-                            <p style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 2 }}>{h.className} · {new Date(h.playedAt).toLocaleString('fr-HT')}</p>
+                            <p style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 2 }}>{h.className} Â· {new Date(h.playedAt).toLocaleString('fr-HT')}</p>
                           </div>
                           <span style={{ fontSize: 18, fontWeight: 700, color: pct >= 80 ? 'var(--ok)' : pct >= 50 ? 'var(--gold)' : 'var(--error)', fontVariantNumeric: 'tabular-nums' }}>{h.score}/{h.totalQuestions}</span>
                         </div>
@@ -1011,7 +1046,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* ── CLASSEMENT ── */}
+          {/* â”€â”€ CLASSEMENT â”€â”€ */}
           {tab === 'leaderboard' && (
             <div>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Classement</h1>
@@ -1059,7 +1094,7 @@ export default function StudentDashboard() {
                                 {row.studentName}
                               </p>
                               {row.isCurrentUser && (
-                                <p style={{ fontSize: 13, color: 'var(--cobalt)', fontWeight: 600, marginBottom: 10 }}>Vous êtes sur le podium</p>
+                                <p style={{ fontSize: 13, color: 'var(--cobalt)', fontWeight: 600, marginBottom: 10 }}>Vous Ãªtes sur le podium</p>
                               )}
                             </div>
 
@@ -1070,7 +1105,7 @@ export default function StudentDashboard() {
                               </div>
                               <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>{row.totalCorrectAnswers}</div>
-                                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Bonnes réponses</div>
+                                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Bonnes rÃ©ponses</div>
                               </div>
                             </div>
                           </div>
@@ -1088,7 +1123,7 @@ export default function StudentDashboard() {
                             {row.studentName}
                             {row.userId === user?.id && <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--cobalt)' }}>Vous</span>}
                           </p>
-                          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 1 }}>{row.duelCount} duel{row.duelCount > 1 ? 's' : ''} · {row.totalCorrectAnswers} bonnes réponses</p>
+                          <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 1 }}>{row.duelCount} duel{row.duelCount > 1 ? 's' : ''} Â· {row.totalCorrectAnswers} bonnes rÃ©ponses</p>
                         </div>
                         <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--cobalt)', fontVariantNumeric: 'tabular-nums' }}>{row.winCount} victoire{row.winCount > 1 ? 's' : ''}</span>
                       </div>
@@ -1099,7 +1134,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* ── NOTIFICATIONS ── */}
+          {/* â”€â”€ NOTIFICATIONS â”€â”€ */}
           {tab === 'notifications' && (
             <NotificationCenter
               notifications={notifications}
@@ -1111,7 +1146,7 @@ export default function StudentDashboard() {
             />
           )}
 
-          {/* ── PROFIL ── */}
+          {/* â”€â”€ PROFIL â”€â”€ */}
           {tab === 'profile' && (
             <div>
               <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 20 }}>Mon profil</h1>
@@ -1121,9 +1156,17 @@ export default function StudentDashboard() {
                 {profileError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{profileError}</div>}
 
                 <form onSubmit={saveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div className="profile-avatar-upload">
+                    {user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user?.firstName?.[0] ?? 'E'}</span>}
+                    <label className="btn btn-ghost btn-sm">
+                      {avatarLoading ? 'Upload...' : 'Changer la photo'}
+                      <input type="file" accept="image/*" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file) }} />
+                    </label>
+                  </div>
+
                   <div className="auth-form-grid">
                     <div>
-                      <label className="field-label">Prénom</label>
+                      <label className="field-label">PrÃ©nom</label>
                       <input type="text" required value={profileForm.firstName} onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })} className="field-input" />
                     </div>
                     <div>
@@ -1135,17 +1178,25 @@ export default function StudentDashboard() {
                   <div>
                     <label className="field-label">Email</label>
                     <input type="email" disabled value={user?.email ?? ''} className="field-input" />
+                  </div>                  <div>
+                    <label className="field-label">Genre</label>
+                    <select required value={profileForm.gender} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })} className="field-input">
+                      <option value="">Choisir un genre</option>
+                      <option value="masculin">Masculin</option>
+                      <option value="feminin">Feminin</option>
+                    </select>
                   </div>
 
+
                   <div>
-                    <label className="field-label">Classe scolaire</label>
+                    <label className="field-label">Niveau académique</label>
                     <select
                       required
                       value={profileForm.classId}
                       onChange={(e) => setProfileForm({ ...profileForm, classId: e.target.value })}
                       className="field-input"
                     >
-                      <option value="">Choisir une classe</option>
+                      <option value="">Choisir un niveau</option>
                       {classes.map((schoolClass) => (
                         <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>
                       ))}
@@ -1154,13 +1205,13 @@ export default function StudentDashboard() {
 
                   <div className="auth-form-grid">
                     <div>
-                      <label className="field-label">École</label>
-                      <input type="text" value={profileForm.school} onChange={(e) => setProfileForm({ ...profileForm, school: e.target.value })} className="field-input" placeholder="Votre école" />
+                      <label className="field-label">Ã‰cole</label>
+                      <input type="text" value={profileForm.school} onChange={(e) => setProfileForm({ ...profileForm, school: e.target.value })} className="field-input" placeholder="Votre Ã©cole" />
                     </div>
                     <div>
                       <label className="field-label">Ville</label>
                       <select value={profileForm.city} onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })} className="field-input" disabled={!profileForm.department}>
-                        <option value="">{profileForm.department ? 'Choisir une ville' : 'Choisir d\'abord un département'}</option>
+                        <option value="">{profileForm.department ? 'Choisir une ville' : 'Choisir d\'abord un dÃ©partement'}</option>
                         {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
                       </select>
                     </div>
@@ -1168,9 +1219,9 @@ export default function StudentDashboard() {
 
                   <div className="auth-form-grid">
                     <div>
-                      <label className="field-label">Département</label>
+                      <label className="field-label">DÃ©partement</label>
                       <select value={profileForm.department} onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value, city: '' })} className="field-input">
-                        <option value="">Choisir un département</option>
+                        <option value="">Choisir un dÃ©partement</option>
                         {HAITI_DEPARTMENTS.map((department) => <option key={department} value={department}>{department}</option>)}
                       </select>
                     </div>
@@ -1182,11 +1233,11 @@ export default function StudentDashboard() {
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                     <input type="checkbox" checked={profileForm.canBeContacted} onChange={(e) => setProfileForm({ ...profileForm, canBeContacted: e.target.checked })} style={{ accentColor: 'var(--cobalt)', width: 15, height: 15 }} />
-                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Accepter d’être contacté par Konesans+</span>
+                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Accepter dâ€™Ãªtre contactÃ© par Konesans+</span>
                   </label>
 
                   <button type="submit" disabled={profileLoading} className="btn btn-primary btn-full" style={{ marginTop: 4 }}>
-                    {profileLoading ? 'Sauvegarde…' : 'Sauvegarder les modifications'}
+                    {profileLoading ? 'Sauvegardeâ€¦' : 'Sauvegarder les modifications'}
                   </button>
                 </form>
               </div>
@@ -1205,14 +1256,14 @@ export default function StudentDashboard() {
             <StudentLearning token={accessToken} mode={tab} onModeChange={(mode) => setTab(mode)} preferredLanguage={user?.preferredTutorLanguage} />
           )}
 
-          {/* ── CORRESPONDANCE ── */}
+          {/* â”€â”€ CORRESPONDANCE â”€â”€ */}
           {tab === 'correspondence' && (
             <div>
               {/* Header + sub-nav */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
                 <div>
                   <h1 className="display" style={{ fontSize: 28, color: 'var(--cobalt)', marginBottom: 4 }}>Correspondance</h1>
-                  <p style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 500 }}>Écrivez une lettre, recevez-en une, échangez anonymement.</p>
+                  <p style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 500 }}>Ã‰crivez une lettre, recevez-en une, Ã©changez anonymement.</p>
                 </div>
                 {corrView !== 'sessions' && (
                   <button
@@ -1232,7 +1283,7 @@ export default function StudentDashboard() {
                   {([
                     { key: 'sessions' as CorrView, label: 'Concours' },
                     { key: 'myletters' as CorrView, label: 'Mes lettres' },
-                    { key: 'inbox' as CorrView, label: 'Boîte de réception' },
+                    { key: 'inbox' as CorrView, label: 'BoÃ®te de rÃ©ception' },
                   ]).map((v) => (
                     <button
                       key={v.key}
@@ -1243,10 +1294,10 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              {/* ── Sessions list ── */}
+              {/* â”€â”€ Sessions list â”€â”€ */}
               {corrView === 'sessions' && (
                 <div>
-                  {corrLoading && <p style={{ color: 'var(--ink-3)' }}>Chargement…</p>}
+                  {corrLoading && <p style={{ color: 'var(--ink-3)' }}>Chargementâ€¦</p>}
                   {!corrLoading && corrSessions.length === 0 && (
                     <div className="card" style={{ textAlign: 'center', padding: 32 }}>
                       <p style={{ color: 'var(--ink-3)' }}>Aucun concours disponible pour le moment.</p>
@@ -1260,21 +1311,21 @@ export default function StudentDashboard() {
                             <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>{s.title}</p>
                             <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, marginBottom: 8 }}>{s.themePrompt}</p>
                             <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-                              {new Date(s.startAt).toLocaleDateString('fr-FR')} — {new Date(s.endAt).toLocaleDateString('fr-FR')}
+                              {new Date(s.startAt).toLocaleDateString('fr-FR')} â€” {new Date(s.endAt).toLocaleDateString('fr-FR')}
                             </p>
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, flexShrink: 0, background: s.status === 'open' ? 'var(--ok-bg)' : s.status === 'scoring' ? 'var(--gold-pale)' : 'var(--stone)', color: s.status === 'open' ? 'var(--ok)' : s.status === 'scoring' ? 'var(--gold)' : 'var(--ink-3)' }}>
-                            {s.status === 'open' ? 'Ouvert' : s.status === 'scoring' ? 'Vote en cours' : s.status === 'published' ? 'Publié' : 'Fermé'}
+                            {s.status === 'open' ? 'Ouvert' : s.status === 'scoring' ? 'Vote en cours' : s.status === 'published' ? 'PubliÃ©' : 'FermÃ©'}
                           </span>
                         </div>
-                        <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }}>Écrire une lettre</button>
+                        <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }}>Ã‰crire une lettre</button>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* ── Write / Edit letter ── */}
+              {/* â”€â”€ Write / Edit letter â”€â”€ */}
               {corrView === 'write' && corrSelectedSession && (
                 <div>
                   <div className="card" style={{ marginBottom: 16 }}>
@@ -1286,7 +1337,7 @@ export default function StudentDashboard() {
                   {corrLetter?.status === 'submitted' ? (
                     <div className="card">
                       <div className="alert alert-ok" style={{ marginBottom: 0 }}>
-                        Lettre soumise. Vous serez notifié quand un destinataire vous sera assigné.
+                        Lettre soumise. Vous serez notifiÃ© quand un destinataire vous sera assignÃ©.
                       </div>
                     </div>
                   ) : (
@@ -1294,8 +1345,8 @@ export default function StudentDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                         <label className="field-label" style={{ margin: 0 }}>Votre lettre</label>
                         <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                          {corrLetterSaving ? 'Sauvegarde…' : 'Sauvegarde auto'}
-                          {' · '}{corrLetterBody.length} car.
+                          {corrLetterSaving ? 'Sauvegardeâ€¦' : 'Sauvegarde auto'}
+                          {' Â· '}{corrLetterBody.length} car.
                         </span>
                       </div>
                       <textarea
@@ -1305,7 +1356,7 @@ export default function StudentDashboard() {
                         value={corrLetterBody}
                         onChange={(e) => { setCorrLetterBody(e.target.value); autosaveCorrLetter(e.target.value) }}
                         disabled={corrLetter?.status !== 'draft'}
-                        placeholder="Rédigez votre lettre ici…"
+                        placeholder="RÃ©digez votre lettre iciâ€¦"
                       />
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
                         <button
@@ -1313,7 +1364,7 @@ export default function StudentDashboard() {
                           disabled={corrLoading || corrLetterBody.length < (corrSelectedSession.rules?.minBodyLength ?? 500)}
                           className="btn btn-primary"
                         >
-                          {corrLoading ? 'Envoi…' : 'Soumettre la lettre'}
+                          {corrLoading ? 'Envoiâ€¦' : 'Soumettre la lettre'}
                         </button>
                       </div>
                     </div>
@@ -1321,12 +1372,12 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              {/* ── My letters ── */}
+              {/* â”€â”€ My letters â”€â”€ */}
               {corrView === 'myletters' && (
                 <div>
                   {corrMyLetters.length === 0 && !corrLoading && (
                     <div className="card" style={{ textAlign: 'center', padding: 32 }}>
-                      <p style={{ color: 'var(--ink-3)' }}>Vous n'avez pas encore écrit de lettre.</p>
+                      <p style={{ color: 'var(--ink-3)' }}>Vous n'avez pas encore Ã©crit de lettre.</p>
                     </div>
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1338,7 +1389,7 @@ export default function StudentDashboard() {
                             <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 3 }}>{new Date(l.createdAt).toLocaleDateString('fr-FR')}</p>
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, flexShrink: 0, background: l.status === 'draft' ? 'var(--stone)' : l.status === 'submitted' ? 'var(--gold-pale)' : 'var(--ok-bg)', color: l.status === 'draft' ? 'var(--ink-3)' : l.status === 'submitted' ? 'var(--gold)' : 'var(--ok)' }}>
-                            {l.status === 'draft' ? 'Brouillon' : l.status === 'submitted' ? 'Soumise' : l.status === 'assigned' ? 'Assignée' : l.status === 'delivered' ? 'Lue' : 'Archivée'}
+                            {l.status === 'draft' ? 'Brouillon' : l.status === 'submitted' ? 'Soumise' : l.status === 'assigned' ? 'AssignÃ©e' : l.status === 'delivered' ? 'Lue' : 'ArchivÃ©e'}
                           </span>
                         </div>
                         <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.6, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
@@ -1350,7 +1401,7 @@ export default function StudentDashboard() {
                             style={{ marginTop: 10 }}
                             onClick={() => { const s = corrSessions.find((x) => x.id === l.sessionId); if (s) openCorrSession(s) }}
                           >
-                            Continuer la rédaction
+                            Continuer la rÃ©daction
                           </button>
                         )}
                       </div>
@@ -1359,13 +1410,13 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              {/* ── Inbox ── */}
+              {/* â”€â”€ Inbox â”€â”€ */}
               {corrView === 'inbox' && (
                 <div>
-                  {corrLoading && <p style={{ color: 'var(--ink-3)' }}>Chargement…</p>}
+                  {corrLoading && <p style={{ color: 'var(--ink-3)' }}>Chargementâ€¦</p>}
                   {!corrLoading && corrInbox.length === 0 && (
                     <div className="card" style={{ textAlign: 'center', padding: 32 }}>
-                      <p style={{ color: 'var(--ink-3)' }}>Aucune lettre reçue pour le moment.</p>
+                      <p style={{ color: 'var(--ink-3)' }}>Aucune lettre reÃ§ue pour le moment.</p>
                     </div>
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1379,7 +1430,7 @@ export default function StudentDashboard() {
                             </p>
                           </div>
                           <button className="btn btn-primary btn-sm" onClick={() => openCorrAssignment(item)}>
-                            {item.openedAt ? 'Lire et répondre' : 'Ouvrir'}
+                            {item.openedAt ? 'Lire et rÃ©pondre' : 'Ouvrir'}
                           </button>
                         </div>
                       </div>
@@ -1388,18 +1439,18 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              {/* ── Thread (conversation) ── */}
+              {/* â”€â”€ Thread (conversation) â”€â”€ */}
               {corrView === 'thread' && corrThread && (
                 <div>
                   {corrOpenedAssignment && (
                     <div className="card" style={{ marginBottom: 16 }}>
-                      <p className="overline" style={{ marginBottom: 8 }}>Lettre reçue</p>
+                      <p className="overline" style={{ marginBottom: 8 }}>Lettre reÃ§ue</p>
                       <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{corrOpenedAssignment.letter.body}</p>
                       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                         <button
                           className="btn btn-ghost btn-sm"
                           style={{ color: 'var(--error)' }}
-                          onClick={() => reportCorrItem('letter', corrOpenedAssignment.letter.id, 'Contenu inapproprié')}
+                          onClick={() => reportCorrItem('letter', corrOpenedAssignment.letter.id, 'Contenu inappropriÃ©')}
                         >
                           Signaler
                         </button>
@@ -1416,7 +1467,7 @@ export default function StudentDashboard() {
                   )}
 
                   <div className="card">
-                    <p className="overline" style={{ marginBottom: 14 }}>Échange</p>
+                    <p className="overline" style={{ marginBottom: 14 }}>Ã‰change</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto', marginBottom: 16, paddingRight: 4 }}>
                       {corrThreadMessages.length === 0 && (
                         <p style={{ color: 'var(--ink-3)', textAlign: 'center', padding: '16px 0' }}>Aucun message encore. Lancez la conversation.</p>
@@ -1437,7 +1488,7 @@ export default function StudentDashboard() {
                         type="text"
                         className="field-input"
                         style={{ flex: 1 }}
-                        placeholder="Votre message…"
+                        placeholder="Votre messageâ€¦"
                         value={corrNewMessage}
                         onChange={(e) => setCorrNewMessage(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendCorrMessage() } }}
@@ -1454,7 +1505,7 @@ export default function StudentDashboard() {
         </div>
       </main>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
+      {/* â”€â”€ MOBILE BOTTOM NAV â”€â”€ */}
       <nav className="md:hidden bottom-tab-nav">
         {studentMobileNavItems.map((item) => (
           <button
@@ -1473,4 +1524,9 @@ export default function StudentDashboard() {
     </div>
   )
 }
+
+
+
+
+
 

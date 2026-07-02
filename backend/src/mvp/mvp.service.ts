@@ -36,6 +36,7 @@ import {
   QuizStatus,
   Subject,
   User,
+  UserGender,
   UserRole,
   VerificationPurpose,
 } from './entities';
@@ -67,7 +68,9 @@ import { PlatformSettingsService } from '../platform-settings/platform-settings.
 const QUIZ_QUESTION_COUNT = 10;
 const DUEL_QUESTION_COUNT = 10;
 const DUEL_BUZZER_RESPONSE_SECONDS = 8;
-const DUEL_GLOBAL_SECONDS = 60;
+const DEFAULT_DUEL_DURATION_MINUTES = 3;
+const MATCHED_LOBBY_SECONDS = 4;
+const DUEL_GLOBAL_SECONDS = DEFAULT_DUEL_DURATION_MINUTES * 60;
 const MATCHMAKING_EXPIRE_MINUTES = 15;
 const FORFEIT_INACTIVE_SECONDS = 60; // if a player has no activity for 60s during a match, they forfeit
 const ACCOUNT_OTP_TTL_MINUTES = 10;
@@ -82,6 +85,7 @@ type StudentRegistrationPayload = {
   email: string;
   passwordHash: string;
   classId: string;
+  gender: UserGender;
   school: string | null;
   city: string | null;
   department: string | null;
@@ -162,6 +166,7 @@ export class MvpService {
       email,
       passwordHash: hashedPassword,
       classId: dto.classId,
+      gender: dto.gender,
       school: dto.school?.trim() || null,
       city: dto.city?.trim() || null,
       department: dto.department?.trim() || null,
@@ -240,6 +245,7 @@ export class MvpService {
       email: payload.email,
       password: payload.passwordHash,
       classId: payload.classId,
+      gender: payload.gender,
       school: payload.school,
       city: payload.city,
       department: payload.department,
@@ -594,13 +600,16 @@ export class MvpService {
 
     const competitionId = `subject-duel:${subject.id}`;
     const competitionName = `Concours de ${subject.name}`;
+    const durationMinutes = dto.durationMinutes ?? DEFAULT_DUEL_DURATION_MINUTES;
     const now = new Date();
 
     // --- Check if user already has an active duel ---
     const activeDuel = await this.duelMatchRepo.findOne({
       where: [
         { playerOneId: userId, status: DuelStatus.WAITING },
+        { playerOneId: userId, status: DuelStatus.MATCHED },
         { playerOneId: userId, status: DuelStatus.IN_PROGRESS },
+        { playerTwoId: userId, status: DuelStatus.MATCHED },
         { playerTwoId: userId, status: DuelStatus.IN_PROGRESS },
       ],
       order: { createdAt: 'DESC' },
@@ -629,7 +638,8 @@ export class MvpService {
         activeDuel.status === DuelStatus.WAITING &&
         !activeDuel.playerTwoId &&
         activeDuel.subjectId === subject.id &&
-        activeDuel.classId === student.classId
+        activeDuel.classId === student.classId &&
+        activeDuel.durationMinutes === durationMinutes
       ) {
         return {
           duelId: activeDuel.id,
@@ -638,7 +648,7 @@ export class MvpService {
         };
       } else if (
         activeDuel.status === DuelStatus.WAITING &&
-        (activeDuel.subjectId !== subject.id || activeDuel.classId !== student.classId)
+        (activeDuel.subjectId !== subject.id || activeDuel.classId !== student.classId || activeDuel.durationMinutes !== durationMinutes)
       ) {
         throw new BadRequestException('Vous etes deja en attente d\'un autre concours dans une autre matiere.');
       } else {
@@ -679,6 +689,7 @@ export class MvpService {
           status: DuelStatus.WAITING,
           subjectId: subject.id,
           classId: student.classId ?? IsNull(),
+          durationMinutes,
           mode: DuelMode.QCM,
           waitingExpiresAt: MoreThan(txNow),
         },
@@ -705,9 +716,10 @@ export class MvpService {
         } else {
         // Join the existing waiting duel
         waitingDuel.playerTwoId = userId;
-        waitingDuel.status = DuelStatus.IN_PROGRESS;
-        waitingDuel.startedAt = txNow;
-        waitingDuel.responseDeadlineAt = new Date(txNow.getTime() + DUEL_GLOBAL_SECONDS * 1000);
+        waitingDuel.status = DuelStatus.MATCHED;
+        waitingDuel.matchStartsAt = new Date(txNow.getTime() + MATCHED_LOBBY_SECONDS * 1000);
+        waitingDuel.startedAt = null;
+        waitingDuel.responseDeadlineAt = null;
         await txDuelRepo.save(waitingDuel);
 
         await txProgressRepo.save(
@@ -716,7 +728,7 @@ export class MvpService {
             userId,
             answeredCount: 0,
             score: 0,
-            startedAt: txNow,
+            startedAt: null,
             submittedAt: null,
             totalTimeSeconds: null,
           }),
@@ -729,7 +741,7 @@ export class MvpService {
           throw new NotFoundException('Duel progress not found for creator');
         }
 
-        playerOneProgress.startedAt = txNow;
+        playerOneProgress.startedAt = null;
         await txProgressRepo.save(playerOneProgress);
 
         // Schedule notification after transaction (using outer scope variable)
@@ -756,6 +768,7 @@ export class MvpService {
           playerTwoId: null,
           status: DuelStatus.WAITING,
           questionCount: DUEL_QUESTION_COUNT,
+          durationMinutes,
           currentQuestionPosition: 1,
           buzzerPhase: DuelBuzzerPhase.WAITING_FOR_BUZZ,
           activeResponderUserId: null,
@@ -763,6 +776,7 @@ export class MvpService {
           responseDeadlineAt: null,
           winnerUserId: null,
           startedAt: null,
+          matchStartsAt: null,
           completedAt: null,
           waitingExpiresAt: expiresAt,
         }),
@@ -829,7 +843,7 @@ export class MvpService {
   async getDuelState(userId: string, duelId: string) {
     const duelMatch = await this.duelMatchRepo.findOne({
       where: { id: duelId },
-      relations: ['playerOne', 'playerTwo'],
+      relations: ['playerOne', 'playerTwo', 'playerOne.academicClass', 'playerTwo.academicClass'],
     });
 
     if (!duelMatch) {
@@ -849,6 +863,10 @@ export class MvpService {
       await this.duelMatchRepo.save(duelMatch);
     }
 
+    if (duelMatch.status === DuelStatus.MATCHED && duelMatch.mode === DuelMode.QCM) {
+      await this.startMatchedDuelIfReady(duelMatch);
+    }
+
     if (duelMatch.status === DuelStatus.IN_PROGRESS && duelMatch.mode === DuelMode.QCM) {
       await this.applyExpiredMinuteDuelDeadline(duelMatch);
     }
@@ -861,7 +879,7 @@ export class MvpService {
       }),
       this.duelProgressRepo.find({
         where: { duelMatchId: duelId },
-        relations: ['user'],
+        relations: ['user', 'user.academicClass'],
       }),
     ]);
 
@@ -897,11 +915,11 @@ export class MvpService {
     const effectiveDeadline =
       duelMatch.responseDeadlineAt ??
       (duelMatch.startedAt
-        ? new Date(duelMatch.startedAt.getTime() + DUEL_GLOBAL_SECONDS * 1000)
+        ? new Date(duelMatch.startedAt.getTime() + this.getDuelDurationSeconds(duelMatch) * 1000)
         : null);
     const globalTimeLeft = effectiveDeadline
       ? Math.max(0, Math.ceil((effectiveDeadline.getTime() - now) / 1000))
-      : DUEL_GLOBAL_SECONDS;
+      : this.getDuelDurationSeconds(duelMatch);
 
     return {
       duelId: duelMatch.id,
@@ -910,7 +928,9 @@ export class MvpService {
       competitionName: duelMatch.competitionName,
       status: duelMatch.status,
       questionCount: duelMatch.questionCount,
+      durationMinutes: duelMatch.durationMinutes ?? DEFAULT_DUEL_DURATION_MINUTES,
       mode: duelMatch.mode,
+      matchStartsAt: duelMatch.matchStartsAt,
       currentQuestionPosition: currentQuestion?.position ?? duelMatch.questionCount,
       buzzerPhase: duelMatch.buzzerPhase ?? DuelBuzzerPhase.WAITING_FOR_BUZZ,
       activeResponderUserId: userId,
@@ -973,6 +993,9 @@ export class MvpService {
         return {
           userId: progress.userId,
           name: `${progress.user.firstName} ${progress.user.lastName}`,
+          academicLevelName: progress.user.academicClass?.name ?? null,
+          avatarUrl: progress.user.avatarUrl ?? null,
+          gender: progress.user.gender ?? null,
           score: progress.score,
           answeredCount: progress.answeredCount,
           currentQuestion: nextQuestion?.position ?? duelMatch.questionCount,
@@ -1350,6 +1373,7 @@ export class MvpService {
     if (dto.canBeContacted !== undefined) user.canBeContacted = dto.canBeContacted;
     if (dto.preferredTutorLanguage !== undefined) user.preferredTutorLanguage = dto.preferredTutorLanguage;
     if (dto.notificationsEnabled !== undefined) user.notificationsEnabled = dto.notificationsEnabled;
+    if (dto.gender !== undefined) user.gender = dto.gender;
 
     if (user.role === UserRole.STUDENT) {
       if (dto.classId !== undefined) {
@@ -1374,6 +1398,13 @@ export class MvpService {
 
     const saved = await this.userRepo.save(user);
     return this.sanitizeUser(saved);
+  }
+
+  async updateAvatar(userId: string, avatarUrl: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    user.avatarUrl = avatarUrl;
+    return this.sanitizeUser(await this.userRepo.save(user));
   }
 
   async getAdminStats() {
@@ -1587,6 +1618,35 @@ export class MvpService {
     });
   }
 
+  private getDuelDurationSeconds(duelMatch: DuelMatch) {
+    return (duelMatch.durationMinutes ?? DEFAULT_DUEL_DURATION_MINUTES) * 60;
+  }
+
+  private async startMatchedDuelIfReady(duelMatch: DuelMatch) {
+    if (duelMatch.status !== DuelStatus.MATCHED || duelMatch.mode !== DuelMode.QCM) {
+      return;
+    }
+    if (duelMatch.matchStartsAt && duelMatch.matchStartsAt.getTime() > Date.now()) {
+      return;
+    }
+
+    const startedAt = new Date();
+    duelMatch.status = DuelStatus.IN_PROGRESS;
+    duelMatch.startedAt = startedAt;
+    duelMatch.responseDeadlineAt = new Date(startedAt.getTime() + this.getDuelDurationSeconds(duelMatch) * 1000);
+    await this.duelMatchRepo.save(duelMatch);
+
+    const progresses = await this.duelProgressRepo.find({ where: { duelMatchId: duelMatch.id } });
+    for (const progress of progresses) {
+      if (!progress.startedAt) {
+        progress.startedAt = startedAt;
+      }
+      progress.lastActivityAt = startedAt;
+    }
+    if (progresses.length > 0) {
+      await this.duelProgressRepo.save(progresses);
+    }
+  }
   private async applyExpiredMinuteDuelDeadline(duelMatch: DuelMatch) {
     if (
       duelMatch.mode !== DuelMode.QCM ||
@@ -1600,7 +1660,7 @@ export class MvpService {
     const effectiveDeadline =
       duelMatch.responseDeadlineAt ??
       (duelMatch.startedAt
-        ? new Date(duelMatch.startedAt.getTime() + DUEL_GLOBAL_SECONDS * 1000)
+        ? new Date(duelMatch.startedAt.getTime() + this.getDuelDurationSeconds(duelMatch) * 1000)
         : null);
 
     if (!effectiveDeadline || effectiveDeadline.getTime() > Date.now()) {
@@ -2305,3 +2365,7 @@ export class MvpService {
     return new Date(weekStartHaiti.getTime() - HAITI_OFFSET_MS);
   }
 }
+
+
+
+

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Delete,
   Controller,
@@ -9,10 +10,13 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   BootstrapAdminDto,
   CreateClassDto,
@@ -40,6 +44,9 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { GoogleAuthGuard } from './auth/google-auth.guard';
 import { Roles, RolesGuard } from './auth/roles.guard';
 import { UserRole } from './entities';
+import { randomUUID } from 'crypto';
+import { mkdirSync, writeFileSync } from 'fs';
+import { extname, join } from 'path';
 import type { Response } from 'express';
 
 type AuthenticatedRequest = {
@@ -48,6 +55,14 @@ type AuthenticatedRequest = {
     email: string;
     role: UserRole;
   };
+  protocol?: string;
+  get?: (name: string) => string | undefined;
+};
+
+type UploadedAvatarFile = {
+  originalname: string;
+  mimetype: string;
+  buffer: Buffer;
 };
 
 @Controller('api')
@@ -93,6 +108,37 @@ export class MvpController {
   @Patch('auth/profile')
   updateProfile(@Req() request: AuthenticatedRequest, @Body() dto: UpdateProfileDto) {
     return this.mvpService.updateProfile(request.user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('auth/profile/avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (_req, file, callback) => {
+        if (!file.mimetype.startsWith('image/')) {
+          callback(new BadRequestException('Only image uploads are allowed'), false);
+          return;
+        }
+        callback(null, true);
+      },
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  uploadAvatar(@Req() request: AuthenticatedRequest, @UploadedFile() file: UploadedAvatarFile | undefined) {
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    const extension = extname(file.originalname).toLowerCase() || '.jpg';
+    const filename = `avatar-${request.user.id}-${Date.now()}-${randomUUID()}${extension}`;
+    const dir = join(process.cwd(), 'uploads', 'avatars');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, filename), file.buffer);
+
+    const host = request.get?.('host') ?? 'localhost:3000';
+    const protocol = request.protocol ?? 'http';
+    const avatarUrl = `${protocol}://${host}/uploads/avatars/${filename}`;
+    return this.mvpService.updateAvatar(request.user.id, avatarUrl);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -395,3 +441,4 @@ export class MvpController {
     return this.duelOralService.getPublicState(request.user.id, duelId);
   }
 }
+

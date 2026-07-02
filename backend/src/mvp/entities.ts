@@ -18,6 +18,12 @@ export enum UserRole {
   MODERATOR = 'moderator',
 }
 
+
+export enum UserGender {
+  MASCULIN = 'masculin',
+  FEMININ = 'feminin',
+}
+
 export enum VerificationPurpose {
   STUDENT_REGISTRATION = 'student_registration',
   MODERATOR_REGISTRATION = 'moderator_registration',
@@ -45,6 +51,7 @@ export enum QuizStatus {
 
 export enum DuelStatus {
   WAITING = 'waiting',
+  MATCHED = 'matched',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
@@ -124,7 +131,14 @@ export class User {
   @Column({ type: 'text', default: UserRole.STUDENT })
   role: UserRole;
 
-  @Column('uuid', { name: 'levelId', nullable: true })
+  
+  @Column({ type: 'text', nullable: true })
+  gender: UserGender | null;
+
+  @Column({ type: 'text', nullable: true })
+  avatarUrl: string | null;
+
+@Column('uuid', { name: 'levelId', nullable: true })
   classId: string | null;
 
   @ManyToOne(() => AcademicClass, (academicClass) => academicClass.students, { nullable: true })
@@ -397,7 +411,11 @@ export class DuelMatch {
   @Column({ type: 'int', default: 10 })
   questionCount: number;
 
-  @Column({ type: 'text', default: DuelMode.QCM })
+  
+  @Column({ type: 'int', default: 3 })
+  durationMinutes: number;
+
+@Column({ type: 'text', default: DuelMode.QCM })
   mode: DuelMode;
 
   @Column({ type: 'int', default: 1 })
@@ -443,7 +461,11 @@ export class DuelMatch {
   @Column({ type: dateTimeColumnType, nullable: true })
   startedAt: Date | null;
 
+  
   @Column({ type: dateTimeColumnType, nullable: true })
+  matchStartsAt: Date | null;
+
+@Column({ type: dateTimeColumnType, nullable: true })
   completedAt: Date | null;
 
   @CreateDateColumn()
@@ -513,7 +535,6 @@ export class DuelProgress {
 
   @Column({ type: dateTimeColumnType, nullable: true })
   startedAt: Date | null;
-
   @Column({ type: dateTimeColumnType, nullable: true })
   submittedAt: Date | null;
 
@@ -658,3 +679,6 @@ export class DuelScoreEvent {
   @CreateDateColumn()
   createdAt: Date;
 }
+
+
+

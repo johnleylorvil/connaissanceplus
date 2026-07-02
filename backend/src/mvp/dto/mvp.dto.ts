@@ -16,7 +16,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { BroadcastTargetType, Difficulty, DuelMode, OptionChoice, UserRole } from '../entities';
+import { BroadcastTargetType, Difficulty, DuelMode, OptionChoice, UserGender, UserRole } from '../entities';
 import { HAITI_DEPARTMENTS } from '../constants/haiti-geography';
 
 export class CreateModeratorDto {
@@ -100,6 +100,9 @@ export class RegisterStudentDto {
   @IsString()
   @MinLength(6)
   password: string;
+
+  @IsEnum(UserGender)
+  gender: UserGender;
 
   @IsUUID()
   classId: string;
@@ -259,6 +262,10 @@ export class UpdateProfileDto {
   @IsOptional()
   lastName?: string;
 
+  @IsEnum(UserGender)
+  @IsOptional()
+  gender?: UserGender;
+
   @IsString()
   @IsOptional()
   school?: string;
@@ -310,6 +317,12 @@ export class UpdateProfileDto {
 export class JoinMatchmakingDto {
   @IsUUID()
   subjectId: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsIn([3, 5, 10])
+  @IsOptional()
+  durationMinutes?: 3 | 5 | 10;
 }
 
 export class DuelAnswerDto {
@@ -399,3 +412,5 @@ export class OralScoreDto {
   @IsOptional()
   reason?: string;
 }
+
+

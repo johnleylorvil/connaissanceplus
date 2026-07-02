@@ -17,6 +17,7 @@ import { JwtService } from '@nestjs/jwt';
  * CLIENT → SERVER
  *   duel:join   { duelId, token }  → join room duel-{duelId}
  *   duel:leave  { duelId }         → leave room
+ *   chat:message { duelId, message } → broadcast to room
  *
  * SERVER → CLIENT
  *   duel:joined        { duelId }
@@ -95,3 +96,4 @@ export class DuelGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`duel-${duelId}`).emit(event, data);
   }
 }
+

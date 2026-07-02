@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+﻿import { createContext, useContext } from 'react'
 
 export type UserRole = 'student' | 'admin' | 'moderator'
 
@@ -8,6 +8,8 @@ export type AuthUser = {
   lastName: string
   email: string
   role: UserRole
+  gender?: 'masculin' | 'feminin' | null
+  avatarUrl?: string | null
   classId: string | null
   acceptedPrivacyPolicy: boolean
   requiresProfileCompletion: boolean
@@ -57,6 +59,8 @@ export function normalizeAuthUser(
     lastName: user.lastName ?? '',
     email: user.email ?? '',
     role,
+    gender: user.gender === 'masculin' || user.gender === 'feminin' ? user.gender : null,
+    avatarUrl: user.avatarUrl ?? null,
     classId,
     acceptedPrivacyPolicy,
     requiresProfileCompletion:
@@ -97,3 +101,5 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
   return ctx
 }
+
+

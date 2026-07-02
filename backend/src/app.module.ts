@@ -14,6 +14,7 @@ import { StudentInsightsModule } from './student-insights/student-insights.modul
 import { LearningModule } from './learning/learning.module';
 import { AdminInsightsModule } from './admin-insights/admin-insights.module';
 import { PlatformSettingsModule } from './platform-settings/platform-settings.module';
+import { FriendshipModule } from './friendship/friendship.module';
 
 @Module({
   imports: [
@@ -64,8 +65,10 @@ import { PlatformSettingsModule } from './platform-settings/platform-settings.mo
     StudentInsightsModule,
     LearningModule,
     AdminInsightsModule,
+    FriendshipModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+

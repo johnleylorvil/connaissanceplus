@@ -356,13 +356,16 @@ export class DuelOralService {
   async buildDuelState(duel: DuelMatch) {
     const progresses = await this.duelProgressRepo.find({
       where: { duelMatchId: duel.id },
-      relations: ['user'],
+      relations: ['user', 'user.academicClass'],
     });
 
     const participants = progresses.map((p) => ({
       userId: p.userId,
       name: p.user ? `${p.user.firstName} ${p.user.lastName}` : 'Unknown',
       score: p.score,
+      academicLevelName: p.user?.academicClass?.name ?? null,
+      avatarUrl: p.user?.avatarUrl ?? null,
+      gender: p.user?.gender ?? null,
       role: p.userId === duel.playerOneId ? 'A' : 'B',
     }));
 
@@ -378,3 +381,4 @@ export class DuelOralService {
     };
   }
 }
+
