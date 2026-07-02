@@ -53,7 +53,7 @@ export default function PublicLeaderboardPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gap: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)' }}>
-              Mis a jour chaque semaine selon les victoires, la precision des reponses et la constance en duel.
+              Mis à jour chaque semaine selon les victoires, la précision des réponses et la constance en duel.
             </p>
             <Link to="/" className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>
               Retour a l'accueil
@@ -108,7 +108,7 @@ export default function PublicLeaderboardPage() {
                       </p>
                       <div style={{ display: 'grid', gap: 6 }}>
                         <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)' }}>Victoires: {row.winCount}</p>
-                        <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)' }}>Bonnes reponses: {row.totalCorrectAnswers}</p>
+                        <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)' }}>Bonnes réponses : {row.totalCorrectAnswers}</p>
                         <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)' }}>Duels joues: {row.duelCount}</p>
                       </div>
                     </article>
@@ -125,7 +125,7 @@ export default function PublicLeaderboardPage() {
                       <th>Victoires</th>
                       <th>Defaites</th>
                       <th>Duels</th>
-                      <th>Bonnes reponses</th>
+                      <th>Bonnes réponses</th>
                     </tr>
                   </thead>
                   <tbody>

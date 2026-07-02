@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiCall } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -296,7 +296,7 @@ export default function DuelPage() {
   if (loading && !duelState) {
     return (
       <div className="duel-loading-screen">
-        <p>Chargement du gÃ©nie scolaire...</p>
+        <p>Chargement du génie scolaire...</p>
       </div>
     )
   }
@@ -328,11 +328,11 @@ export default function DuelPage() {
         <div style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => navigate(homePath)} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Retour</button>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>GÃ©nie scolaire oral en direct</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Génie scolaire oral en direct</p>
             <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{duelState.competitionName}</p>
           </div>
           <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: wsConnected ? '#d1fae5' : '#fee2e2', color: wsConnected ? '#065f46' : '#991b1b' }}>
-            {wsConnected ? 'Live' : 'DÃ©connectÃ©'}
+            {wsConnected ? 'Live' : 'Déconnecté'}
           </span>
         </div>
 
@@ -369,7 +369,7 @@ export default function DuelPage() {
                 ) : (
                   <>
                     <span style={{ fontSize: 13, color: '#065f46', fontWeight: 600 }}>
-                      {chime.status === 'connected' ? 'ConnectÃ©' : chime.status === 'connecting' ? 'Connexion...' : 'DÃ©connectÃ©'}
+                      {chime.status === 'connected' ? 'Connecté' : chime.status === 'connecting' ? 'Connexion...' : 'Déconnecté'}
                     </span>
                     <button onClick={chime.toggleMute} className="btn btn-ghost btn-sm" style={{ minWidth: 90 }}>
                       {chime.isMuted ? 'Muet' : 'Micro actif'}
@@ -382,7 +382,7 @@ export default function DuelPage() {
               </div>
               {live.moderatorUserId && (
                 <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 10 }}>
-                  ModÃ©rateur actif - RÃ´le : {myOralRole ?? (isModerator ? 'ModÃ©rateur' : '?')}
+                  Modérateur actif - Rôle : {myOralRole ?? (isModerator ? 'Modérateur' : '?')}
                 </p>
               )}
             </div>
@@ -391,24 +391,24 @@ export default function DuelPage() {
           {oralStatus === 'waiting' && (
             <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
               <p className="overline" style={{ marginBottom: 8 }}>En attente</p>
-              <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Le gÃ©nie n'a pas encore commencÃ©</h2>
-              <p style={{ fontSize: 16, color: 'var(--ink-3)' }}>Restez sur cette page. Le lancement sera annoncÃ© ici dÃ¨s le dÃ©marrage.</p>
+              <h2 className="display" style={{ fontSize: 30, color: 'var(--cobalt)', marginBottom: 10 }}>Le génie n'a pas encore commencé</h2>
+              <p style={{ fontSize: 16, color: 'var(--ink-3)' }}>Restez sur cette page. Le lancement sera annoncé ici dès le démarrage.</p>
             </div>
           )}
 
           {oralStatus === 'completed' && (
             <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
-              <p className="overline" style={{ marginBottom: 8 }}>RÃ©sultat</p>
-              <h2 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 14 }}>GÃ©nie terminÃ©</h2>
+              <p className="overline" style={{ marginBottom: 8 }}>Résultat</p>
+              <h2 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 14 }}>Génie terminé</h2>
               {oralWinner ? (
                 <p style={{ fontSize: 18, color: 'var(--ink)' }}>
                   Gagnant : <span style={{ fontWeight: 700, color: 'var(--cobalt)' }}>
                     {oralParticipants.find((p) => p.userId === oralWinner)?.name ?? oralWinner}
                   </span>
-                  {oralWinner === user?.id && <span style={{ marginLeft: 8, fontSize: 15, color: 'var(--ok)' }}>FÃ©licitations !</span>}
+                  {oralWinner === user?.id && <span style={{ marginLeft: 8, fontSize: 15, color: 'var(--ok)' }}>Félicitations !</span>}
                 </p>
               ) : (
-                <p style={{ fontSize: 17, color: 'var(--ink-3)' }}>Match nul - Ã©galitÃ© parfaite.</p>
+                <p style={{ fontSize: 17, color: 'var(--ink-3)' }}>Match nul - égalité parfaite.</p>
               )}
               <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm" style={{ marginTop: 20 }}>Retour</button>
             </div>
@@ -433,12 +433,12 @@ export default function DuelPage() {
   const statusCopy = duelState.status === 'in_progress'
     ? `Course minute - ${timeLeft}s`
     : 'Course chrono'
-  const resultTitle = duelState.winnerUserId ? (isWinner ? 'Victoire' : 'DÃ©faite') : 'Ã‰galitÃ©'
+  const resultTitle = duelState.winnerUserId ? (isWinner ? 'Victoire' : 'Défaite') : 'Égalité'
   const resultNote = duelState.winnerUserId
     ? isWinner
       ? 'Votre classement hebdomadaire va progresser.'
-      : 'Analysez la manche et relancez un duel quand vous Ãªtes prÃªt.'
-    : 'Score identique: chaque bonne reponse compte dans la prochaine course.'
+      : 'Analysez la manche et relancez un duel quand vous êtes prêt.'
+    : 'Score identique : chaque bonne réponse compte dans la prochaine course.'
 
   const myDuelCorrections = duelState.questions.map((question) => {
     const answer = me?.answers.find((item) => item.duelQuestionId === question.duelQuestionId)
@@ -450,7 +450,7 @@ export default function DuelPage() {
       <header className="duel-esport-header">
         <button onClick={() => navigate(homePath)} className="duel-back-button">Retour</button>
         <div className="duel-header-title">
-          <p>GÃ©nie scolaire classÃ©</p>
+          <p>Génie scolaire classé</p>
           <strong>{duelState.competitionName}</strong>
         </div>
         <div className={`duel-timer-pill${duelState.canAnswer ? ' active' : ''}${duelState.canAnswer && timeLeft <= 3 ? ' urgent' : ''}`}>
@@ -473,7 +473,7 @@ export default function DuelPage() {
                 >
                   <div className="duel-player-meta">
                     <span>{mine ? 'Vous' : 'Adversaire'}</span>
-                    {participant.isFinished && <strong>TerminÃ©</strong>}
+                    {participant.isFinished && <strong>Terminé</strong>}
                   </div>
                   <div className="duel-player-main">
                     <div className="duel-player-avatar">{participant.name.slice(0, 1).toUpperCase()}</div>
@@ -527,7 +527,7 @@ export default function DuelPage() {
               <div className="duel-search-player ready">
                 <span>{user?.firstName?.[0] ?? 'E'}</span>
                 <strong>{user?.firstName ?? 'Vous'}</strong>
-                <small>PrÃªt</small>
+                <small>Prêt</small>
               </div>
               <div className="duel-search-radar">
                 <div />
@@ -540,7 +540,7 @@ export default function DuelPage() {
               </div>
             </div>
             <p className="duel-wait-copy">
-              Restez sur cette page. Le match dÃ©marre automatiquement dÃ¨s qu'un adversaire est trouvÃ©.
+              Restez sur cette page. Le match démarre automatiquement dès qu'un adversaire est trouvé.
             </p>
             <div className="duel-wait-actions">
               <span>Expiration automatique dans 15 minutes</span>
@@ -568,7 +568,7 @@ export default function DuelPage() {
             </div>
             <div className="duel-lobby-countdown">
               <span>{lobbyCountdown || 0}</span>
-              <small>Depart automatique - {duelState.durationMinutes ?? 3} min</small>
+              <small>Départ automatique - {duelState.durationMinutes ?? 3} min</small>
             </div>
             <div className="duel-wait-actions">
               <button onClick={() => void requestFriend(opponent?.userId)} disabled={!opponent || friendLoading} className="btn btn-ghost btn-sm">
@@ -580,9 +580,9 @@ export default function DuelPage() {
         )}
         {duelState.status === 'cancelled' && (
           <section className="duel-result-panel cancelled anim-fade-up">
-            <p className="overline">Matchmaking expirÃ©</p>
-            <h1 className="display">Aucun adversaire trouvÃ©</h1>
-            <p>Le dÃ©lai de 15 minutes a expirÃ©. Relancez une recherche depuis le tableau de bord.</p>
+            <p className="overline">Matchmaking expiré</p>
+            <h1 className="display">Aucun adversaire trouvé</h1>
+            <p>Le délai de 15 minutes a expiré. Relancez une recherche depuis le tableau de bord.</p>
             <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
           </section>
         )}
@@ -593,7 +593,7 @@ export default function DuelPage() {
               <>
                 <p className="overline">Erreur</p>
                 <h1 className="display">Questions introuvables</h1>
-                <p className="duel-wait-copy">Les questions de ce duel ne sont plus disponibles. Le duel a Ã©tÃ© annulÃ©.</p>
+                <p className="duel-wait-copy">Les questions de ce duel ne sont plus disponibles. Le duel a été annulé.</p>
                 <div className="duel-wait-actions">
                   <button onClick={() => void loadState()} className="btn btn-ghost btn-sm">Actualiser</button>
                   <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
@@ -602,8 +602,8 @@ export default function DuelPage() {
             ) : (
               <>
                 <p className="overline">En attente</p>
-                <h1 className="display">Vous avez terminÃ© vos questions</h1>
-                <p className="duel-wait-copy">En attente que votre adversaire termine sa course. Le rÃ©sultat s'affichera automatiquement.</p>
+                <h1 className="display">Vous avez terminé vos questions</h1>
+                <p className="duel-wait-copy">En attente que votre adversaire termine sa course. Le résultat s'affichera automatiquement.</p>
               </>
             )}
           </section>
@@ -652,7 +652,7 @@ export default function DuelPage() {
                   const participant = duelState.participants.find((item) => item.userId === attempt.userId)
                   return (
                     <p key={`${attempt.userId}-${attempt.attemptNumber}`} className={attempt.isCorrect ? 'correct' : 'wrong'}>
-                      {participant?.name ?? 'Participant'}: {attempt.isCorrect ? 'bonne rÃ©ponse' : attempt.selectedOption ? 'mauvaise rÃ©ponse' : 'temps dÃ©passÃ©'}
+                      {participant?.name ?? 'Participant'}: {attempt.isCorrect ? 'bonne réponse' : attempt.selectedOption ? 'mauvaise réponse' : 'temps dépassé'}
                     </p>
                   )
                 })}
@@ -674,7 +674,7 @@ export default function DuelPage() {
 
         {duelState.status === 'completed' && (
           <section className={`duel-result-panel anim-pop-in${isWinner ? ' victory' : duelState.winnerUserId ? ' defeat' : ' draw'}`}>
-            <p className="overline">RÃ©sultat final</p>
+            <p className="overline">Résultat final</p>
             <h1 className="display">{resultTitle}</h1>
             <div className="duel-final-score">
               {duelState.participants.map((participant) => (
@@ -697,8 +697,8 @@ export default function DuelPage() {
                   <p>{cleanQuizPrompt(question.prompt)}</p>
                   {question.correctOption && (
                     <small>
-                      Ta reponse: {answer?.selectedOption ? `${answer.selectedOption}. ${question.options[answer.selectedOption]}` : 'aucune'}
-                      {' | '}Bonne reponse: {question.correctOption}. {question.options[question.correctOption]}
+                      Ta réponse : {answer?.selectedOption ? `${answer.selectedOption}. ${question.options[answer.selectedOption]}` : 'aucune'}
+                      {' | '}Bonne réponse : {question.correctOption}. {question.options[question.correctOption]}
                     </small>
                   )}
                   {question.explanation && <em>{question.explanation}</em>}
@@ -720,7 +720,7 @@ export default function DuelPage() {
         {(duelState.status === 'matched' || duelState.status === 'in_progress') && (
           <aside className={`duel-chat-panel${chatOpen ? ' open' : ''}`}>
             <button type="button" className="duel-chat-toggle" onClick={() => setChatOpen((open) => !open)}>
-              Chat {wsConnected ? 'live' : 'deconnecte'}
+              Chat {wsConnected ? 'live' : 'déconnecté'}
             </button>
             {chatOpen && (
               <div className="duel-chat-body">

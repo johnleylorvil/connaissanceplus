@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import KonesansLogo from '../components/KonesansLogo'
@@ -15,7 +15,7 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   const message = (error as { message?: string })?.message?.trim()
   if (!message) return fallback
   if (message === 'Failed to fetch') {
-    return "Impossible de contacter le serveur pour l'instant. RÃ©essayez dans quelques instants."
+    return "Impossible de contacter le serveur pour l'instant. Réessayez dans quelques instants."
   }
   return message
 }
@@ -61,7 +61,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!form.acceptedPrivacyPolicy) {
-      setError("Vous devez accepter la politique de confidentialitÃ© pour vous inscrire.")
+      setError("Vous devez accepter la politique de confidentialité pour vous inscrire.")
       return
     }
     setError('')
@@ -76,9 +76,9 @@ export default function RegisterPage() {
       setOtpEmail(data.email)
       setOtpCode('')
       setResendCountdown(data.resendAvailableInSeconds)
-      setNotice(`Un code de vÃ©rification a Ã©tÃ© envoyÃ© Ã  ${data.email}. Saisissez-le pour finaliser votre inscription.`)
+      setNotice(`Un code de vérification a été envoyé à ${data.email}. Saisissez-le pour finaliser votre inscription.`)
     } catch (err) {
-      setError(getOtpErrorMessage(err, "Impossible de dÃ©marrer l'inscription."))
+      setError(getOtpErrorMessage(err, "Impossible de démarrer l'inscription."))
     } finally {
       setLoading(false)
     }
@@ -97,9 +97,9 @@ export default function RegisterPage() {
       setOtpEmail(data.email)
       setResendCountdown(data.resendAvailableInSeconds)
       setOtpCode('')
-      setNotice(`Un nouveau code de vÃ©rification a Ã©tÃ© envoyÃ© Ã  ${data.email}.`)
+      setNotice(`Un nouveau code de vérification a été envoyé à ${data.email}.`)
     } catch (err) {
-      setError(getOtpErrorMessage(err, "Impossible de renvoyer le code de vÃ©rification."))
+      setError(getOtpErrorMessage(err, "Impossible de renvoyer le code de vérification."))
     } finally {
       setLoading(false)
     }
@@ -119,7 +119,7 @@ export default function RegisterPage() {
       login(data.accessToken, data.user)
       navigate(userHome(data.user), { replace: true })
     } catch (err) {
-      setError(getOtpErrorMessage(err, 'Impossible de vÃ©rifier le code pour le moment.'))
+      setError(getOtpErrorMessage(err, 'Impossible de vérifier le code pour le moment.'))
     } finally {
       setLoading(false)
     }
@@ -128,7 +128,7 @@ export default function RegisterPage() {
   return (
     <div className="auth-shell">
 
-      {/* â”€â”€ FORM PANEL â”€â”€ */}
+      {/* -- FORM PANEL -- */}
       <div className="auth-panel" style={{ justifyContent: 'flex-start' }}>
 
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 1, textDecoration: 'none', marginBottom: 44 }}>
@@ -136,9 +136,9 @@ export default function RegisterPage() {
           <span className="brand" style={{ fontSize: 18, color: 'var(--gold)' }}>+</span>
         </Link>
 
-        <h1 className="display" style={{ fontSize: 'clamp(28px, 7vw, 34px)', color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.03em' }}>CrÃ©er mon compte</h1>
+        <h1 className="display" style={{ fontSize: 'clamp(28px, 7vw, 34px)', color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.03em' }}>Créer mon compte</h1>
         <p style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 32, lineHeight: 1.6 }}>
-          CrÃ©ez votre espace pour participer au gÃ©nie scolaire en ligne, avec manches acadÃ©miques, affrontements et classement hebdomadaire.
+          Créez votre espace pour participer au génie scolaire en ligne, avec manches académiques, affrontements et classement hebdomadaire.
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
@@ -147,10 +147,10 @@ export default function RegisterPage() {
         {verificationId ? (
           <form onSubmit={handleVerifyOtp} className="auth-form-stack">
             <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, marginTop: -2 }}>
-              Entrez le code reÃ§u par e-mail{otpEmail ? ` Ã  ${otpEmail}` : ''}. Il reste valable pendant 10 minutes.
+              Entrez le code reçu par e-mail{otpEmail ? ` à ${otpEmail}` : ''}. Il reste valable pendant 10 minutes.
             </p>
             <div>
-              <label className="field-label">Code de vÃ©rification</label>
+              <label className="field-label">Code de vérification</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -165,7 +165,7 @@ export default function RegisterPage() {
             </div>
 
             <button type="submit" disabled={loading || otpCode.length !== 6} className="btn btn-primary btn-full btn-lg" style={{ marginTop: 4 }}>
-              {loading ? 'VÃ©rificationâ€¦' : 'VÃ©rifier mon adresse e-mail'}
+              {loading ? 'Vérification…' : 'Vérifier mon adresse e-mail'}
             </button>
 
             <button type="button" className="btn btn-ghost btn-full" onClick={handleResendOtp} disabled={loading || resendCountdown > 0}>
@@ -180,7 +180,7 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="auth-form-stack">
           <div className="auth-form-grid">
             <div>
-              <label className="field-label">PrÃ©nom</label>
+              <label className="field-label">Prénom</label>
               <input type="text" required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="field-input" placeholder="Jean" />
             </div>
             <div>
@@ -200,7 +200,7 @@ export default function RegisterPage() {
               <input
                 type={showPass ? 'text' : 'password'} required minLength={6}
                 value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="field-input" placeholder="Minimum 6 caractÃ¨res" style={{ paddingRight: 42 }}
+                className="field-input" placeholder="Minimum 6 caractères" style={{ paddingRight: 42 }}
               />
               <button
                 type="button" onClick={() => setShowPass((v) => !v)}
@@ -234,13 +234,13 @@ export default function RegisterPage() {
 
           <div className="auth-form-grid">
             <div>
-              <label className="field-label">Ã‰cole <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optionnel)</span></label>
-              <input type="text" value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} className="field-input" placeholder="Nom de l'Ã©cole" />
+              <label className="field-label">École <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optionnel)</span></label>
+              <input type="text" value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} className="field-input" placeholder="Nom de l'école" />
             </div>
             <div>
               <label className="field-label">Ville <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optionnel)</span></label>
               <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="field-input" disabled={!form.department}>
-                <option value="">{form.department ? 'Choisir une ville' : 'Choisir d\'abord un dÃ©partement'}</option>
+                <option value="">{form.department ? 'Choisir une ville' : 'Choisir d\'abord un département'}</option>
                 {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
               </select>
             </div>
@@ -248,9 +248,9 @@ export default function RegisterPage() {
 
           <div className="auth-form-grid">
             <div>
-              <label className="field-label">DÃ©partement <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optionnel)</span></label>
+              <label className="field-label">Département <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 10, textTransform: 'none', letterSpacing: 0 }}>(optionnel)</span></label>
               <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value, city: '' })} className="field-input">
-                <option value="">Choisir un dÃ©partement</option>
+                <option value="">Choisir un département</option>
                 {HAITI_DEPARTMENTS.map((department) => <option key={department} value={department}>{department}</option>)}
               </select>
             </div>
@@ -267,7 +267,7 @@ export default function RegisterPage() {
               style={{ marginTop: 3, accentColor: 'var(--cobalt)', width: 14, height: 14, flexShrink: 0 }}
             />
             <span className="auth-check-text">
-              Jâ€™accepte de recevoir les annonces et informations utiles de Konesans+.
+              J’accepte de recevoir les annonces et informations utiles de Konesans+.
             </span>
           </label>
 
@@ -280,14 +280,14 @@ export default function RegisterPage() {
             <span className="auth-check-text">
               J'ai lu et j'accepte la{' '}
               <Link to="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cobalt)', fontWeight: 600, textDecoration: 'none' }}>
-                politique de confidentialitÃ©
+                politique de confidentialité
               </Link>{' '}
               de Konesans+ <span style={{ color: 'var(--error)' }}>*</span>
             </span>
           </label>
 
           <button type="submit" disabled={loading || !form.acceptedPrivacyPolicy} className="btn btn-primary btn-full btn-lg" style={{ marginTop: 4 }}>
-            {loading ? 'Envoi du codeâ€¦' : 'Recevoir mon code de vÃ©rification'}
+            {loading ? 'Envoi du code…' : 'Recevoir mon code de vérification'}
           </button>
         </form>
         )}
@@ -313,28 +313,28 @@ export default function RegisterPage() {
         )}
 
         <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--ink-3)', marginTop: 18, marginBottom: 16 }}>
-          DÃ©jÃ  un compte ?{' '}
+          Déjà un compte ?{' '}
           <Link to="/login" style={{ color: 'var(--cobalt)', fontWeight: 600, textDecoration: 'none' }}>Se connecter</Link>
         </p>
       </div>
 
-      {/* â”€â”€ BRAND PANEL (desktop only) â”€â”€ */}
+      {/* -- BRAND PANEL (desktop only) -- */}
       <div className="hidden md:flex" style={{ background: 'var(--cobalt)', flexDirection: 'column', justifyContent: 'space-between', padding: '48px 10%', position: 'sticky', top: 0, height: '100vh' }}>
         <div>
           <KonesansLogo size={44} showName />
         </div>
         <div>
-          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>Rejoignez la compÃ©tition</p>
+          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>Rejoignez la compétition</p>
           <blockquote className="display" style={{ fontSize: 'clamp(24px,2.5vw,36px)', color: '#fff', fontStyle: 'italic', lineHeight: 1.3, marginBottom: 24, letterSpacing: '-0.03em' }}>
-            "Votre premiÃ¨re question vous attend."
+            "Votre première question vous attend."
           </blockquote>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.38)', lineHeight: 1.8 }}>
-            Inscription gratuite, progression visible et accÃ¨s direct aux compÃ©titions acadÃ©miques.
+            Inscription gratuite, progression visible et accès direct aux compétitions académiques.
           </p>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24 }}>
-          <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>DÃ©jÃ  un compte ?</p>
-          <Link to="/login" style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textDecoration: 'none' }}>Connexion â†’</Link>
+          <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>Déjà un compte ?</p>
+          <Link to="/login" style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textDecoration: 'none' }}>Connexion →</Link>
         </div>
       </div>
 

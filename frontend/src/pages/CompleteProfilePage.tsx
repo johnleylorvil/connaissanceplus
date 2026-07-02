@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiCall, type ApiError } from '../api/client'
 import KonesansLogo from '../components/KonesansLogo'
@@ -51,7 +51,7 @@ export default function CompleteProfilePage() {
       return
     }
     if (!form.acceptedPrivacyPolicy) {
-      setError('Vous devez accepter la politique de confidentialitÃ© pour continuer.')
+      setError('Vous devez accepter la politique de confidentialité pour continuer.')
       return
     }
 
@@ -97,7 +97,7 @@ export default function CompleteProfilePage() {
           Terminez votre inscription.
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 28, lineHeight: 1.7 }}>
-          Votre compte est bien reliÃ©. Il nous manque seulement quelques informations scolaires pour activer correctement votre espace de gÃ©nie scolaire.
+          Votre compte est bien relié. Il nous manque seulement quelques informations scolaires pour activer correctement votre espace de génie scolaire.
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
@@ -105,7 +105,7 @@ export default function CompleteProfilePage() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="auth-form-grid">
             <div>
-              <label className="field-label">PrÃ©nom</label>
+              <label className="field-label">Prénom</label>
               <input
                 type="text"
                 required
@@ -156,13 +156,13 @@ export default function CompleteProfilePage() {
 
           <div className="auth-form-grid">
             <div>
-              <label className="field-label">Ã‰cole</label>
+              <label className="field-label">École</label>
               <input
                 type="text"
                 value={form.school}
                 onChange={(e) => setForm({ ...form, school: e.target.value })}
                 className="field-input"
-                placeholder="Nom de l'Ã©cole"
+                placeholder="Nom de l'école"
               />
             </div>
             <div>
@@ -173,7 +173,7 @@ export default function CompleteProfilePage() {
                 className="field-input"
                 disabled={!form.department}
               >
-                <option value="">{form.department ? 'Choisir une ville' : 'Choisir d\'abord un dÃ©partement'}</option>
+                <option value="">{form.department ? 'Choisir une ville' : 'Choisir d\'abord un département'}</option>
                 {cityOptions.map((city) => (
                   <option key={city} value={city}>{city}</option>
                 ))}
@@ -183,13 +183,13 @@ export default function CompleteProfilePage() {
 
           <div className="auth-form-grid">
             <div>
-              <label className="field-label">DÃ©partement</label>
+              <label className="field-label">Département</label>
               <select
                 value={form.department}
                 onChange={(e) => setForm({ ...form, department: e.target.value, city: '' })}
                 className="field-input"
               >
-                <option value="">Choisir un dÃ©partement</option>
+                <option value="">Choisir un département</option>
                 {HAITI_DEPARTMENTS.map((department) => (
                   <option key={department} value={department}>{department}</option>
                 ))}
@@ -215,7 +215,7 @@ export default function CompleteProfilePage() {
               style={{ marginTop: 3, accentColor: 'var(--cobalt)', width: 14, height: 14, flexShrink: 0 }}
             />
             <span style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-              J'accepte d'Ãªtre contactÃ© par Konesans+ pour les annonces et opportunitÃ©s.
+              J'accepte d'être contacté par Konesans+ pour les annonces et opportunités.
             </span>
           </label>
 
@@ -229,14 +229,14 @@ export default function CompleteProfilePage() {
             <span style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
               J'ai lu et j'accepte la{' '}
               <Link to="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cobalt)', fontWeight: 600, textDecoration: 'none' }}>
-                politique de confidentialitÃ©
+                politique de confidentialité
               </Link>{' '}
               de Konesans+.
             </span>
           </label>
 
           <button type="submit" disabled={loading} className="btn btn-primary btn-full btn-lg" style={{ marginTop: 4 }}>
-            {loading ? 'Activation en coursâ€¦' : 'Activer mon compte Ã©tudiant'}
+            {loading ? 'Activation en cours…' : 'Activer mon compte étudiant'}
           </button>
         </form>
 
@@ -249,7 +249,7 @@ export default function CompleteProfilePage() {
           className="btn btn-sm"
           style={{ marginTop: 18, alignSelf: 'flex-start', border: '1px solid var(--rule)', background: 'transparent', color: 'var(--ink-2)' }}
         >
-          Se dÃ©connecter
+          Se déconnecter
         </button>
       </div>
 
@@ -259,16 +259,16 @@ export default function CompleteProfilePage() {
         </div>
         <div>
           <blockquote className="display" style={{ fontSize: 'clamp(26px,2.8vw,40px)', color: '#fff', fontStyle: 'italic', lineHeight: 1.25, marginBottom: 24, letterSpacing: '-0.03em' }}>
-            "Un profil complet,<br />puis le gÃ©nie scolaire."
+            "Un profil complet,<br />puis le génie scolaire."
           </blockquote>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', lineHeight: 1.8 }}>
-            Cette Ã©tape permet d'afficher les bonnes matiÃ¨res, les bonnes manches et un classement cohÃ©rent avec votre niveau rÃ©el.
+            Cette étape permet d'afficher les bonnes matières, les bonnes manches et un classement cohérent avec votre niveau réel.
           </p>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24 }}>
-          <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>Protection des donnÃ©es</p>
+          <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>Protection des données</p>
           <Link to="/privacy" style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: 600, textDecoration: 'none' }}>
-            Consulter la politique â†’
+            Consulter la politique →
           </Link>
         </div>
       </div>

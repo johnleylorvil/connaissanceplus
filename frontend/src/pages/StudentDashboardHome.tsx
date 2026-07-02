@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Award,
   BookOpen,
@@ -77,7 +77,7 @@ type Props = {
 
 const LEVEL_THRESHOLDS = [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
 const XP_AFTER_L10 = 600
-const TITLE_BY_LEVEL = ['Apprenti', 'StratÃ¨ge', 'Champion', 'Expert', 'MaÃ®tre', 'Ã‰lite', 'LÃ©gende']
+const TITLE_BY_LEVEL = ['Apprenti', 'Stratège', 'Champion', 'Expert', 'Maître', 'Élite', 'Légende']
 
 function computeLevel(xp: number) {
   let level = 1
@@ -104,7 +104,7 @@ function formatNumber(value: number) {
 }
 
 function formatPct(value: number | null) {
-  return value === null ? 'Non mesurÃ©e' : `${value}%`
+  return value === null ? 'Non mesurée' : `${value}%`
 }
 
 function getInitials(user: AuthUser | null) {
@@ -141,8 +141,8 @@ function DashboardHeader({
           {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{avatarText}</span>}
         </button>
         <div>
-          <p className="student-eyebrow">Dashboard Ã©tudiant</p>
-          <h1>Dashboard Ã©tudiant</h1>
+          <p className="student-eyebrow">Dashboard étudiant</p>
+          <h1>Dashboard étudiant</h1>
           <p>Bienvenue, {fullName}. {subtitle}</p>
           <div className="student-header-meta">
             <span>Niveau {level}</span>
@@ -158,7 +158,7 @@ function DashboardHeader({
         </button>
         <button className="student-btn student-btn-secondary" type="button" onClick={onCompetitions}>
           <Trophy size={16} />
-          Voir les compÃ©titions
+          Voir les compétitions
         </button>
       </div>
     </header>
@@ -215,11 +215,11 @@ function StatsGrid({
   streak: number
 }) {
   return (
-    <section className="student-stats-grid" aria-label="RÃ©sumÃ© principal">
+    <section className="student-stats-grid" aria-label="Résumé principal">
       <StatCard icon={Award} label="Niveau actuel" value={`Niveau ${level}`} detail={`${title} - ${xpText}`} progress={xpProgress} />
-      <StatCard icon={Medal} label="Rang national" value={rank ? `#${rank}` : 'Non classÃ©'} detail={rank ? '+8 places cette semaine' : 'Jouez pour entrer au classement'} />
-      <StatCard icon={Target} label="PrÃ©cision rÃ©cente" value={formatPct(accuracy)} detail={accuracy !== null && accuracy >= 80 ? 'Objectif atteint' : 'Objectif recommandÃ©: 80%'} progress={accuracy ?? 0} />
-      <StatCard icon={Flame} label="SÃ©rie actuelle" value={`${streak} jour${streak > 1 ? 's' : ''}`} detail="Meilleur record: 7 jours" />
+      <StatCard icon={Medal} label="Rang national" value={rank ? `#${rank}` : 'Non classé'} detail={rank ? '+8 places cette semaine' : 'Jouez pour entrer au classement'} />
+      <StatCard icon={Target} label="Précision récente" value={formatPct(accuracy)} detail={accuracy !== null && accuracy >= 80 ? 'Objectif atteint' : 'Objectif recommandé: 80%'} progress={accuracy ?? 0} />
+      <StatCard icon={Flame} label="Série actuelle" value={`${streak} jour${streak > 1 ? 's' : ''}`} detail="Meilleur record: 7 jours" />
     </section>
   )
 }
@@ -283,10 +283,10 @@ function PlayModes({
         </div>
       </div>
       <div className="student-play-grid">
-        <PlayModeCard icon={Zap} title="Challenge" description="EntraÃ®nement rapide par matiÃ¨re." status={`${subjectsCount} matiÃ¨res`} actionLabel="Commencer" onClick={onChallenge} />
-        <PlayModeCard icon={Swords} title="Duel classÃ©" description="Affronter un Ã©lÃ¨ve en direct." status="ClassÃ©" actionLabel="Trouver un adversaire" onClick={onDuel} />
-        <PlayModeCard icon={Trophy} title="Arena" description="CompÃ©titions en direct et Ã©vÃ©nements." status={upcomingCount ? `${upcomingCount} Ã  venir` : 'Ouvert'} actionLabel="Entrer" onClick={onArena} />
-        <PlayModeCard icon={BookOpen} title="Correspondance" description="Concours de lettres et Ã©changes." status={unreadLetters ? `${unreadLetters} non lu` : 'Lettres'} actionLabel="Participer" onClick={onCorrespondence} />
+        <PlayModeCard icon={Zap} title="Challenge" description="Entraînement rapide par matière." status={`${subjectsCount} matières`} actionLabel="Commencer" onClick={onChallenge} />
+        <PlayModeCard icon={Swords} title="Duel classé" description="Affronter un élève en direct." status="Classé" actionLabel="Trouver un adversaire" onClick={onDuel} />
+        <PlayModeCard icon={Trophy} title="Arena" description="Compétitions en direct et événements." status={upcomingCount ? `${upcomingCount} à venir` : 'Ouvert'} actionLabel="Entrer" onClick={onArena} />
+        <PlayModeCard icon={BookOpen} title="Correspondance" description="Concours de lettres et échanges." status={unreadLetters ? `${unreadLetters} non lu` : 'Lettres'} actionLabel="Participer" onClick={onCorrespondence} />
       </div>
     </section>
   )
@@ -329,7 +329,7 @@ function DailyObjectives({
       </div>
       <div className="student-reward-row">
         <Trophy size={16} />
-        <span>RÃ©compense Ã  la fin</span>
+        <span>Récompense à la fin</span>
         <strong>+50 XP</strong>
       </div>
     </section>
@@ -348,7 +348,7 @@ function RecentActivity({
     const won = pct >= 60
     return {
       id: item.sessionId,
-      title: `${won ? 'Victoire' : 'DÃ©faite'} - ${item.subjectName}`,
+      title: `${won ? 'Victoire' : 'Défaite'} - ${item.subjectName}`,
       detail: `${item.score}/${item.totalQuestions} - ${pct}%`,
       value: won ? `+${item.score * 5} XP` : '-2 places',
       tone: won ? 'success' : 'danger',
@@ -357,9 +357,9 @@ function RecentActivity({
 
   return (
     <section className="student-card student-panel-card">
-      <PanelHeader title="ActivitÃ© rÃ©cente" actionLabel="Voir tout" onAction={onSeeAll} />
+      <PanelHeader title="Activité récente" actionLabel="Voir tout" onAction={onSeeAll} />
       {activities.length === 0 ? (
-        <p className="student-empty">Aucune activitÃ© rÃ©cente.</p>
+        <p className="student-empty">Aucune activité récente.</p>
       ) : (
         <div className="student-timeline">
           {activities.map((activity) => (
@@ -390,7 +390,7 @@ function LeaderboardCard({
   loading: boolean
 }) {
   const [tab, setTab] = useState('National')
-  const tabs = ['National', 'Ã‰cole', 'Classe', 'Amis']
+  const tabs = ['National', 'École', 'Classe', 'Amis']
 
   return (
     <section className="student-card student-panel-card">
@@ -412,7 +412,7 @@ function LeaderboardCard({
                 <th>Pos.</th>
                 <th>Nom</th>
                 <th>Points</th>
-                <th>Ã‰vol.</th>
+                <th>Évol.</th>
               </tr>
             </thead>
             <tbody>
@@ -444,10 +444,10 @@ function RecommendationsCard({
   onSeeAll: () => void
 }) {
   const items = [
-    { label: 'MatiÃ¨re Ã  renforcer', value: weakSubject?.subjectName ?? 'MathÃ©matiques' },
-    { label: 'Mode recommandÃ© aujourdâ€™hui', value: mode },
-    { label: 'Objectif prioritaire', value: weakSubject ? 'Stabiliser la prÃ©cision' : 'Maintenir le rythme' },
-    { label: 'Prochain dÃ©fi conseillÃ©', value: recommendations[0]?.title ?? 'Challenge chronomÃ©trÃ©' },
+    { label: 'Matière à renforcer', value: weakSubject?.subjectName ?? 'Mathématiques' },
+    { label: 'Mode recommandé aujourd’hui', value: mode },
+    { label: 'Objectif prioritaire', value: weakSubject ? 'Stabiliser la précision' : 'Maintenir le rythme' },
+    { label: 'Prochain défi conseillé', value: recommendations[0]?.title ?? 'Challenge chronométré' },
   ]
 
   return (
@@ -473,18 +473,18 @@ function UpcomingCompetitions({
   onCorrespondence: () => void
 }) {
   const competitions = [
-    { name: 'Tournoi MathÃ©matiques', subject: 'MathÃ©matiques', date: 'Aujourdâ€™hui 16h', status: 'En direct', action: onArena },
-    { name: 'Arena CrÃ©ole', subject: 'CrÃ©ole', date: 'Demain 15h', status: 'Inscription', action: onArena },
-    { name: 'Championnat national', subject: 'GÃ©nÃ©ral', date: 'Dimanche 14h', status: 'Ã€ venir', action: onArena },
-    { name: 'Correspondance', subject: 'RÃ©daction', date: 'Cette semaine', status: 'Ouvert', action: onCorrespondence },
+    { name: 'Tournoi Mathématiques', subject: 'Mathématiques', date: 'Aujourd’hui 16h', status: 'En direct', action: onArena },
+    { name: 'Arena Créole', subject: 'Créole', date: 'Demain 15h', status: 'Inscription', action: onArena },
+    { name: 'Championnat national', subject: 'Général', date: 'Dimanche 14h', status: 'À venir', action: onArena },
+    { name: 'Correspondance', subject: 'Rédaction', date: 'Cette semaine', status: 'Ouvert', action: onCorrespondence },
   ]
 
   return (
     <section className="student-card student-section-card">
       <div className="student-section-heading compact">
         <div>
-          <p className="student-eyebrow">CompÃ©titions</p>
-          <h2>CompÃ©titions Ã  venir</h2>
+          <p className="student-eyebrow">Compétitions</p>
+          <h2>Compétitions à venir</h2>
         </div>
       </div>
       <div className="student-competition-list">
@@ -519,11 +519,11 @@ function ProgressionCard({
       <div className="student-section-heading compact">
         <div>
           <p className="student-eyebrow">Progression</p>
-          <h2>Performances par matiÃ¨re</h2>
+          <h2>Performances par matière</h2>
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="student-empty">Les performances par matiÃ¨re apparaÃ®tront aprÃ¨s quelques activitÃ©s.</p>
+        <p className="student-empty">Les performances par matière apparaîtront après quelques activités.</p>
       ) : (
         <div className="student-subject-list">
           {rows.map((subject) => (
@@ -580,19 +580,19 @@ export default function StudentDashboardHome({
   const rank = rankIndex >= 0 ? rankIndex + 1 : null
   const accuracy = insights?.summary.quizzes.accuracy ?? insights?.summary.duels.accuracy ?? null
   const streak = insights?.period.activeDays ?? Math.min(history.length, 7)
-  const fullName = `${user?.firstName ?? 'Ã‰lÃ¨ve'} ${user?.lastName ?? ''}`.trim()
+  const fullName = `${user?.firstName ?? 'Élève'} ${user?.lastName ?? ''}`.trim()
   const className = classes.find((item) => item.id === user?.classId)?.name
   const weakSubjects = insights?.summary.subjects.filter((subject) => subject.level === 'needs_work') ?? []
   const strongSubjects = insights?.summary.subjects.filter((subject) => subject.level === 'strong') ?? []
   const weakestSubject = weakSubjects[0] ?? null
   const quizzesPlayed = insights?.summary.quizzes.totalSessions ?? history.length
   const duelWins = insights?.summary.duels.wins ?? 0
-  const recommendedMode = weakestSubject ? 'EntraÃ®nement rapide' : 'Duel classÃ©'
+  const recommendedMode = weakestSubject ? 'Entraînement rapide' : 'Duel classé'
   const objectives = [
     { id: 'matches', label: 'Jouer 3 matchs', current: Math.min(quizzesPlayed, 3), target: 3, done: quizzesPlayed >= 3 },
     { id: 'duel', label: 'Gagner un duel', current: Math.min(duelWins, 1), target: 1, done: duelWins >= 1 },
-    { id: 'accuracy', label: 'Atteindre 80 % de prÃ©cision', current: Math.min(accuracy ?? 0, 80), target: 80, unit: '%', done: (accuracy ?? 0) >= 80 },
-    { id: 'subject', label: 'Pratiquer une matiÃ¨re faible', current: weakestSubject && weakestSubject.answered > 0 ? 1 : 0, target: 1, done: Boolean(weakestSubject && weakestSubject.answered > 0) },
+    { id: 'accuracy', label: 'Atteindre 80 % de précision', current: Math.min(accuracy ?? 0, 80), target: 80, unit: '%', done: (accuracy ?? 0) >= 80 },
+    { id: 'subject', label: 'Pratiquer une matière faible', current: weakestSubject && weakestSubject.answered > 0 ? 1 : 0, target: 1, done: Boolean(weakestSubject && weakestSubject.answered > 0) },
   ]
   const completed = objectives.filter((objective) => objective.done).length
 
@@ -600,7 +600,7 @@ export default function StudentDashboardHome({
     <div className="student-command">
       <DashboardHeader
         fullName={fullName}
-        subtitle={className ? `Voici ton activitÃ© acadÃ©mique en ${className}.` : 'Voici ton activitÃ© acadÃ©mique.'}
+        subtitle={className ? `Voici ton activité académique en ${className}.` : 'Voici ton activité académique.'}
         level={level}
         title={title}
         avatarText={getInitials(user)}

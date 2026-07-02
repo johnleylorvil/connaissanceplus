@@ -253,8 +253,8 @@ export default function QuizPage() {
                 </div>
                 <p>{cleanQuizPrompt(item.prompt)}</p>
                 <small>
-                  Ta reponse: {item.selectedOption ? `${item.selectedOption}. ${item.options[item.selectedOption] ?? ''}` : 'aucune'}
-                  {' | '}Bonne reponse: {item.correctOption}. {item.options[item.correctOption] ?? ''}
+                  Ta réponse : {item.selectedOption ? `${item.selectedOption}. ${item.options[item.selectedOption] ?? ''}` : 'aucune'}
+                  {' | '}Bonne réponse : {item.correctOption}. {item.options[item.correctOption] ?? ''}
                 </small>
                 {item.explanation && <em>{item.explanation}</em>}
               </article>
@@ -321,8 +321,8 @@ export default function QuizPage() {
 
         {correctionVisible && (
           <section className={`chalk-feedback ${isCorrect ? 'correct' : 'wrong'}`}>
-            <strong>{isCorrect ? 'Bonne reponse' : 'Mauvaise reponse'}</strong>
-            <p>Bonne reponse: {q.correctOption}. {q.options[q.correctOption]}</p>
+            <strong>{isCorrect ? 'Bonne réponse' : 'Mauvaise réponse'}</strong>
+            <p>Bonne réponse: {q.correctOption}. {q.options[q.correctOption]}</p>
             {q.explanation && <small>{q.explanation}</small>}
             <button onClick={continueTraining} className="btn btn-primary btn-sm">
               {current >= questions.length - 1 ? 'Terminer' : 'Continuer'}
@@ -331,7 +331,7 @@ export default function QuizPage() {
         )}
 
         <footer className="chalk-board-bottom">
-          <span>{answeredCount}/{questions.length} reponses</span>
+          <span>{answeredCount}/{questions.length} réponses</span>
           {mode === 'minute' && (
             <button onClick={skipQuestion} disabled={submitting} className="btn btn-ghost btn-sm">Passer</button>
           )}

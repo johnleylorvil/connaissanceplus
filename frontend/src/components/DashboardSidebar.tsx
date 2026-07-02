@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 export type DashboardSidebarNode = {
   id: string
@@ -46,7 +46,7 @@ function SidebarNode({ node, depth = 0 }: { node: DashboardSidebarNode; depth?: 
         {node.icon ? <span className="sidebar-item-icon">{node.icon}</span> : null}
         <span className="sidebar-item-label">{node.label}</span>
         {node.badge ? <span className="sidebar-item-badge">{node.badge}</span> : null}
-        {hasChildren && <span className="sidebar-item-caret">â€º</span>}
+        {hasChildren && <span className="sidebar-item-caret">›</span>}
       </button>
 
       {hasChildren && (
