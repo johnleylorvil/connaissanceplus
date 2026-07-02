@@ -10,6 +10,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { randomUUID } from 'crypto';
 
 /**
  * Socket.io event reference — namespace /duels
@@ -91,6 +92,30 @@ export class DuelGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.connections.delete(client.id);
   }
 
+  @SubscribeMessage('chat:message')
+  handleChatMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { duelId: string; message: string },
+  ) {
+    const ctx = this.connections.get(client.id);
+    const duelId = payload?.duelId;
+    const message = typeof payload?.message === 'string' ? payload.message.trim() : '';
+
+    if (!ctx || !duelId || ctx.duelId !== duelId) {
+      client.emit('duel:error', { message: 'Join the duel room before sending chat messages' });
+      return;
+    }
+
+    if (!message) return;
+
+    this.server.to(`duel-${duelId}`).emit('chat:message', {
+      id: randomUUID(),
+      duelId,
+      userId: ctx.userId,
+      message: message.slice(0, 300),
+      createdAt: new Date().toISOString(),
+    });
+  }
   /** Emit an event to all clients in a duel room. Used by DuelOralService. */
   emitToRoom(duelId: string, event: string, data: unknown): void {
     this.server.to(`duel-${duelId}`).emit(event, data);

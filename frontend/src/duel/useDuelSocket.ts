@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { SOCKET_BASE } from '../api/client'
 
@@ -57,14 +57,22 @@ export function useDuelSocket(duelId: string | undefined, token: string | null):
     setEndResult(null)
 
     const socket = io(`${SOCKET_BASE}/duels`, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
     })
     socketRef.current = socket
 
     socket.on('connect', () => {
-      setConnected(true)
+      setConnected(false)
       socket.emit('duel:join', { duelId, token })
+    })
+
+    socket.on('duel:joined', () => {
+      setConnected(true)
+    })
+
+    socket.on('duel:error', () => {
+      setConnected(false)
     })
 
     socket.on('disconnect', () => {

@@ -446,7 +446,7 @@ export default function DuelPage() {
   })
 
   return (
-    <div className="duel-esport-shell">
+    <div className={`duel-esport-shell${duelState.status === 'in_progress' && currentQuestion ? ' duel-chalk-shell' : ''}`}>
       <header className="duel-esport-header">
         <button onClick={() => navigate(homePath)} className="duel-back-button">Retour</button>
         <div className="duel-header-title">
@@ -610,66 +610,93 @@ export default function DuelPage() {
         )}
 
         {duelState.status === 'in_progress' && currentQuestion && (
-          <section key={questionKey} className="duel-question-panel anim-slide-in">
-            <div className="duel-question-topline">
-              <span>Question {currentQuestion.position}/{duelState.questionCount}</span>
-              <strong className={duelState.canAnswer ? 'is-your-turn' : ''}>{statusCopy}</strong>
-            </div>
-            <p className="duel-question-helper">
-              {duelState.canAnswer
-                ? 'Repondez au maximum de questions avant la fin du chrono.'
-                : 'La course est terminee ou en attente de synchronisation.'}
-            </p>
+          <section key={questionKey} className="duel-question-panel duel-chalk-board anim-slide-in">
+            <header className="duel-chalk-top">
+              <button onClick={() => navigate(homePath)} className="chalk-exit-button" aria-label="Quitter">x</button>
+              <div>
+                <span>Duel classé</span>
+                <strong>Question {currentQuestion.position}/{duelState.questionCount}</strong>
+              </div>
+              <b className={timeLeft <= 5 ? 'urgent' : ''}>{timeLeft}s</b>
+            </header>
 
-            <div className="duel-center-timer">
+            <div className="duel-chalk-scoreline" aria-label="Score du duel">
+              <div className="duel-chalk-player mine">
+                <span>{participantInitial(me?.name)}</span>
+                <div>
+                  <small>Vous</small>
+                  <strong>{me?.name ?? 'Vous'}</strong>
+                </div>
+                <b>{me?.score ?? 0}</b>
+              </div>
+              <div className="duel-chalk-vs">VS</div>
+              <div className="duel-chalk-player opponent">
+                <b>{opponent?.score ?? 0}</b>
+                <div>
+                  <small>Adversaire</small>
+                  <strong>{opponent?.name ?? 'En recherche'}</strong>
+                </div>
+                <span>{participantInitial(opponent?.name)}</span>
+              </div>
+            </div>
+
+            <div className="chalk-progress-track duel-chalk-progress">
               <span style={{ width: `${timerPct}%`, background: timerBarColor }} />
             </div>
 
-            <p className="duel-question-prompt">{cleanQuizPrompt(currentQuestion.prompt)}</p>
+            <main className="duel-chalk-stage">
+              <p className="chalk-difficulty">{duelState.canAnswer ? statusCopy : 'Synchronisation'}</p>
+              <h1>{cleanQuizPrompt(currentQuestion.prompt)}</h1>
 
-            <div className="duel-options-list">
-              {(Object.entries(currentQuestion.options) as ['A' | 'B' | 'C' | 'D', string][]).map(([key, value], i) => (
-                <button
-                  key={key}
-                  onClick={() => duelState.canAnswer && void submitAnswer(key)}
-                  disabled={!duelState.canAnswer || submitting}
-                  className="quiz-option duel-option anim-fade-up"
-                  style={{
-                    animationDelay: `${i * 0.06}s`,
-                    opacity: duelState.canAnswer ? 1 : 0.68,
-                    cursor: duelState.canAnswer ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  <span className="opt-key" data-key={key}>{key}</span>
-                  <span>{value}</span>
-                </button>
-              ))}
-            </div>
-
-            {duelState.questionAttempts && duelState.questionAttempts.length > 0 && (
-              <div className="duel-attempt-feed">
-                {duelState.questionAttempts.map((attempt) => {
-                  const participant = duelState.participants.find((item) => item.userId === attempt.userId)
-                  return (
-                    <p key={`${attempt.userId}-${attempt.attemptNumber}`} className={attempt.isCorrect ? 'correct' : 'wrong'}>
-                      {participant?.name ?? 'Participant'}: {attempt.isCorrect ? 'bonne réponse' : attempt.selectedOption ? 'mauvaise réponse' : 'temps dépassé'}
-                    </p>
-                  )
-                })}
+              <div className="duel-chalk-options">
+                {(Object.entries(currentQuestion.options) as ['A' | 'B' | 'C' | 'D', string][]).map(([key, value], i) => (
+                  <button
+                    key={key}
+                    onClick={() => duelState.canAnswer && void submitAnswer(key)}
+                    disabled={!duelState.canAnswer || submitting}
+                    className="duel-chalk-option anim-fade-up"
+                    style={{
+                      animationDelay: `${i * 0.06}s`,
+                      opacity: duelState.canAnswer ? 1 : 0.68,
+                      cursor: duelState.canAnswer ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    <span>{key}</span>
+                    <strong>{value}</strong>
+                  </button>
+                ))}
               </div>
-            )}
 
-            <div className="duel-action-row">
-              {duelState.canAnswer && (
+              {duelState.questionAttempts && duelState.questionAttempts.length > 0 && (
+                <div className="duel-chalk-attempts">
+                  {duelState.questionAttempts.map((attempt) => {
+                    const participant = duelState.participants.find((item) => item.userId === attempt.userId)
+                    return (
+                      <p key={`${attempt.userId}-${attempt.attemptNumber}`} className={attempt.isCorrect ? 'correct' : 'wrong'}>
+                        {participant?.name ?? 'Participant'} : {attempt.isCorrect ? 'bonne réponse' : attempt.selectedOption ? 'mauvaise réponse' : 'temps dépassé'}
+                      </p>
+                    )
+                  })}
+                </div>
+              )}
+            </main>
+
+            <footer className="chalk-board-bottom duel-chalk-bottom">
+              <span>{me?.answeredCount ?? 0}/{duelState.questionCount} réponses</span>
+              {duelState.canAnswer ? (
                 <button
                   onClick={() => void submitAnswer(undefined)}
                   disabled={submitting}
-                  className="btn btn-ghost duel-submit-button"
+                  className="duel-chalk-skip"
                 >
                   {submitting ? 'Validation...' : 'Passer'}
                 </button>
+              ) : (
+                <span>En attente</span>
               )}
-            </div>          </section>
+              <span>{opponent?.answeredCount ?? 0}/{duelState.questionCount} adversaire</span>
+            </footer>
+          </section>
         )}
 
         {duelState.status === 'completed' && (
