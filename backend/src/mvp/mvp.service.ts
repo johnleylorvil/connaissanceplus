@@ -1138,10 +1138,10 @@ export class MvpService {
   ) {
     const qb = this.quizSessionRepo
       .createQueryBuilder('session')
-      .innerJoin('users', 'user', 'user.id = session.userId')
+      .innerJoin('session.user', 'student')
       .select('session.userId', 'userId')
-      .addSelect('user.firstName', 'firstName')
-      .addSelect('user.lastName', 'lastName')
+      .addSelect('student.firstName', 'firstName')
+      .addSelect('student.lastName', 'lastName')
       .addSelect('COUNT(session.id)', 'winCount')
       .addSelect('0', 'lossCount')
       .addSelect('COUNT(session.id)', 'duelCount')
@@ -1160,8 +1160,8 @@ export class MvpService {
     }
 
     qb.groupBy('session.userId')
-      .addGroupBy('user.firstName')
-      .addGroupBy('user.lastName')
+      .addGroupBy('student.firstName')
+      .addGroupBy('student.lastName')
       .orderBy('winCount', 'DESC')
       .addOrderBy('totalCorrectAnswers', 'DESC')
       .addOrderBy('lastWinAt', 'DESC');
@@ -1197,45 +1197,45 @@ export class MvpService {
   ) {
     const qb = this.duelProgressRepo
       .createQueryBuilder('progress')
-      .innerJoin('duel_matches', 'match', 'match.id = progress.duelMatchId')
-      .innerJoin('users', 'user', 'user.id = progress.userId')
+      .innerJoin('progress.duelMatch', 'duel')
+      .innerJoin('progress.user', 'student')
       .select('progress.userId', 'userId')
-      .addSelect('user.firstName', 'firstName')
-      .addSelect('user.lastName', 'lastName')
+      .addSelect('student.firstName', 'firstName')
+      .addSelect('student.lastName', 'lastName')
       .addSelect(
-        'SUM(CASE WHEN match.winnerUserId = progress.userId THEN 1 ELSE 0 END)',
+        'SUM(CASE WHEN duel.winnerUserId = progress.userId THEN 1 ELSE 0 END)',
         'winCount',
       )
       .addSelect(
-        'SUM(CASE WHEN match.winnerUserId IS NOT NULL AND match.winnerUserId <> progress.userId THEN 1 ELSE 0 END)',
+        'SUM(CASE WHEN duel.winnerUserId IS NOT NULL AND duel.winnerUserId <> progress.userId THEN 1 ELSE 0 END)',
         'lossCount',
       )
       .addSelect('COUNT(progress.id)', 'duelCount')
       .addSelect('SUM(progress.score)', 'totalCorrectAnswers')
       .addSelect(
-        'SUM(CASE WHEN match.winnerUserId = progress.userId THEN COALESCE(progress.totalTimeSeconds, 0) ELSE 0 END)',
+        'SUM(CASE WHEN duel.winnerUserId = progress.userId THEN COALESCE(progress.totalTimeSeconds, 0) ELSE 0 END)',
         'winTimeSeconds',
       )
       .addSelect(
-        'MAX(CASE WHEN match.winnerUserId = progress.userId THEN match.completedAt ELSE NULL END)',
+        'MAX(CASE WHEN duel.winnerUserId = progress.userId THEN duel.completedAt ELSE NULL END)',
         'lastWinAt',
       )
-      .where('match.status = :status', { status: DuelStatus.COMPLETED })
-      .andWhere('match.mode = :mode', { mode: DuelMode.QCM })
-      .andWhere('match.playerTwoId IS NOT NULL')
-      .andWhere('match.completedAt >= :weekStart', { weekStart });
+      .where('duel.status = :status', { status: DuelStatus.COMPLETED })
+      .andWhere('duel.mode = :mode', { mode: DuelMode.QCM })
+      .andWhere('duel.playerTwoId IS NOT NULL')
+      .andWhere('duel.completedAt >= :weekStart', { weekStart });
 
     if (weekEnd) {
-      qb.andWhere('match.completedAt < :weekEnd', { weekEnd });
+      qb.andWhere('duel.completedAt < :weekEnd', { weekEnd });
     }
 
     if (classId) {
-      qb.andWhere('user.levelId = :classId', { classId });
+      qb.andWhere('student.classId = :classId', { classId });
     }
 
     qb.groupBy('progress.userId')
-      .addGroupBy('user.firstName')
-      .addGroupBy('user.lastName')
+      .addGroupBy('student.firstName')
+      .addGroupBy('student.lastName')
       .orderBy('winCount', 'DESC')
       .addOrderBy('totalCorrectAnswers', 'DESC')
       .addOrderBy('winTimeSeconds', 'ASC')
