@@ -1107,28 +1107,27 @@ export class MvpService {
 
     return this.getDuelState(userId, duelId);
   }
-
-    async getWeeklyLeaderboard(classId?: string) {
+  async getWeeklyLeaderboard(classId?: string) {
     const thisWeekStart = this.getStartOfWeek(0);
-    let rows = await this.runWeeklyLeaderboardQuery(thisWeekStart, null, classId);
+    const lastWeekStart = this.getStartOfWeek(1);
 
-    if (rows.length === 0) {
-      // No completed QCM duels yet this week — fall back to last week.
-      const lastWeekStart = this.getStartOfWeek(1);
-      rows = await this.runWeeklyLeaderboardQuery(lastWeekStart, thisWeekStart, classId);
+    const leaderboardSources = [
+      () => this.runWeeklyLeaderboardQuery(thisWeekStart, null, classId),
+      () => this.runWeeklyQuizFallbackQuery(thisWeekStart, null, classId),
+      () => this.runWeeklyLeaderboardQuery(lastWeekStart, thisWeekStart, classId),
+      () => this.runWeeklyQuizFallbackQuery(lastWeekStart, thisWeekStart, classId),
+      () => this.runWeeklyLeaderboardQuery(new Date(0), null, classId),
+      () => this.runWeeklyQuizFallbackQuery(new Date(0), null, classId),
+    ];
 
-      // If there are still no duel results, use completed quiz activity as a
-      // secondary fallback so the weekly podium can still highlight active students.
-      if (rows.length === 0) {
-        rows = await this.runWeeklyQuizFallbackQuery(thisWeekStart, null, classId);
-      }
-
-      if (rows.length === 0) {
-        rows = await this.runWeeklyQuizFallbackQuery(lastWeekStart, thisWeekStart, classId);
+    for (const loadRows of leaderboardSources) {
+      const rows = await loadRows();
+      if (rows.length > 0) {
+        return rows;
       }
     }
 
-    return rows;
+    return [];
   }
 
   private async runWeeklyQuizFallbackQuery(

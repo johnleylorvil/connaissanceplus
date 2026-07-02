@@ -1156,7 +1156,7 @@ export default function StudentDashboard() {
 
               {leaderboard.length === 0 ? (
                 <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--ink-3)' }}>Le classement est vide pour cette semaine.</p>
+                  <p style={{ color: 'var(--ink-3)' }}>Aucun résultat classé pour le moment. Termine un quiz ou un duel pour apparaître ici.</p>
                 </div>
               ) : (
                 <div>
