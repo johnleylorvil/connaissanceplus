@@ -348,6 +348,12 @@ export class MvpController {
     return this.mvpService.cancelMatchmaking(request.user.id);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Post('duels/:duelId/abandon')
+  abandonDuel(@Req() request: AuthenticatedRequest, @Param('duelId') duelId: string) {
+    return this.mvpService.abandonDuel(request.user.id, duelId);
+  }
   @UseGuards(JwtAuthGuard)
   @Get('duels/:duelId/state')
   async getDuelState(@Req() request: AuthenticatedRequest, @Param('duelId') duelId: string) {
@@ -441,4 +447,3 @@ export class MvpController {
     return this.duelOralService.getPublicState(request.user.id, duelId);
   }
 }
-

@@ -267,6 +267,14 @@ describe('MvpService buzzer duel', () => {
     expect(answers[0].isCorrect).toBe(false);
   });
 
+  it('completes an in-progress duel when a player abandons and awards the opponent', async () => {
+    const result = await service.abandonDuel('u1', match.id);
+
+    expect(result).toMatchObject({ abandoned: true, status: DuelStatus.COMPLETED, winnerUserId: 'u2' });
+    expect(match.status).toBe(DuelStatus.COMPLETED);
+    expect(match.winnerUserId).toBe('u2');
+    expect(progresses.every((progress) => progress.submittedAt)).toBe(true);
+  });
   it('rejects answers from a player who has not buzzed', async () => {
     await expect(
       service.submitDuelAnswer('u1', match.id, {

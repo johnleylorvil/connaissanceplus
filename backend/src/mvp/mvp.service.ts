@@ -646,17 +646,22 @@ export class MvpService {
           status: activeDuel.status,
           competitionId: activeDuel.competitionId,
         };
+      } else if (activeDuel.status === DuelStatus.WAITING) {
+        activeDuel.status = DuelStatus.CANCELLED;
+        activeDuel.completedAt = now;
+        await this.duelMatchRepo.save(activeDuel);
       } else if (
-        activeDuel.status === DuelStatus.WAITING &&
-        (activeDuel.subjectId !== subject.id || activeDuel.classId !== student.classId || activeDuel.durationMinutes !== durationMinutes)
+        activeDuel.subjectId === subject.id &&
+        activeDuel.classId === student.classId &&
+        activeDuel.durationMinutes === durationMinutes
       ) {
-        throw new BadRequestException('Vous etes deja en attente d\'un autre concours dans une autre matiere.');
-      } else {
         return {
           duelId: activeDuel.id,
           status: activeDuel.status,
           competitionId: activeDuel.competitionId,
         };
+      } else {
+        await this.abandonActiveQcmDuel(activeDuel, userId, now);
       }
     }
 
@@ -838,6 +843,16 @@ export class MvpService {
     await this.duelMatchRepo.save(waitingDuel);
 
     return { cancelled: true };
+  }
+
+  async abandonDuel(userId: string, duelId: string) {
+    const duelMatch = await this.duelMatchRepo.findOne({ where: { id: duelId } });
+    if (!duelMatch) {
+      throw new NotFoundException('Duel not found');
+    }
+    this.assertQcmDuelParticipant(duelMatch, userId);
+
+    return this.abandonActiveQcmDuel(duelMatch, userId, new Date());
   }
 
   async getDuelState(userId: string, duelId: string) {
@@ -1588,6 +1603,74 @@ export class MvpService {
     return this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
   }
 
+  private async abandonActiveQcmDuel(duelMatch: DuelMatch, userId: string, abandonedAt: Date) {
+    if (duelMatch.mode !== DuelMode.QCM) {
+      throw new BadRequestException('Only QCM duels can be abandoned here');
+    }
+    if (duelMatch.status === DuelStatus.COMPLETED || duelMatch.status === DuelStatus.CANCELLED) {
+      return { abandoned: false, status: duelMatch.status, duelId: duelMatch.id };
+    }
+
+    if (duelMatch.status === DuelStatus.WAITING) {
+      duelMatch.status = DuelStatus.CANCELLED;
+      duelMatch.completedAt = abandonedAt;
+      await this.duelMatchRepo.save(duelMatch);
+      return { abandoned: true, status: duelMatch.status, duelId: duelMatch.id };
+    }
+
+    if (duelMatch.status === DuelStatus.MATCHED) {
+      duelMatch.status = DuelStatus.CANCELLED;
+      duelMatch.completedAt = abandonedAt;
+      duelMatch.winnerUserId = null;
+      duelMatch.responseDeadlineAt = null;
+      await this.duelMatchRepo.save(duelMatch);
+      return { abandoned: true, status: duelMatch.status, duelId: duelMatch.id };
+    }
+
+    if (duelMatch.status === DuelStatus.IN_PROGRESS) {
+      const progresses = await this.duelProgressRepo.find({ where: { duelMatchId: duelMatch.id } });
+      for (const progress of progresses) {
+        if (!progress.submittedAt) {
+          progress.submittedAt = abandonedAt;
+        }
+        if (progress.userId === userId) {
+          progress.lastActivityAt = abandonedAt;
+        }
+        const startedAt = progress.startedAt ?? duelMatch.startedAt ?? abandonedAt;
+        progress.totalTimeSeconds = Math.max(
+          1,
+          Math.round((abandonedAt.getTime() - startedAt.getTime()) / 1000),
+        );
+      }
+
+      const opponentId = this.getOtherDuelParticipantId(duelMatch, userId);
+      duelMatch.status = DuelStatus.COMPLETED;
+      duelMatch.completedAt = abandonedAt;
+      duelMatch.winnerUserId = opponentId;
+      duelMatch.responseDeadlineAt = null;
+      duelMatch.buzzerPhase = DuelBuzzerPhase.WAITING_FOR_BUZZ;
+      duelMatch.activeResponderUserId = null;
+      duelMatch.firstResponderUserId = null;
+
+      if (progresses.length > 0) {
+        await this.duelProgressRepo.save(progresses);
+      }
+      await this.duelMatchRepo.save(duelMatch);
+
+      if (opponentId) {
+        await this.createNotification(
+          opponentId,
+          'Duel gagne',
+          `Votre adversaire a quitte ${duelMatch.competitionName}.`,
+          'duel',
+        );
+      }
+
+      return { abandoned: true, status: duelMatch.status, duelId: duelMatch.id, winnerUserId: duelMatch.winnerUserId };
+    }
+
+    return { abandoned: false, status: duelMatch.status, duelId: duelMatch.id };
+  }
   private assertQcmDuelParticipant(duelMatch: DuelMatch, userId: string) {
     if (duelMatch.mode === DuelMode.ORAL_LIVE) {
       throw new BadRequestException('QCM answers are not supported for oral live duels');
@@ -2364,7 +2447,3 @@ export class MvpService {
     return new Date(weekStartHaiti.getTime() - HAITI_OFFSET_MS);
   }
 }
-
-
-
-

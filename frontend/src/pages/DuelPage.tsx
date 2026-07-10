@@ -126,6 +126,7 @@ export default function DuelPage() {
   const [friendLoading, setFriendLoading] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [chatDraft, setChatDraft] = useState('')
+  const [leavingDuel, setLeavingDuel] = useState(false)
 
   const isOralLive = duelState?.mode === 'oral_live'
   const isModerator = user?.role === 'admin' || user?.role === 'moderator'
@@ -171,6 +172,28 @@ export default function DuelPage() {
     }
   }, [duelId, accessToken])
 
+  const exitDuel = useCallback(async () => {
+    if (leavingDuel) return
+    if (!duelId || isOralLive || duelStatus === 'completed' || duelStatus === 'cancelled') {
+      navigate(homePath)
+      return
+    }
+
+    setLeavingDuel(true)
+    setError('')
+    try {
+      if (duelStatus === 'waiting') {
+        await apiCall('/duels/matchmaking/cancel', { method: 'DELETE' }, accessToken)
+      } else if (duelStatus === 'matched' || duelStatus === 'in_progress') {
+        await apiCall(`/duels/${duelId}/abandon`, { method: 'POST' }, accessToken)
+      }
+      navigate(homePath)
+    } catch (err) {
+      setError((err as { message?: string }).message ?? 'Impossible de quitter ce duel pour le moment.')
+    } finally {
+      setLeavingDuel(false)
+    }
+  }, [accessToken, duelId, duelStatus, homePath, isOralLive, leavingDuel, navigate])
   const currentQuestion = useMemo(() => {
     if (!duelState) return null
     return duelState.currentQuestion ?? duelState.questions.find((question) => question.position === duelState.currentQuestionPosition) ?? null
@@ -306,7 +329,7 @@ export default function DuelPage() {
       <div className="duel-loading-screen">
         <div className="card duel-missing-card">
           <div className="alert alert-error">{error || 'Duel introuvable'}</div>
-          <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour</button>
+          <button onClick={() => void exitDuel()} className="btn btn-primary btn-sm">Retour</button>
         </div>
       </div>
     )
@@ -326,7 +349,7 @@ export default function DuelPage() {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
         <div style={{ background: '#fff', borderBottom: '1px solid var(--rule)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => navigate(homePath)} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Retour</button>
+          <button onClick={() => void exitDuel()} style={{ fontSize: 16, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Retour</button>
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Génie scolaire oral en direct</p>
             <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{duelState.competitionName}</p>
@@ -410,7 +433,7 @@ export default function DuelPage() {
               ) : (
                 <p style={{ fontSize: 17, color: 'var(--ink-3)' }}>Match nul - égalité parfaite.</p>
               )}
-              <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm" style={{ marginTop: 20 }}>Retour</button>
+              <button onClick={() => void exitDuel()} className="btn btn-primary btn-sm" style={{ marginTop: 20 }}>Retour</button>
             </div>
           )}
 
@@ -448,7 +471,7 @@ export default function DuelPage() {
   return (
     <div className={`duel-esport-shell${duelState.status === 'in_progress' && currentQuestion ? ' duel-chalk-shell' : ''}`}>
       <header className="duel-esport-header">
-        <button onClick={() => navigate(homePath)} className="duel-back-button">Retour</button>
+        <button onClick={() => void exitDuel()} className="duel-back-button">Retour</button>
         <div className="duel-header-title">
           <p>Génie scolaire classé</p>
           <strong>{duelState.competitionName}</strong>
@@ -544,7 +567,7 @@ export default function DuelPage() {
             </p>
             <div className="duel-wait-actions">
               <span>Expiration automatique dans 15 minutes</span>
-              <button onClick={() => navigate(homePath)} className="btn btn-ghost btn-sm">Annuler la recherche</button>
+              <button onClick={() => void exitDuel()} disabled={leavingDuel} className="btn btn-ghost btn-sm">{leavingDuel ? 'Annulation...' : 'Annuler la recherche'}</button>
             </div>
           </section>
         )}
@@ -583,7 +606,7 @@ export default function DuelPage() {
             <p className="overline">Matchmaking expiré</p>
             <h1 className="display">Aucun adversaire trouvé</h1>
             <p>Le délai de 15 minutes a expiré. Relancez une recherche depuis le tableau de bord.</p>
-            <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
+            <button onClick={() => void exitDuel()} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
           </section>
         )}
 
@@ -596,7 +619,7 @@ export default function DuelPage() {
                 <p className="duel-wait-copy">Les questions de ce duel ne sont plus disponibles. Le duel a été annulé.</p>
                 <div className="duel-wait-actions">
                   <button onClick={() => void loadState()} className="btn btn-ghost btn-sm">Actualiser</button>
-                  <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
+                  <button onClick={() => void exitDuel()} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
                 </div>
               </>
             ) : (
@@ -612,7 +635,7 @@ export default function DuelPage() {
         {duelState.status === 'in_progress' && currentQuestion && (
           <section key={questionKey} className="duel-question-panel duel-chalk-board anim-slide-in">
             <header className="duel-chalk-top">
-              <button onClick={() => navigate(homePath)} className="chalk-exit-button" aria-label="Quitter">x</button>
+              <button onClick={() => void exitDuel()} className="chalk-exit-button" aria-label="Quitter">x</button>
               <div>
                 <span>Duel classé</span>
                 <strong>Question {currentQuestion.position}/{duelState.questionCount}</strong>
@@ -740,7 +763,7 @@ export default function DuelPage() {
                 {friendMessage && <span>{friendMessage}</span>}
               </div>
             )}
-            <button onClick={() => navigate(homePath)} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
+            <button onClick={() => void exitDuel()} className="btn btn-primary btn-sm">Retour au tableau de bord</button>
           </section>
         )}
 
@@ -783,10 +806,3 @@ export default function DuelPage() {
     </div>
   )
 }
-
-
-
-
-
-
-
