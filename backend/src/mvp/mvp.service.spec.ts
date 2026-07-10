@@ -138,6 +138,7 @@ describe('MvpService buzzer duel', () => {
       submittedAt: null,
       totalTimeSeconds: null,
       lastActivityAt: null,
+      abandonedAt: null,
     })) as DuelProgress[];
 
     duelQuestions = Array.from({ length: 10 }, (_, index) => ({
@@ -267,13 +268,39 @@ describe('MvpService buzzer duel', () => {
     expect(answers[0].isCorrect).toBe(false);
   });
 
-  it('completes an in-progress duel when a player abandons and awards the opponent', async () => {
+  it('keeps an abandoned duel open and awards the remaining player only after a correct answer', async () => {
+    match.responseDeadlineAt = new Date(Date.now() + 60_000);
     const result = await service.abandonDuel('u1', match.id);
 
-    expect(result).toMatchObject({ abandoned: true, status: DuelStatus.COMPLETED, winnerUserId: 'u2' });
+    expect(result).toMatchObject({ abandoned: true, status: DuelStatus.IN_PROGRESS, winnerUserId: null });
+    expect(match.status).toBe(DuelStatus.IN_PROGRESS);
+    expect(progresses[0].submittedAt).toBeTruthy();
+    expect(progresses[0].abandonedAt).toBeTruthy();
+    expect(progresses[1].submittedAt).toBeNull();
+
+    for (const question of duelQuestions) {
+      await service.submitDuelAnswer('u2', match.id, {
+        duelQuestionId: question.id,
+        selectedOption: OptionChoice.A,
+      });
+    }
+
     expect(match.status).toBe(DuelStatus.COMPLETED);
     expect(match.winnerUserId).toBe('u2');
-    expect(progresses.every((progress) => progress.submittedAt)).toBe(true);
+  });
+  it('keeps an abandoned duel as a draw when the remaining player has no correct answer', async () => {
+    match.responseDeadlineAt = new Date(Date.now() + 60_000);
+    await service.abandonDuel('u1', match.id);
+
+    for (const question of duelQuestions) {
+      await service.submitDuelAnswer('u2', match.id, {
+        duelQuestionId: question.id,
+        selectedOption: OptionChoice.B,
+      });
+    }
+
+    expect(match.status).toBe(DuelStatus.COMPLETED);
+    expect(match.winnerUserId).toBeNull();
   });
   it('rejects answers from a player who has not buzzed', async () => {
     await expect(

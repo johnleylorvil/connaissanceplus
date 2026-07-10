@@ -604,7 +604,7 @@ export class MvpService {
     const now = new Date();
 
     // --- Check if user already has an active duel ---
-    const activeDuel = await this.duelMatchRepo.findOne({
+    let activeDuel = await this.duelMatchRepo.findOne({
       where: [
         { playerOneId: userId, status: DuelStatus.WAITING },
         { playerOneId: userId, status: DuelStatus.MATCHED },
@@ -614,6 +614,15 @@ export class MvpService {
       ],
       order: { createdAt: 'DESC' },
     });
+
+    if (activeDuel?.status === DuelStatus.IN_PROGRESS) {
+      const myActiveProgress = await this.duelProgressRepo.findOne({
+        where: { duelMatchId: activeDuel.id, userId },
+      });
+      if (myActiveProgress?.submittedAt) {
+        activeDuel = null;
+      }
+    }
 
     if (activeDuel) {
       if (
@@ -1629,42 +1638,29 @@ export class MvpService {
 
     if (duelMatch.status === DuelStatus.IN_PROGRESS) {
       const progresses = await this.duelProgressRepo.find({ where: { duelMatchId: duelMatch.id } });
-      for (const progress of progresses) {
-        if (!progress.submittedAt) {
-          progress.submittedAt = abandonedAt;
-        }
-        if (progress.userId === userId) {
-          progress.lastActivityAt = abandonedAt;
-        }
-        const startedAt = progress.startedAt ?? duelMatch.startedAt ?? abandonedAt;
-        progress.totalTimeSeconds = Math.max(
-          1,
-          Math.round((abandonedAt.getTime() - startedAt.getTime()) / 1000),
-        );
+      const quitterProgress = progresses.find((progress) => progress.userId === userId);
+      if (!quitterProgress) {
+        throw new NotFoundException('Duel progress not found');
       }
 
-      const opponentId = this.getOtherDuelParticipantId(duelMatch, userId);
-      duelMatch.status = DuelStatus.COMPLETED;
-      duelMatch.completedAt = abandonedAt;
-      duelMatch.winnerUserId = opponentId;
-      duelMatch.responseDeadlineAt = null;
-      duelMatch.buzzerPhase = DuelBuzzerPhase.WAITING_FOR_BUZZ;
-      duelMatch.activeResponderUserId = null;
-      duelMatch.firstResponderUserId = null;
-
-      if (progresses.length > 0) {
-        await this.duelProgressRepo.save(progresses);
+      if (!quitterProgress.submittedAt) {
+        quitterProgress.submittedAt = abandonedAt;
       }
-      await this.duelMatchRepo.save(duelMatch);
+      quitterProgress.abandonedAt = abandonedAt;
+      quitterProgress.lastActivityAt = abandonedAt;
+      const startedAt = quitterProgress.startedAt ?? duelMatch.startedAt ?? abandonedAt;
+      quitterProgress.totalTimeSeconds = Math.max(
+        1,
+        Math.round((abandonedAt.getTime() - startedAt.getTime()) / 1000),
+      );
 
-      if (opponentId) {
-        await this.createNotification(
-          opponentId,
-          'Duel gagne',
-          `Votre adversaire a quitte ${duelMatch.competitionName}.`,
-          'duel',
-        );
+      await this.duelProgressRepo.save(quitterProgress);
+      if (duelMatch.activeResponderUserId === userId) {
+        duelMatch.activeResponderUserId = null;
+        await this.duelMatchRepo.save(duelMatch);
       }
+
+      await this.completeMinuteDuelIfReady(duelMatch);
 
       return { abandoned: true, status: duelMatch.status, duelId: duelMatch.id, winnerUserId: duelMatch.winnerUserId };
     }
@@ -1781,7 +1777,7 @@ export class MvpService {
 
     duelMatch.status = DuelStatus.COMPLETED;
     duelMatch.completedAt = finishAt;
-    duelMatch.winnerUserId = this.resolveDuelWinnerByScore(progresses);
+    duelMatch.winnerUserId = this.resolveMinuteDuelWinner(progresses);
     duelMatch.buzzerPhase = DuelBuzzerPhase.WAITING_FOR_BUZZ;
     duelMatch.activeResponderUserId = null;
     duelMatch.firstResponderUserId = null;
@@ -1912,6 +1908,18 @@ export class MvpService {
     }
   }
 
+  private resolveMinuteDuelWinner(progresses: DuelProgress[]) {
+    const abandonedProgresses = progresses.filter((progress) => !!progress.abandonedAt);
+    if (abandonedProgresses.length === 1 && progresses.length >= 2) {
+      const remainingProgress = progresses.find((progress) => !progress.abandonedAt);
+      return remainingProgress && remainingProgress.score > 0 ? remainingProgress.userId : null;
+    }
+    if (abandonedProgresses.length > 1) {
+      return null;
+    }
+
+    return this.resolveDuelWinnerByScore(progresses);
+  }
   private resolveDuelWinnerByScore(progresses: DuelProgress[]) {
     if (progresses.length < 2) {
       return progresses[0]?.userId ?? null;

@@ -543,6 +543,9 @@ export class DuelProgress {
 
   @Column({ type: dateTimeColumnType, nullable: true })
   lastActivityAt: Date | null;
+
+  @Column({ type: dateTimeColumnType, nullable: true })
+  abandonedAt: Date | null;
 }
 
 @Entity('duel_answers')
