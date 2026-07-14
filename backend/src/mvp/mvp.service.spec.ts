@@ -1,5 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
-
 import { MvpService } from './mvp.service';
 import {
   DuelAnswer,
@@ -34,6 +32,11 @@ function createRepo<T>(): RepoMock<T> {
     delete: jest.fn(),
     update: jest.fn(),
   };
+}
+
+function inValues(value: unknown): string[] {
+  const operator = value as { _value?: string[]; value?: string[] } | undefined;
+  return operator?._value ?? operator?.value ?? [];
 }
 
 function makeUser(id: string, partial: Partial<User> = {}): User {
@@ -77,18 +80,23 @@ function makeQuestion(id: string, correctOption = OptionChoice.A): Question {
   } as Question;
 }
 
-describe('MvpService buzzer duel', () => {
+type DuelStateForTest = Awaited<ReturnType<MvpService['getDuelState']>>;
+
+describe('MvpService timed duel', () => {
   let service: MvpService;
   let match: DuelMatch;
   let progresses: DuelProgress[];
+  let questionBank: Question[];
   let duelQuestions: DuelMatchQuestion[];
   let answers: DuelAnswer[];
   let duelMatchRepo: RepoMock<DuelMatch>;
   let duelProgressRepo: RepoMock<DuelProgress>;
   let duelMatchQuestionRepo: RepoMock<DuelMatchQuestion>;
   let duelAnswerRepo: RepoMock<DuelAnswer>;
+  let questionRepo: RepoMock<Question>;
 
   beforeEach(() => {
+    const startedAt = new Date(Date.now() - 10_000);
     const users = [makeUser('u1'), makeUser('u2')];
 
     match = {
@@ -104,12 +112,13 @@ describe('MvpService buzzer duel', () => {
       playerTwo: users[1],
       status: DuelStatus.IN_PROGRESS,
       questionCount: 10,
+      durationMinutes: 3,
       mode: DuelMode.QCM,
       currentQuestionPosition: 1,
       buzzerPhase: DuelBuzzerPhase.WAITING_FOR_BUZZ,
       activeResponderUserId: null,
       firstResponderUserId: null,
-      responseDeadlineAt: null,
+      responseDeadlineAt: new Date(Date.now() + 60_000),
       moderatorUserId: null,
       moderator: null,
       chimeMeetingId: null,
@@ -118,9 +127,10 @@ describe('MvpService buzzer duel', () => {
       liveEndedAt: null,
       winnerUserId: null,
       waitingExpiresAt: null,
-      startedAt: new Date(),
+      startedAt,
+      matchStartsAt: null,
       completedAt: null,
-      createdAt: new Date(),
+      createdAt: startedAt,
       questions: [],
       progresses: [],
       scoreEvents: [],
@@ -134,20 +144,23 @@ describe('MvpService buzzer duel', () => {
       user,
       answeredCount: 0,
       score: 0,
-      startedAt: match.startedAt,
+      startedAt,
       submittedAt: null,
       totalTimeSeconds: null,
       lastActivityAt: null,
       abandonedAt: null,
     })) as DuelProgress[];
 
-    duelQuestions = Array.from({ length: 10 }, (_, index) => ({
+    questionBank = Array.from({ length: 10 }, (_, index) =>
+      makeQuestion(`q-${index + 1}`),
+    );
+    duelQuestions = questionBank.map((question, index) => ({
       id: `dq-${index + 1}`,
       duelMatchId: match.id,
-      questionId: `q-${index + 1}`,
+      questionId: question.id,
       position: index + 1,
       duelMatch: match,
-      question: makeQuestion(`q-${index + 1}`),
+      question,
       answers: [],
     })) as DuelMatchQuestion[];
 
@@ -156,42 +169,84 @@ describe('MvpService buzzer duel', () => {
     duelProgressRepo = createRepo<DuelProgress>();
     duelMatchQuestionRepo = createRepo<DuelMatchQuestion>();
     duelAnswerRepo = createRepo<DuelAnswer>();
+    questionRepo = createRepo<Question>();
 
-    duelMatchRepo.findOne.mockImplementation(({ where }) => {
-      if (where?.id === match.id) return Promise.resolve(match);
-      return Promise.resolve(null);
-    });
+    duelMatchRepo.findOne.mockImplementation(({ where }) =>
+      Promise.resolve(where?.id === match.id ? match : null),
+    );
     duelMatchRepo.save.mockImplementation((value) => {
       Object.assign(match, value);
       return Promise.resolve(match);
     });
 
     duelProgressRepo.findOne.mockImplementation(({ where }) =>
-      Promise.resolve(progresses.find((progress) => (
-        progress.duelMatchId === where.duelMatchId && progress.userId === where.userId
-      )) ?? null),
+      Promise.resolve(
+        progresses.find(
+          (progress) =>
+            progress.duelMatchId === where.duelMatchId &&
+            progress.userId === where.userId,
+        ) ?? null,
+      ),
     );
     duelProgressRepo.find.mockImplementation(() => Promise.resolve(progresses));
     duelProgressRepo.save.mockImplementation((value) => Promise.resolve(value));
 
     duelMatchQuestionRepo.findOne.mockImplementation(({ where }) =>
-      Promise.resolve(duelQuestions.find((question) => (
-        question.duelMatchId === where.duelMatchId &&
-        (where.position == null || question.position === where.position) &&
-        (where.id == null || question.id === where.id)
-      )) ?? null),
+      Promise.resolve(
+        duelQuestions.find(
+          (question) =>
+            question.duelMatchId === where.duelMatchId &&
+            (where.position == null || question.position === where.position) &&
+            (where.id == null || question.id === where.id),
+        ) ?? null,
+      ),
     );
-    duelMatchQuestionRepo.find.mockImplementation(() => Promise.resolve(duelQuestions));
+    duelMatchQuestionRepo.find.mockImplementation(() =>
+      Promise.resolve(
+        [...duelQuestions].sort(
+          (first, second) => first.position - second.position,
+        ),
+      ),
+    );
+    duelMatchQuestionRepo.create.mockImplementation((value) => value);
+    duelMatchQuestionRepo.save.mockImplementation((value) => {
+      const input = value as Partial<DuelMatchQuestion>;
+      const sourceQuestion =
+        questionBank.find((question) => question.id === input.questionId) ??
+        questionBank[0];
+      const saved = {
+        id: input.id ?? `dq-${input.position}`,
+        duelMatchId: match.id,
+        questionId: sourceQuestion.id,
+        position: input.position,
+        duelMatch: match,
+        question: sourceQuestion,
+        answers: [],
+      } as DuelMatchQuestion;
+      duelQuestions.push(saved);
+      return Promise.resolve(saved);
+    });
 
     duelAnswerRepo.findOne.mockImplementation(({ where }) =>
-      Promise.resolve(answers.find((answer) => (
-        answer.duelMatchQuestionId === where.duelMatchQuestionId &&
-        answer.userId === where.userId
-      )) ?? null),
+      Promise.resolve(
+        answers.find(
+          (answer) =>
+            answer.duelMatchQuestionId === where.duelMatchQuestionId &&
+            answer.userId === where.userId,
+        ) ?? null,
+      ),
     );
-    duelAnswerRepo.find.mockImplementation(({ where }) =>
-      Promise.resolve(answers.filter((answer) => where.duelMatchQuestionId._value.includes(answer.duelMatchQuestionId))),
-    );
+    duelAnswerRepo.find.mockImplementation(({ where }) => {
+      const duelQuestionIds = inValues(where.duelMatchQuestionId);
+      return Promise.resolve(
+        answers.filter(
+          (answer) =>
+            (duelQuestionIds.length === 0 ||
+              duelQuestionIds.includes(answer.duelMatchQuestionId)) &&
+            (where.userId == null || answer.userId === where.userId),
+        ),
+      );
+    });
     duelAnswerRepo.create.mockImplementation((value) => value);
     duelAnswerRepo.save.mockImplementation((value) => {
       const answer = {
@@ -203,20 +258,26 @@ describe('MvpService buzzer duel', () => {
       return Promise.resolve(answer);
     });
 
+    questionRepo.find.mockResolvedValue(questionBank);
+
     const emptyRepo = createRepo<never>();
+    const userRepo = createRepo<User>();
+    userRepo.findOne.mockResolvedValue(null);
+    const notificationRepo = createRepo<never>();
+
     service = new MvpService(
       { sign: jest.fn() } as never,
       { get: jest.fn((_: string, fallback: unknown) => fallback) } as never,
       { sendOtpEmail: jest.fn() } as never,
+      userRepo as never,
       emptyRepo as never,
       emptyRepo as never,
       emptyRepo as never,
+      questionRepo as never,
       emptyRepo as never,
       emptyRepo as never,
       emptyRepo as never,
-      emptyRepo as never,
-      emptyRepo as never,
-      emptyRepo as never,
+      notificationRepo as never,
       duelMatchRepo as never,
       duelMatchQuestionRepo as never,
       duelProgressRepo as never,
@@ -225,89 +286,81 @@ describe('MvpService buzzer duel', () => {
     );
   });
 
-  it('awards a point and advances when the buzzer player answers correctly', async () => {
-    await service.buzzDuel('u1', match.id);
-    expect(match.activeResponderUserId).toBe('u1');
+  async function answerCurrent(
+    userId: string,
+    selectedOption = OptionChoice.A,
+  ): Promise<DuelStateForTest> {
+    const state = await service.getDuelState(userId, match.id);
+    expect(state.currentQuestion).toBeTruthy();
+    return service.submitDuelAnswer(userId, match.id, {
+      duelQuestionId: state.currentQuestion!.duelQuestionId,
+      selectedOption,
+    });
+  }
 
-    await service.submitDuelAnswer('u1', match.id, {
-      duelQuestionId: 'dq-1',
+  it('keeps the duel open after ten answers and serves an eleventh question while time remains', async () => {
+    let state: DuelStateForTest | null = null;
+
+    for (let index = 0; index < 10; index += 1) {
+      state = await answerCurrent('u1');
+    }
+
+    expect(match.status).toBe(DuelStatus.IN_PROGRESS);
+    expect(progresses[0].answeredCount).toBe(10);
+    expect(progresses[0].submittedAt).toBeNull();
+    expect(match.questionCount).toBe(11);
+    expect(duelQuestions).toHaveLength(11);
+    expect(state?.currentQuestion?.position).toBe(11);
+    expect(state?.canAnswer).toBe(true);
+
+    const afterEleventh = await service.submitDuelAnswer('u1', match.id, {
+      duelQuestionId: state!.currentQuestion!.duelQuestionId,
       selectedOption: OptionChoice.A,
     });
 
-    expect(progresses[0].score).toBe(1);
-    expect(match.currentQuestionPosition).toBe(2);
-    expect(match.buzzerPhase).toBe(DuelBuzzerPhase.WAITING_FOR_BUZZ);
-    expect(match.activeResponderUserId).toBeNull();
+    expect(match.status).toBe(DuelStatus.IN_PROGRESS);
+    expect(progresses[0].answeredCount).toBe(11);
+    expect(progresses[0].submittedAt).toBeNull();
+    expect(afterEleventh.currentQuestion?.position).toBe(12);
   });
 
-  it('gives the other player eight seconds after a wrong first answer', async () => {
-    await service.buzzDuel('u1', match.id);
-    await service.submitDuelAnswer('u1', match.id, {
-      duelQuestionId: 'dq-1',
-      selectedOption: OptionChoice.B,
-    });
+  it('reuses the existing question bank when all ten source questions were already served', async () => {
+    for (let index = 0; index < 10; index += 1) {
+      await answerCurrent('u1');
+    }
 
-    expect(progresses[0].score).toBe(0);
-    expect(match.currentQuestionPosition).toBe(1);
-    expect(match.buzzerPhase).toBe(DuelBuzzerPhase.ANSWERING);
-    expect(match.activeResponderUserId).toBe('u2');
-    expect(match.responseDeadlineAt?.getTime()).toBeGreaterThan(Date.now());
+    const recycledQuestion = duelQuestions[10];
+
+    expect(recycledQuestion.position).toBe(11);
+    expect(questionBank.map((question) => question.id)).toContain(
+      recycledQuestion.questionId,
+    );
+    expect(match.questionCount).toBe(11);
   });
 
-  it('applies server timeout and gives the second chance to the other player', async () => {
-    await service.buzzDuel('u1', match.id);
+  it('completes only when the timed deadline expires and resolves the winner by score', async () => {
+    await answerCurrent('u1', OptionChoice.A);
+    await answerCurrent('u2', OptionChoice.B);
     match.responseDeadlineAt = new Date(Date.now() - 1000);
 
-    const state = await service.getDuelState('u2', match.id);
+    const state = await service.getDuelState('u1', match.id);
 
-    expect(match.activeResponderUserId).toBe('u2');
-    expect(state.canAnswer).toBe(true);
-    expect(answers).toHaveLength(1);
-    expect(answers[0].userId).toBe('u1');
-    expect(answers[0].selectedOption).toBeNull();
-    expect(answers[0].isCorrect).toBe(false);
+    expect(match.status).toBe(DuelStatus.COMPLETED);
+    expect(match.winnerUserId).toBe('u1');
+    expect(state.canAnswer).toBe(false);
+    expect(progresses.every((progress) => !!progress.submittedAt)).toBe(true);
   });
 
-  it('keeps an abandoned duel open and awards the remaining player only after a correct answer', async () => {
-    match.responseDeadlineAt = new Date(Date.now() + 60_000);
-    const result = await service.abandonDuel('u1', match.id);
+  it('does not let stale submittedAt from the old ten-question rule block an active timed duel', async () => {
+    for (let index = 0; index < 10; index += 1) {
+      await answerCurrent('u1');
+    }
+    progresses[0].submittedAt = new Date();
 
-    expect(result).toMatchObject({ abandoned: true, status: DuelStatus.IN_PROGRESS, winnerUserId: null });
+    const state = await service.getDuelState('u1', match.id);
+
     expect(match.status).toBe(DuelStatus.IN_PROGRESS);
-    expect(progresses[0].submittedAt).toBeTruthy();
-    expect(progresses[0].abandonedAt).toBeTruthy();
-    expect(progresses[1].submittedAt).toBeNull();
-
-    for (const question of duelQuestions) {
-      await service.submitDuelAnswer('u2', match.id, {
-        duelQuestionId: question.id,
-        selectedOption: OptionChoice.A,
-      });
-    }
-
-    expect(match.status).toBe(DuelStatus.COMPLETED);
-    expect(match.winnerUserId).toBe('u2');
-  });
-  it('keeps an abandoned duel as a draw when the remaining player has no correct answer', async () => {
-    match.responseDeadlineAt = new Date(Date.now() + 60_000);
-    await service.abandonDuel('u1', match.id);
-
-    for (const question of duelQuestions) {
-      await service.submitDuelAnswer('u2', match.id, {
-        duelQuestionId: question.id,
-        selectedOption: OptionChoice.B,
-      });
-    }
-
-    expect(match.status).toBe(DuelStatus.COMPLETED);
-    expect(match.winnerUserId).toBeNull();
-  });
-  it('rejects answers from a player who has not buzzed', async () => {
-    await expect(
-      service.submitDuelAnswer('u1', match.id, {
-        duelQuestionId: 'dq-1',
-        selectedOption: OptionChoice.A,
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(state.canAnswer).toBe(true);
+    expect(state.currentQuestion?.position).toBe(11);
   });
 });

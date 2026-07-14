@@ -625,8 +625,8 @@ export default function DuelPage() {
             ) : (
               <>
                 <p className="overline">En attente</p>
-                <h1 className="display">Vous avez terminé vos questions</h1>
-                <p className="duel-wait-copy">En attente que votre adversaire termine sa course. Le résultat s'affichera automatiquement.</p>
+                <h1 className="display">Prochaine question en preparation</h1>
+                <p className="duel-wait-copy">Synchronisation du chrono et des questions. Le duel continue tant qu'il reste du temps.</p>
               </>
             )}
           </section>

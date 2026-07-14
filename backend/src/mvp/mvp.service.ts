@@ -895,7 +895,7 @@ export class MvpService {
       await this.applyExpiredMinuteDuelDeadline(duelMatch);
     }
 
-    const [duelQuestions, progresses] = await Promise.all([
+    let [duelQuestions, progresses] = await Promise.all([
       this.duelMatchQuestionRepo.find({
         where: { duelMatchId: duelId },
         relations: ['question'],
@@ -915,8 +915,8 @@ export class MvpService {
       await this.duelMatchRepo.save(duelMatch);
     }
 
-    const duelQuestionIds = duelQuestions.map((question) => question.id);
-    const answers =
+    let duelQuestionIds = duelQuestions.map((question) => question.id);
+    let answers =
       duelQuestionIds.length > 0
         ? await this.duelAnswerRepo.find({
             where: { duelMatchQuestionId: In(duelQuestionIds) },
@@ -924,17 +924,10 @@ export class MvpService {
           })
         : [];
 
-    const answerByUserAndQuestion = new Map(
-      answers.map((answer) => [`${answer.userId}:${answer.duelMatchQuestionId}`, answer]),
-    );
     const myProgress = progresses.find((progress) => progress.userId === userId);
-    const answeredQuestionIds = new Set(
+    let answeredQuestionIds = new Set(
       answers.filter((answer) => answer.userId === userId).map((answer) => answer.duelMatchQuestionId),
     );
-    const currentQuestion = duelQuestions.find((duelQuestion) => !answeredQuestionIds.has(duelQuestion.id)) ?? null;
-    const currentQuestionAnswers = currentQuestion
-      ? answers.filter((answer) => answer.duelMatchQuestionId === currentQuestion.id)
-      : [];
     const now = Date.now();
     const effectiveDeadline =
       duelMatch.responseDeadlineAt ??
@@ -944,6 +937,37 @@ export class MvpService {
     const globalTimeLeft = effectiveDeadline
       ? Math.max(0, Math.ceil((effectiveDeadline.getTime() - now) / 1000))
       : this.getDuelDurationSeconds(duelMatch);
+    let currentQuestion = duelQuestions.find((duelQuestion) => !answeredQuestionIds.has(duelQuestion.id)) ?? null;
+
+    if (
+      duelMatch.status === DuelStatus.IN_PROGRESS &&
+      duelMatch.mode === DuelMode.QCM &&
+      globalTimeLeft > 0 &&
+      myProgress &&
+      !myProgress.abandonedAt &&
+      !currentQuestion
+    ) {
+      duelQuestions = await this.ensureTimedDuelHasNextQuestion(duelMatch, duelQuestions, answeredQuestionIds);
+      duelQuestionIds = duelQuestions.map((question) => question.id);
+      answers =
+        duelQuestionIds.length > 0
+          ? await this.duelAnswerRepo.find({
+              where: { duelMatchQuestionId: In(duelQuestionIds) },
+              relations: ['duelMatchQuestion'],
+            })
+          : [];
+      answeredQuestionIds = new Set(
+        answers.filter((answer) => answer.userId === userId).map((answer) => answer.duelMatchQuestionId),
+      );
+      currentQuestion = duelQuestions.find((duelQuestion) => !answeredQuestionIds.has(duelQuestion.id)) ?? null;
+    }
+
+    const answerByUserAndQuestion = new Map(
+      answers.map((answer) => [`${answer.userId}:${answer.duelMatchQuestionId}`, answer]),
+    );
+    const currentQuestionAnswers = currentQuestion
+      ? answers.filter((answer) => answer.duelMatchQuestionId === currentQuestion.id)
+      : [];
 
     return {
       duelId: duelMatch.id,
@@ -1023,7 +1047,7 @@ export class MvpService {
           score: progress.score,
           answeredCount: progress.answeredCount,
           currentQuestion: nextQuestion?.position ?? duelMatch.questionCount,
-          isFinished: !!progress.submittedAt,
+          isFinished: duelMatch.status === DuelStatus.COMPLETED || !!progress.abandonedAt,
           totalTimeSeconds: progress.totalTimeSeconds,
           answers: participantAnswers,
         };
@@ -1033,7 +1057,7 @@ export class MvpService {
         duelMatch.status === DuelStatus.IN_PROGRESS &&
         duelMatch.mode === DuelMode.QCM &&
         !!myProgress &&
-        !myProgress.submittedAt &&
+        !myProgress.abandonedAt &&
         !!currentQuestion &&
         globalTimeLeft > 0,
       myAnsweredCount: myProgress?.answeredCount ?? 0,
@@ -1074,8 +1098,8 @@ export class MvpService {
     if (!progress) {
       throw new NotFoundException('Duel progress not found');
     }
-    if (progress.submittedAt) {
-      throw new BadRequestException('You already finished this duel');
+    if (progress.abandonedAt) {
+      throw new BadRequestException('You already left this duel');
     }
 
     const duelQuestion = await this.duelMatchQuestionRepo.findOne({
@@ -1120,14 +1144,7 @@ export class MvpService {
     if (isCorrect) {
       progress.score += 1;
     }
-    if (progress.answeredCount >= duelMatch.questionCount) {
-      progress.submittedAt = now;
-      const startedAt = progress.startedAt ?? duelMatch.startedAt ?? now;
-      progress.totalTimeSeconds = Math.max(1, Math.round((now.getTime() - startedAt.getTime()) / 1000));
-    }
     await this.duelProgressRepo.save(progress);
-
-    await this.completeMinuteDuelIfReady(duelMatch);
 
     return this.getDuelState(userId, duelId);
   }
@@ -1725,6 +1742,65 @@ export class MvpService {
       await this.duelProgressRepo.save(progresses);
     }
   }
+  private async ensureTimedDuelHasNextQuestion(
+    duelMatch: DuelMatch,
+    knownQuestions: DuelMatchQuestion[],
+    answeredQuestionIds: Set<string>,
+  ) {
+    const latestQuestions = await this.duelMatchQuestionRepo.find({
+      where: { duelMatchId: duelMatch.id },
+      relations: ['question'],
+      order: { position: 'ASC' },
+    });
+    const duelQuestions = latestQuestions.length > 0 ? latestQuestions : knownQuestions;
+
+    if (duelQuestions.some((question) => !answeredQuestionIds.has(question.id))) {
+      return duelQuestions;
+    }
+
+    const sourceQuestions =
+      duelMatch.classId && duelMatch.subjectId
+        ? await this.questionRepo.find({
+            where: { classId: duelMatch.classId, subjectId: duelMatch.subjectId },
+          })
+        : [];
+    const usedSourceQuestionIds = new Set(duelQuestions.map((question) => question.questionId));
+    const unusedQuestion = this.shuffle(
+      sourceQuestions.filter((question) => !usedSourceQuestionIds.has(question.id)),
+    )[0];
+    const fallbackQuestions = sourceQuestions.length > 0
+      ? sourceQuestions
+      : duelQuestions.map((question) => question.question).filter((question): question is Question => !!question);
+    const selectedQuestion = unusedQuestion ?? this.shuffle(fallbackQuestions)[0];
+
+    if (!selectedQuestion) {
+      return duelQuestions;
+    }
+
+    const nextPosition = Math.max(
+      duelMatch.questionCount ?? 0,
+      ...duelQuestions.map((question) => question.position),
+    ) + 1;
+
+    await this.duelMatchQuestionRepo.save(
+      this.duelMatchQuestionRepo.create({
+        duelMatchId: duelMatch.id,
+        questionId: selectedQuestion.id,
+        position: nextPosition,
+      }),
+    );
+
+    duelMatch.questionCount = nextPosition;
+    await this.duelMatchRepo.save(duelMatch);
+
+    return this.duelMatchQuestionRepo.find({
+      where: { duelMatchId: duelMatch.id },
+      relations: ['question'],
+      order: { position: 'ASC' },
+    });
+  }
+
+
   private async applyExpiredMinuteDuelDeadline(duelMatch: DuelMatch) {
     if (
       duelMatch.mode !== DuelMode.QCM ||
