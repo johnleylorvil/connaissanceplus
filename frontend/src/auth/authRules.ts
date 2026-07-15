@@ -10,6 +10,8 @@ export function roleHome(role: string): string {
       return '/moderator/arena'
     case 'student':
       return '/dashboard'
+    case 'school':
+      return '/arena'
     default:
       return '/'
   }

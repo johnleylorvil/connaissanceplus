@@ -14,6 +14,7 @@ import {
   QuizSessionQuestion,
   Subject,
   User,
+  School,
 } from '../mvp/entities';
 import {
   ArenaCompetition,
@@ -42,6 +43,7 @@ export const databaseEntities = [
   AcademicClass,
   Subject,
   User,
+  School,
   AccountVerificationCode,
   Question,
   QuizSession,

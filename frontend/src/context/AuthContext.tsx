@@ -1,6 +1,6 @@
-﻿import { createContext, useContext } from 'react'
+import { createContext, useContext } from 'react'
 
-export type UserRole = 'student' | 'admin' | 'moderator'
+export type UserRole = 'student' | 'admin' | 'moderator' | 'school'
 
 export type AuthUser = {
   id: string
@@ -14,6 +14,7 @@ export type AuthUser = {
   acceptedPrivacyPolicy: boolean
   requiresProfileCompletion: boolean
   school?: string | null
+  schoolId?: string | null
   city?: string | null
   department?: string | null
   sectionName?: string | null
@@ -68,6 +69,7 @@ export function normalizeAuthUser(
         ? user.requiresProfileCompletion
         : role === 'student' && (!classId || !acceptedPrivacyPolicy),
     school: user.school ?? null,
+    schoolId: user.schoolId ?? null,
     city: user.city ?? null,
     department: user.department ?? null,
     sectionName: user.sectionName ?? user.className ?? null,

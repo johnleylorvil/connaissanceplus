@@ -46,6 +46,120 @@ export class CreateModeratorDto {
   generatePassword?: boolean;
 }
 
+export class CreateSchoolDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(HAITI_DEPARTMENTS)
+  department?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(240)
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  contactName?: string;
+
+  @IsEmail()
+  @IsOptional()
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
+  contactEmail?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(40)
+  contactPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  logoUrl?: string;
+}
+
+export class UpdateSchoolDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(120)
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(HAITI_DEPARTMENTS)
+  department?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(240)
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  contactName?: string;
+
+  @IsEmail()
+  @IsOptional()
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
+  contactEmail?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(40)
+  contactPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  logoUrl?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class CreateSchoolRepresentativeDto {
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(2)
+  @MaxLength(50)
+  firstName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(2)
+  @MaxLength(50)
+  lastName: string;
+
+  @IsEmail()
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
+  email: string;
+
+  @IsString()
+  @IsOptional()
+  @MinLength(8)
+  password?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  generatePassword?: boolean;
+}
 export class ListAdminUsersDto {
   @IsEnum(UserRole)
   @IsOptional()

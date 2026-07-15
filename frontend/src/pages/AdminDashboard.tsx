@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { apiCall } from '../api/client'
 import { cleanQuizPrompt } from '../utils/cleanQuizPrompt'
-import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type VerifyModeratorOtpResponse, type ModeratorOtpRequestResponse } from '../arena/arenaApi'
+import { arenaApi, adminApi, ARENA_API, type ArenaCompetition, type ArenaRegistration, type ModeratorUser, type VerifyModeratorOtpResponse, type ModeratorOtpRequestResponse, type School, type SchoolRepresentative } from '../arena/arenaApi'
 import DashboardSidebar, { type DashboardSidebarSection } from '../components/DashboardSidebar'
 import { HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
 import {
@@ -28,7 +28,7 @@ function getOtpErrorMessage(error: unknown, fallback: string) {
   return message
 }
 
-type Tab = 'overview' | 'indicators' | 'alerts' | 'levels' | 'subjects' | 'questions' | 'library' | 'users' | 'team' | 'messages' | 'sponsors' | 'arena' | 'correspondence' | 'leaderboard' | 'reports' | 'statistics' | 'organization' | 'integrations' | 'security' | 'global-config'
+type Tab = 'overview' | 'indicators' | 'alerts' | 'levels' | 'subjects' | 'questions' | 'library' | 'users' | 'team' | 'schools' | 'messages' | 'sponsors' | 'arena' | 'correspondence' | 'leaderboard' | 'reports' | 'statistics' | 'organization' | 'integrations' | 'security' | 'global-config'
 type CorrSubTab = 'sessions' | 'moderation'
 const CORR_STATUS_OPTIONS: ContestSessionStatus[] = ['draft', 'open', 'closed', 'scoring', 'published']
 const CORR_STATUS_FR: Record<ContestSessionStatus, string> = {
@@ -69,6 +69,12 @@ export default function AdminDashboard() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
   const [students, setStudents] = useState<Student[]>([])
+  const [schools, setSchools] = useState<School[]>([])
+  const [schoolRepresentatives, setSchoolRepresentatives] = useState<SchoolRepresentative[]>([])
+
+  const [schoolMsg, setSchoolMsg] = useState('')
+  const [schoolForm, setSchoolForm] = useState({ name: '', city: '', department: '', address: '', contactName: '', contactEmail: '', contactPhone: '', logoUrl: '' })
+  const [schoolRepForm, setSchoolRepForm] = useState({ schoolId: '', firstName: '', lastName: '', email: '', password: '', generatePassword: true })
 
   const [newClass, setNewClass] = useState('')
   const [classMsg, setClassMsg] = useState('')
@@ -106,7 +112,7 @@ export default function AdminDashboard() {
   const [arenaMsg, setArenaMsg] = useState('')
   const [arenaError, setArenaError] = useState('')
   const [arenaCompForm, setArenaCompForm] = useState({
-    name: '', competitorAUserId: '', competitorBUserId: '', moderatorUserId: '', questionCount: 10, secondsPerQuestion: 30,
+    name: '', schoolAId: '', schoolBId: '', schoolARepresentativeUserId: '', schoolBRepresentativeUserId: '', moderatorUserId: '', questionCount: 10, secondsPerQuestion: 30,
     description: '', scheduledAt: ''
   })
   const [winnerPicker, setWinnerPicker] = useState<{ compId: string; participants: ArenaRegistration[] } | null>(null)
@@ -178,9 +184,11 @@ export default function AdminDashboard() {
     Boolean(competition.competitorAUserId && competition.competitorBUserId)
 
   const getArenaDuelLabel = (competition: ArenaCompetition) =>
-    competition.competitorAName && competition.competitorBName
-      ? `${competition.competitorAName} vs ${competition.competitorBName}`
-      : null
+    competition.schoolAName && competition.schoolBName
+      ? `${competition.schoolAName} vs ${competition.schoolBName}`
+      : competition.competitorAName && competition.competitorBName
+        ? `${competition.competitorAName} vs ${competition.competitorBName}`
+        : null
 
   const submitCreateModerator = async (e: FormEvent) => {
     e.preventDefault()
@@ -278,6 +286,11 @@ export default function AdminDashboard() {
     void callApi<Sponsor[]>('/admin/sponsors', setSponsors)
   }, [callApi])
 
+  const loadSchoolsData = useCallback(() => {
+    if (!accessToken) return
+    adminApi.listSchools(accessToken).then(setSchools).catch(() => {})
+    adminApi.listSchoolRepresentatives(accessToken).then(setSchoolRepresentatives).catch(() => {})
+  }, [accessToken])
   const loadArenaTabData = useCallback(() => {
     arenaApi.getCompetitions().then(setArenaCompetitions).catch(() => {})
     void callApi<Student[]>('/admin/students', setStudents)
@@ -286,7 +299,7 @@ export default function AdminDashboard() {
         .then((list) => setModeratorUsers(list))
         .catch(() => arenaApi.getModeratorUsers(accessToken).then(setModeratorUsers).catch(() => {}))
     }
-  }, [accessToken, callApi])
+  }, [accessToken, callApi, loadSchoolsData])
 
   // ── Correspondence handlers ─────────────────────────────────────────────────
   const loadCorrSessions = useCallback(async () => {
@@ -626,6 +639,7 @@ export default function AdminDashboard() {
       items: [
         { id: 'users', label: 'Tous les utilisateurs', onClick: () => openAdminTab('users'), active: tab === 'users' },
         { id: 'team', label: 'Équipe administrative', onClick: () => openAdminTab('team'), active: tab === 'team' },
+        { id: 'schools', label: 'Établissements', onClick: () => openAdminTab('schools'), active: tab === 'schools' },
       ],
     },
     {
@@ -690,6 +704,7 @@ export default function AdminDashboard() {
     { key: 'library', label: 'Bibliotheque' },
     { key: 'users', label: 'Utilisateurs' },
     { key: 'team', label: 'Équipe' },
+    { key: 'schools', label: 'Écoles' },
     { key: 'arena', label: 'Arena' },
     { key: 'correspondence', label: 'Correspondance' },
     { key: 'leaderboard', label: 'Classement' },
@@ -727,7 +742,7 @@ export default function AdminDashboard() {
           <button onClick={logout} style={{ fontSize: 16, color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Quitter</button>
         </div>
 
-        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: ['indicators', 'alerts', 'users', 'team', 'leaderboard', 'reports', 'statistics', 'organization', 'integrations', 'security', 'global-config'].includes(tab) ? 1080 : 860 }}>
+        <div className="dashboard-main md:ml-[292px]" style={{ maxWidth: ['indicators', 'alerts', 'users', 'team', 'schools', 'leaderboard', 'reports', 'statistics', 'organization', 'integrations', 'security', 'global-config'].includes(tab) ? 1080 : 860 }}>
 
           {/* -- OVERVIEW -- */}
           {tab === 'overview' && (
@@ -791,6 +806,79 @@ export default function AdminDashboard() {
           {tab === 'leaderboard' && <AdminPublicLeaderboard classes={classes} />}
           {tab === 'statistics' && <AdminAnalysisView mode="statistics" data={adminInsights.data} loading={adminInsights.loading} error={adminInsights.error} onRefresh={() => void adminInsights.refresh()} />}
           {tab === 'reports' && <AdminAnalysisView mode="reports" data={adminInsights.data} loading={adminInsights.loading} error={adminInsights.error} onRefresh={() => void adminInsights.refresh()} />}
+          {tab === 'schools' && (
+            <div>
+              <p className="overline" style={{ marginBottom: 8 }}>Institutions</p>
+              <h1 className="display" style={{ fontSize: 32, color: 'var(--cobalt)', marginBottom: 16 }}>Etablissements scolaires</h1>
+              {schoolMsg && <div className="alert alert-ok" style={{ marginBottom: 16 }}>{schoolMsg}</div>}
+
+              <div className="card" style={{ marginBottom: 20 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Nouvel etablissement</h2>
+                <div className="responsive-two-col" style={{ gap: 12 }}>
+                  <div><label className="field-label">Nom</label><input className="field-input" value={schoolForm.name} onChange={(e) => setSchoolForm(f => ({ ...f, name: e.target.value }))} /></div>
+                  <div><label className="field-label">Ville</label><input className="field-input" value={schoolForm.city} onChange={(e) => setSchoolForm(f => ({ ...f, city: e.target.value }))} /></div>
+                  <div><label className="field-label">Departement</label><select className="field-input" value={schoolForm.department} onChange={(e) => setSchoolForm(f => ({ ...f, department: e.target.value }))}><option value="">-- Choisir --</option>{HAITI_DEPARTMENTS.map((dep) => <option key={dep} value={dep}>{dep}</option>)}</select></div>
+                  <div><label className="field-label">Adresse</label><input className="field-input" value={schoolForm.address} onChange={(e) => setSchoolForm(f => ({ ...f, address: e.target.value }))} /></div>
+                  <div><label className="field-label">Contact</label><input className="field-input" value={schoolForm.contactName} onChange={(e) => setSchoolForm(f => ({ ...f, contactName: e.target.value }))} /></div>
+                  <div><label className="field-label">Email contact</label><input className="field-input" value={schoolForm.contactEmail} onChange={(e) => setSchoolForm(f => ({ ...f, contactEmail: e.target.value }))} /></div>
+                  <div><label className="field-label">Telephone</label><input className="field-input" value={schoolForm.contactPhone} onChange={(e) => setSchoolForm(f => ({ ...f, contactPhone: e.target.value }))} /></div>
+                  <div><label className="field-label">Logo URL</label><input className="field-input" value={schoolForm.logoUrl} onChange={(e) => setSchoolForm(f => ({ ...f, logoUrl: e.target.value }))} /></div>
+                </div>
+                <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={async () => {
+                  if (!accessToken) return
+                  try {
+                    const created = await adminApi.createSchool({
+                      name: schoolForm.name.trim(), city: schoolForm.city.trim() || undefined, department: schoolForm.department || undefined,
+                      address: schoolForm.address.trim() || undefined, contactName: schoolForm.contactName.trim() || undefined,
+                      contactEmail: schoolForm.contactEmail.trim() || undefined, contactPhone: schoolForm.contactPhone.trim() || undefined,
+                      logoUrl: schoolForm.logoUrl.trim() || undefined,
+                    }, accessToken)
+                    setSchools(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+                    setSchoolForm({ name: '', city: '', department: '', address: '', contactName: '', contactEmail: '', contactPhone: '', logoUrl: '' })
+                    setSchoolMsg(`Etablissement "${created.name}" cree.`)
+                  } catch (err) { setSchoolMsg((err as Error).message) }
+                }}>Creer l'etablissement</button>
+              </div>
+
+              <div className="card" style={{ marginBottom: 20 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Compte representant</h2>
+                <div className="responsive-two-col" style={{ gap: 12 }}>
+                  <div><label className="field-label">Etablissement</label><select className="field-input" value={schoolRepForm.schoolId} onChange={(e) => setSchoolRepForm(f => ({ ...f, schoolId: e.target.value }))}><option value="">-- Choisir --</option>{schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></div>
+                  <div><label className="field-label">Email</label><input className="field-input" value={schoolRepForm.email} onChange={(e) => setSchoolRepForm(f => ({ ...f, email: e.target.value }))} /></div>
+                  <div><label className="field-label">Prenom</label><input className="field-input" value={schoolRepForm.firstName} onChange={(e) => setSchoolRepForm(f => ({ ...f, firstName: e.target.value }))} /></div>
+                  <div><label className="field-label">Nom</label><input className="field-input" value={schoolRepForm.lastName} onChange={(e) => setSchoolRepForm(f => ({ ...f, lastName: e.target.value }))} /></div>
+                  <div><label className="field-label">Mot de passe</label><input className="field-input" disabled={schoolRepForm.generatePassword} value={schoolRepForm.password} onChange={(e) => setSchoolRepForm(f => ({ ...f, password: e.target.value }))} /></div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ink-2)', marginTop: 26 }}><input type="checkbox" checked={schoolRepForm.generatePassword} onChange={(e) => setSchoolRepForm(f => ({ ...f, generatePassword: e.target.checked }))} /> Generer automatiquement</label>
+                </div>
+                <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={async () => {
+                  if (!accessToken || !schoolRepForm.schoolId) return
+                  try {
+                    const rep = await adminApi.createSchoolRepresentative(schoolRepForm.schoolId, {
+                      firstName: schoolRepForm.firstName, lastName: schoolRepForm.lastName, email: schoolRepForm.email,
+                      password: schoolRepForm.generatePassword ? undefined : schoolRepForm.password,
+                      generatePassword: schoolRepForm.generatePassword,
+                    }, accessToken)
+                    setSchoolRepresentatives(prev => [...prev, rep])
+                    setSchoolRepForm({ schoolId: '', firstName: '', lastName: '', email: '', password: '', generatePassword: true })
+                    setSchoolMsg(rep.temporaryPassword ? `Representant cree. Mot de passe temporaire: ${rep.temporaryPassword}` : 'Representant cree.')
+                    loadSchoolsData()
+                  } catch (err) { setSchoolMsg((err as Error).message) }
+                }}>Creer le representant</button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {schools.map((school) => (
+                  <div key={school.id} className="card" style={{ padding: '14px 18px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <div><strong>{school.name}</strong><p style={{ margin: '4px 0 0', color: 'var(--ink-3)', fontSize: 13 }}>{[school.city, school.department].filter(Boolean).join(' - ') || 'Localisation non renseignee'}</p></div>
+                      <span style={{ color: school.isActive ? 'var(--ok)' : 'var(--error)', fontWeight: 700 }}>{school.isActive ? 'Actif' : 'Inactif'}</span>
+                    </div>
+                    <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink-3)' }}>Representants: {schoolRepresentatives.filter((rep) => rep.schoolId === school.id).map((rep) => `${rep.firstName} ${rep.lastName}`).join(', ') || 'aucun'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {tab === 'organization' && accessToken && <AdminSettingsView token={accessToken} mode="organization" />}
           {tab === 'integrations' && accessToken && <AdminSettingsView token={accessToken} mode="integrations" />}
           {tab === 'security' && accessToken && <AdminSettingsView token={accessToken} mode="security" />}
@@ -1319,25 +1407,31 @@ export default function AdminDashboard() {
                         <input className="field-input" value={arenaCompForm.name} onChange={(e) => setArenaCompForm(f => ({ ...f, name: e.target.value }))} placeholder="Duel Mathématiques S1" style={{ width: '100%' }} />
                       </div>
                       <div>
-                        <label className="field-label">Compétiteur A</label>
-                        <select className="field-input" value={arenaCompForm.competitorAUserId} onChange={(e) => setArenaCompForm(f => ({ ...f, competitorAUserId: e.target.value }))} style={{ width: '100%' }}>
-                          <option value="">— Choisir le compétiteur A —</option>
-                          {students.map((student) => (
-                            <option key={student.id} value={student.id}>
-                              {student.firstName} {student.lastName} ({student.email})
-                            </option>
-                          ))}
+                        <label className="field-label">Etablissement A</label>
+                        <select className="field-input" value={arenaCompForm.schoolAId} onChange={(e) => setArenaCompForm(f => ({ ...f, schoolAId: e.target.value, schoolARepresentativeUserId: '' }))} style={{ width: '100%' }}>
+                          <option value="">-- Choisir l'etablissement A --</option>
+                          {schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="field-label">Compétiteur B</label>
-                        <select className="field-input" value={arenaCompForm.competitorBUserId} onChange={(e) => setArenaCompForm(f => ({ ...f, competitorBUserId: e.target.value }))} style={{ width: '100%' }}>
-                          <option value="">— Choisir le compétiteur B —</option>
-                          {students.map((student) => (
-                            <option key={student.id} value={student.id}>
-                              {student.firstName} {student.lastName} ({student.email})
-                            </option>
-                          ))}
+                        <label className="field-label">Representant A</label>
+                        <select className="field-input" value={arenaCompForm.schoolARepresentativeUserId} onChange={(e) => setArenaCompForm(f => ({ ...f, schoolARepresentativeUserId: e.target.value }))} style={{ width: '100%' }}>
+                          <option value="">-- Choisir le compte live A --</option>
+                          {schoolRepresentatives.filter((rep) => rep.schoolId === arenaCompForm.schoolAId).map((rep) => <option key={rep.id} value={rep.id}>{rep.firstName} {rep.lastName} ({rep.email})</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">Etablissement B</label>
+                        <select className="field-input" value={arenaCompForm.schoolBId} onChange={(e) => setArenaCompForm(f => ({ ...f, schoolBId: e.target.value, schoolBRepresentativeUserId: '' }))} style={{ width: '100%' }}>
+                          <option value="">-- Choisir l'etablissement B --</option>
+                          {schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">Representant B</label>
+                        <select className="field-input" value={arenaCompForm.schoolBRepresentativeUserId} onChange={(e) => setArenaCompForm(f => ({ ...f, schoolBRepresentativeUserId: e.target.value }))} style={{ width: '100%' }}>
+                          <option value="">-- Choisir le compte live B --</option>
+                          {schoolRepresentatives.filter((rep) => rep.schoolId === arenaCompForm.schoolBId).map((rep) => <option key={rep.id} value={rep.id}>{rep.firstName} {rep.lastName} ({rep.email})</option>)}
                         </select>
                       </div>
                       <div>
@@ -1369,7 +1463,7 @@ export default function AdminDashboard() {
                       <textarea className="field-input" rows={3} value={arenaCompForm.description} onChange={(e) => setArenaCompForm(f => ({ ...f, description: e.target.value }))} placeholder="Contexte éditorial, thème et consignes pour le modérateur" style={{ width: '100%', resize: 'vertical' }} />
                     </div>
                     <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.6 }}>
-                      Le match est créé avec deux compétiteurs désignés à l’avance. Une bonne réponse vaut 1 point et le modérateur garde la main sur chaque question.
+                      Le match est cree avec deux etablissements designes a l'avance. Une bonne réponse vaut 1 point et le modérateur garde la main sur chaque question.
                     </p>
                     <button
                       className="btn btn-primary btn-sm"
@@ -1378,13 +1472,15 @@ export default function AdminDashboard() {
                         try {
                           if (!accessToken) throw new Error('Session administrateur invalide.')
                           if (!arenaCompForm.name.trim()) throw new Error('Le nom du match est requis.')
-                          if (!arenaCompForm.competitorAUserId || !arenaCompForm.competitorBUserId) throw new Error('Choisissez les deux compétiteurs du match.')
-                          if (arenaCompForm.competitorAUserId === arenaCompForm.competitorBUserId) throw new Error('Choisissez deux compétiteurs différents.')
+                          if (!arenaCompForm.schoolAId || !arenaCompForm.schoolBId || !arenaCompForm.schoolARepresentativeUserId || !arenaCompForm.schoolBRepresentativeUserId) throw new Error('Choisissez deux etablissements et leurs representants live.')
+                          if (arenaCompForm.schoolAId === arenaCompForm.schoolBId) throw new Error('Choisissez deux etablissements differents.')
                           if (!arenaCompForm.scheduledAt) throw new Error('La date du direct est requise.')
                           const c = await arenaApi.createCompetition({
                             name: arenaCompForm.name.trim(),
-                            competitorAUserId: arenaCompForm.competitorAUserId,
-                            competitorBUserId: arenaCompForm.competitorBUserId,
+                            schoolAId: arenaCompForm.schoolAId,
+                            schoolBId: arenaCompForm.schoolBId,
+                            schoolARepresentativeUserId: arenaCompForm.schoolARepresentativeUserId,
+                            schoolBRepresentativeUserId: arenaCompForm.schoolBRepresentativeUserId,
                             moderatorUserId: arenaCompForm.moderatorUserId || undefined,
                             questionCount: arenaCompForm.questionCount,
                             secondsPerQuestion: arenaCompForm.secondsPerQuestion,
@@ -1393,7 +1489,7 @@ export default function AdminDashboard() {
                           }, accessToken)
                           setArenaCompetitions(prev => [c, ...prev])
                           setArenaMsg(`Match "${c.name}" créé.`)
-                          setArenaCompForm({ name: '', competitorAUserId: '', competitorBUserId: '', moderatorUserId: '', questionCount: 10, secondsPerQuestion: 30, description: '', scheduledAt: '' })
+                          setArenaCompForm({ name: '', schoolAId: '', schoolBId: '', schoolARepresentativeUserId: '', schoolBRepresentativeUserId: '', moderatorUserId: '', questionCount: 10, secondsPerQuestion: 30, description: '', scheduledAt: '' })
                         } catch (err) { setArenaError((err as Error).message) }
                       }}
                     >

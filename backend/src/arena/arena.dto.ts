@@ -21,10 +21,28 @@ export class CreateArenaCompetitionDto {
   name: string;
 
   @IsUUID()
-  competitorAUserId: string;
+  @IsOptional()
+  competitorAUserId?: string;
 
   @IsUUID()
-  competitorBUserId: string;
+  @IsOptional()
+  competitorBUserId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  schoolAId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  schoolBId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  schoolARepresentativeUserId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  schoolBRepresentativeUserId?: string;
 
   @IsUUID()
   @IsOptional()

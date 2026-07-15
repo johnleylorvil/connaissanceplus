@@ -11,12 +11,12 @@ export function resolvePortalMode(hostname = window.location.hostname): PortalMo
 }
 
 export function portalAllowsRole(portal: PortalMode, role: UserRole): boolean {
-  if (portal === 'public') return role === 'student'
+  if (portal === 'public') return role === 'student' || role === 'school'
   return role === 'admin' || role === 'moderator'
 }
 
 export function portalForRole(role: UserRole): PortalMode {
-  return role === 'student' ? 'public' : 'admin'
+  return role === 'student' || role === 'school' ? 'public' : 'admin'
 }
 
 function resolveDefaultOrigin(portal: PortalMode): string {

@@ -226,8 +226,8 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
                 <Countdown targetDate={comp.scheduledAt} />
               </span>
             )}
-            {comp.status === 'completed' && comp.winnerParticipantName && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: T.gold }}>🏆 {comp.winnerParticipantName}</span>
+            {comp.status === 'completed' && (comp.winnerSchoolName || comp.winnerParticipantName) && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.gold }}>?? {comp.winnerSchoolName ?? comp.winnerParticipantName}</span>
             )}
           </div>
         </div>
@@ -235,8 +235,8 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
       </div>
 
       {/* VS faceoff */}
-      {comp.competitorAName && comp.competitorBName && (
-        <VsFaceoff compA={comp.competitorAName} compB={comp.competitorBName} />
+      {(comp.schoolAName || comp.competitorAName) && (comp.schoolBName || comp.competitorBName) && (
+        <VsFaceoff compA={comp.schoolAName ?? comp.competitorAName ?? 'Etablissement A'} compB={comp.schoolBName ?? comp.competitorBName ?? 'Etablissement B'} />
       )}
 
       {/* Date */}
@@ -340,7 +340,7 @@ export default function ArenaCompetitionsList({ embedded = false }: { embedded?:
       <div className="arena-hub-title">
         <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: T.textSoft }}>Konesans+ Arena</p>
         <h1>Votre espace de comp&eacute;tition</h1>
-        {!embedded && <span>Directs, prochains matchs et derniers r&eacute;sultats au m&ecirc;me endroit.</span>}
+        {!embedded && <span>Directs institutionnels, prochains matchs et derniers r&eacute;sultats au m&ecirc;me endroit.</span>}
       </div>
 
       {error && (

@@ -77,6 +77,21 @@ export class ArenaCompetition {
   competitorBUserId: string | null;
 
   @Column('uuid', { nullable: true })
+  schoolAId: string | null;
+
+  @Column('uuid', { nullable: true })
+  schoolBId: string | null;
+
+  @Column('uuid', { nullable: true })
+  schoolARepresentativeUserId: string | null;
+
+  @Column('uuid', { nullable: true })
+  schoolBRepresentativeUserId: string | null;
+
+  @Column('uuid', { nullable: true })
+  winnerSchoolId: string | null;
+
+  @Column('uuid', { nullable: true })
   moderatorUserId: string | null;
 
   @Column({ type: 'int', default: 0 })

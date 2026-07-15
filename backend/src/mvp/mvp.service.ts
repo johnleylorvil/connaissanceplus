@@ -32,6 +32,7 @@ import {
   OptionChoice,
   Question,
   QuizSession,
+  School,
   QuizSessionQuestion,
   QuizStatus,
   Subject,
@@ -44,6 +45,8 @@ import {
   BootstrapAdminDto,
   CreateClassDto,
   CreateModeratorDto,
+  CreateSchoolDto,
+  CreateSchoolRepresentativeDto,
   CreateQuestionDto,
   CreateSubjectDto,
   DuelAnswerDto,
@@ -58,6 +61,7 @@ import {
   SuspendUserDto,
   SubmitQuizDto,
   UpdateProfileDto,
+  UpdateSchoolDto,
 } from './dto/mvp.dto';
 import { Profile as GoogleProfile } from 'passport-google-oauth20';
 import * as crypto from 'crypto';
@@ -113,6 +117,8 @@ export class MvpService {
     private readonly verificationRepo: Repository<AccountVerificationCode>,
     @InjectRepository(AcademicClass)
     private readonly classRepo: Repository<AcademicClass>,
+    @InjectRepository(School)
+    private readonly schoolRepo: Repository<School>,
     @InjectRepository(Subject)
     private readonly subjectRepo: Repository<Subject>,
     @InjectRepository(Question)
@@ -1457,6 +1463,101 @@ export class MvpService {
     return { studentCount, questionCount, subjectCount, sessionCount };
   }
 
+  async createSchool(dto: CreateSchoolDto) {
+    const school = this.schoolRepo.create({
+      name: dto.name.trim(),
+      city: dto.city?.trim() || null,
+      department: dto.department?.trim() || null,
+      address: dto.address?.trim() || null,
+      contactName: dto.contactName?.trim() || null,
+      contactEmail: dto.contactEmail?.trim() || null,
+      contactPhone: dto.contactPhone?.trim() || null,
+      logoUrl: dto.logoUrl?.trim() || null,
+      isActive: true,
+    });
+    return this.schoolRepo.save(school);
+  }
+
+  async getSchools() {
+    const schools = await this.schoolRepo.find({
+      relations: ['representatives'],
+      order: { name: 'ASC' },
+    });
+    return schools.map((school) => ({
+      ...school,
+      representatives: (school.representatives ?? [])
+        .filter((rep) => rep.role === UserRole.SCHOOL)
+        .map((rep) => this.sanitizeUser(rep)),
+    }));
+  }
+
+  async updateSchool(schoolId: string, dto: UpdateSchoolDto) {
+    const school = await this.schoolRepo.findOne({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException('Etablissement introuvable.');
+
+    if (dto.name !== undefined) school.name = dto.name.trim();
+    if (dto.city !== undefined) school.city = dto.city?.trim() || null;
+    if (dto.department !== undefined) school.department = dto.department?.trim() || null;
+    if (dto.address !== undefined) school.address = dto.address?.trim() || null;
+    if (dto.contactName !== undefined) school.contactName = dto.contactName?.trim() || null;
+    if (dto.contactEmail !== undefined) school.contactEmail = dto.contactEmail?.trim() || null;
+    if (dto.contactPhone !== undefined) school.contactPhone = dto.contactPhone?.trim() || null;
+    if (dto.logoUrl !== undefined) school.logoUrl = dto.logoUrl?.trim() || null;
+    if (dto.isActive !== undefined) school.isActive = dto.isActive;
+
+    return this.schoolRepo.save(school);
+  }
+
+  async createSchoolRepresentative(schoolId: string, dto: CreateSchoolRepresentativeDto) {
+    const school = await this.schoolRepo.findOne({ where: { id: schoolId, isActive: true } });
+    if (!school) throw new NotFoundException('Etablissement actif introuvable.');
+
+    const email = this.normalizeEmail(dto.email);
+    const existing = await this.userRepo.findOne({ where: { email } });
+    if (existing) throw new ConflictException('Email already in use');
+
+    let rawPassword: string;
+    let temporaryPassword: string | null = null;
+    if (dto.generatePassword || !dto.password) {
+      rawPassword = crypto.randomBytes(8).toString('hex');
+      temporaryPassword = rawPassword;
+    } else {
+      this.platformSettings?.assertPassword(dto.password);
+      rawPassword = dto.password;
+    }
+
+    const representative = await this.userRepo.save(
+      this.userRepo.create({
+        firstName: dto.firstName.trim(),
+        lastName: dto.lastName.trim(),
+        email,
+        password: await bcrypt.hash(rawPassword, 10),
+        role: UserRole.SCHOOL,
+        schoolId: school.id,
+        school: school.name,
+        city: school.city,
+        department: school.department,
+        canBeContacted: false,
+        acceptedPrivacyPolicy: true,
+      }),
+    );
+
+    return {
+      ...this.sanitizeUser(representative),
+      temporaryPassword,
+    };
+  }
+
+  async getSchoolRepresentatives(schoolId?: string) {
+    const where = schoolId
+      ? { role: UserRole.SCHOOL, schoolId, isActive: true }
+      : { role: UserRole.SCHOOL, isActive: true };
+    const representatives = await this.userRepo.find({
+      where,
+      order: { firstName: 'ASC', lastName: 'ASC' },
+    });
+    return representatives.map((rep) => this.sanitizeUser(rep));
+  }
   async getStudents() {
     const students = await this.userRepo.find({
       where: { role: UserRole.STUDENT },
@@ -1488,10 +1589,11 @@ export class MvpService {
       }));
     }
 
-    const [users, total, students, moderators, admins, active, suspended] = await Promise.all([
+    const [users, total, students, schools, moderators, admins, active, suspended] = await Promise.all([
       builder.clone().skip((page - 1) * pageSize).take(pageSize).getMany(),
       builder.getCount(),
       this.userRepo.count({ where: { role: UserRole.STUDENT } }),
+      this.userRepo.count({ where: { role: UserRole.SCHOOL } }),
       this.userRepo.count({ where: { role: UserRole.MODERATOR } }),
       this.userRepo.count({ where: { role: UserRole.ADMIN } }),
       this.userRepo.count({ where: query.scope === 'team' ? { role: In([UserRole.ADMIN, UserRole.MODERATOR]), isActive: true } : { isActive: true } }),
@@ -1501,7 +1603,7 @@ export class MvpService {
     return {
       items: users.map((user) => this.sanitizeUser(user)),
       pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
-      countsByRole: { student: students, moderator: moderators, admin: admins },
+      countsByRole: { student: students, school: schools, moderator: moderators, admin: admins },
       countsByStatus: { active, suspended },
     };
   }

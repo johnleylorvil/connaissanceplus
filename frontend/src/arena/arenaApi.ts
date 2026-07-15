@@ -6,7 +6,10 @@ export const ADMIN_API = `${API_BASE}/admin`
 export type ArenaLeaderboardRow = {
   rank: number
   participantUserId: string
+  schoolId?: string | null
   displayName: string
+  city?: string | null
+  department?: string | null
   score: number
 }
 
@@ -34,10 +37,22 @@ export type ArenaCompetition = {
   currentRound: number
   competitorAUserId: string | null
   competitorAName?: string | null
+  schoolAId?: string | null
+  schoolAName?: string | null
+  schoolACity?: string | null
+  schoolADepartment?: string | null
+  schoolARepresentativeUserId?: string | null
   competitorBUserId: string | null
   competitorBName?: string | null
+  schoolBId?: string | null
+  schoolBName?: string | null
+  schoolBCity?: string | null
+  schoolBDepartment?: string | null
+  schoolBRepresentativeUserId?: string | null
   winnerParticipantUserId: string | null
   winnerParticipantName?: string | null
+  winnerSchoolId?: string | null
+  winnerSchoolName?: string | null
   moderatorUserId: string | null
   moderatorName?: string | null
   moderatorEmail?: string | null
@@ -49,6 +64,52 @@ export type ArenaCompetition = {
   createdAt: string
 }
 
+export type SchoolRepresentative = {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  role: 'school'
+  schoolId: string | null
+  school?: string | null
+  city?: string | null
+  department?: string | null
+  temporaryPassword?: string | null
+}
+
+export type School = {
+  id: string
+  name: string
+  city: string | null
+  department: string | null
+  address: string | null
+  contactName: string | null
+  contactEmail: string | null
+  contactPhone: string | null
+  logoUrl: string | null
+  isActive: boolean
+  createdAt: string
+  representatives?: SchoolRepresentative[]
+}
+
+export type CreateSchoolPayload = {
+  name: string
+  city?: string
+  department?: string
+  address?: string
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
+  logoUrl?: string
+}
+
+export type CreateSchoolRepresentativePayload = {
+  firstName: string
+  lastName: string
+  email: string
+  password?: string
+  generatePassword?: boolean
+}
 export type AdminUser = {
   id: string
   firstName: string
@@ -85,8 +146,12 @@ export type ArenaRegistration = {
 
 export type CreateArenaCompetitionPayload = {
   name: string
-  competitorAUserId: string
-  competitorBUserId: string
+  competitorAUserId?: string
+  competitorBUserId?: string
+  schoolAId?: string
+  schoolBId?: string
+  schoolARepresentativeUserId?: string
+  schoolBRepresentativeUserId?: string
   moderatorUserId?: string
   questionCount: number
   secondsPerQuestion: number
@@ -265,6 +330,20 @@ async function adminFetch<T>(path: string, init?: RequestInit, token?: string | 
 }
 
 export const adminApi = {
+  listSchools: (token: string) =>
+    adminFetch<School[]>('/schools', {}, token),
+
+  createSchool: (payload: CreateSchoolPayload, token: string) =>
+    adminFetch<School>('/schools', { method: 'POST', body: JSON.stringify(payload) }, token),
+
+  updateSchool: (schoolId: string, payload: Partial<CreateSchoolPayload> & { isActive?: boolean }, token: string) =>
+    adminFetch<School>(`/schools/${schoolId}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+
+  listSchoolRepresentatives: (token: string, schoolId?: string) =>
+    adminFetch<SchoolRepresentative[]>(`/school-representatives${schoolId ? `?schoolId=${schoolId}` : ''}`, {}, token),
+
+  createSchoolRepresentative: (schoolId: string, payload: CreateSchoolRepresentativePayload, token: string) =>
+    adminFetch<SchoolRepresentative>(`/schools/${schoolId}/representatives`, { method: 'POST', body: JSON.stringify(payload) }, token),
   listModerators: (token: string) =>
     adminFetch<ModeratorListItem[]>('/moderators', {}, token),
 

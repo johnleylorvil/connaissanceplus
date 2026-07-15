@@ -11,7 +11,7 @@ import {
   ArenaParticipantAnswer,
   ArenaRound,
 } from './arena.entities';
-import { Notification, Question, User } from '../mvp/entities';
+import { Notification, Question, User, School } from '../mvp/entities';
 import { ArenaController } from './arena.controller';
 import { ArenaService } from './arena.service';
 import { ArenaGateway } from './arena.gateway';
@@ -36,6 +36,7 @@ import { RtcService } from './rtc.service';
       ArenaParticipantScoreAdjustment,
       Question,
       User,
+      School,
       Notification,
     ]),
   ],

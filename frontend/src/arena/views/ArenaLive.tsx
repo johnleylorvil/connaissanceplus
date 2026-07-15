@@ -11,6 +11,7 @@ type UserMode = 'competitor' | 'moderator' | 'spectator'
 
 type MatchParticipant = {
   participantUserId: string
+  schoolId?: string | null
   displayName: string
   score: number
   slot: 'A' | 'B'
@@ -27,6 +28,7 @@ type LiveQuestion = {
 
 type QuestionTarget = {
   participantUserId: string
+  schoolId?: string | null
   displayName: string | null
   slot: 'A' | 'B'
 }
@@ -44,8 +46,8 @@ type LiveStateSnapshot = {
   currentRound: LiveQuestion | null
   currentQuestion?: LiveQuestion | null
   leaderboard: ArenaLeaderboardRow[]
-  participants?: Array<{ userId: string; displayName: string; slot: 'A' | 'B' }>
-  matchParticipants?: Array<{ userId: string; displayName: string; role: 'competitorA' | 'competitorB' | 'moderator' }>
+  participants?: Array<{ userId: string; schoolId?: string | null; displayName: string; city?: string | null; department?: string | null; slot: 'A' | 'B' }>
+  matchParticipants?: Array<{ userId: string; schoolId?: string | null; displayName: string; city?: string | null; department?: string | null; role: 'competitorA' | 'competitorB' | 'moderator' }>
   currentQuestionTarget?: QuestionTarget | null
 }
 
@@ -346,7 +348,7 @@ function CompetitorPanel({
         {/* Name overlay — bottom left */}
         <div className="arena-participant-name-overlay" style={{ position: 'absolute', bottom: 14, left: 14 }}>
           <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.58)', fontWeight: 600, lineHeight: 1.2 }}>
-            Compétiteur {participant.slot}
+            Ecole {participant.slot}
           </p>
           <p style={{ margin: '3px 0 0', fontSize: 17, color: '#fff', fontWeight: 800, lineHeight: 1.1 }}>
             {participant.displayName}
@@ -391,7 +393,7 @@ function CompetitorPanel({
         }}
       >
         <div className="arena-compact-participant-meta">
-          <span>Comp&eacute;titeur {participant.slot}</span>
+          <span>Ecole {participant.slot}</span>
           <strong>{participant.displayName}</strong>
         </div>
         {/* Score row */}
@@ -745,7 +747,7 @@ export default function ArenaLive() {
   const participants = useMemo<MatchParticipant[]>(() => {
     const fromState = (liveState?.participants ?? []).map((p) => {
       const row = liveLeaderboard.find((e) => e.participantUserId === p.userId)
-      return { participantUserId: p.userId, displayName: p.displayName, score: row?.score ?? 0, slot: p.slot }
+      return { participantUserId: p.userId, schoolId: p.schoolId ?? row?.schoolId ?? null, displayName: p.displayName, score: row?.score ?? 0, slot: p.slot }
     })
 
     const seeded =
@@ -761,7 +763,7 @@ export default function ArenaLive() {
     while (seeded.length < 2) {
       seeded.push({
         participantUserId: `placeholder-${seeded.length}`,
-        displayName: seeded.length === 0 ? 'Compétiteur A' : 'Compétiteur B',
+        displayName: seeded.length === 0 ? 'Etablissement A' : 'Etablissement B',
         score: 0,
         slot: seeded.length === 0 ? 'A' : 'B',
       })

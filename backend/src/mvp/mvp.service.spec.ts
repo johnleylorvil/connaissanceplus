@@ -273,6 +273,7 @@ describe('MvpService timed duel', () => {
       emptyRepo as never,
       emptyRepo as never,
       emptyRepo as never,
+      emptyRepo as never,
       questionRepo as never,
       emptyRepo as never,
       emptyRepo as never,

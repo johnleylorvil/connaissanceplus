@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { SOCKET_BASE } from '../api/client'
 import type { ArenaLeaderboardRow } from './arenaApi'
@@ -16,18 +16,21 @@ export type LiveRound = {
 
 export type ArenaParticipant = {
   userId: string
+  schoolId?: string | null
   displayName: string
   slot: 'A' | 'B'
 }
 
 export type ArenaMatchParticipant = {
   userId: string
+  schoolId?: string | null
   displayName: string
   role: 'competitorA' | 'competitorB' | 'moderator' | 'spectator'
 }
 
 export type ArenaQuestionTarget = {
   participantUserId: string
+  schoolId?: string | null
   displayName: string | null
   slot: 'A' | 'B'
 }
@@ -141,7 +144,7 @@ export function useArenaSocket(params: {
       setSocketState((s) => ({ ...s, leaderboard }))
     })
 
-    // score.updated is an alias for arena:leaderboard — payload is wrapped in { leaderboard }
+    // score.updated is an alias for arena:leaderboard � payload is wrapped in { leaderboard }
     socket.on('score.updated', (data: { leaderboard: ArenaLeaderboardRow[] }) => {
       setSocketState((s) => ({ ...s, leaderboard: data.leaderboard }))
     })
@@ -166,6 +169,7 @@ export function useArenaSocket(params: {
                 return targetParticipant
                   ? {
                       participantUserId: targetParticipant.userId,
+                      schoolId: targetParticipant.schoolId ?? null,
                       displayName: targetParticipant.displayName,
                       slot: targetSlot,
                     }

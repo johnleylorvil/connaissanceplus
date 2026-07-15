@@ -178,7 +178,7 @@ export default function App() {
       <Route
         path="/arena"
         element={
-          <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
+          <RequireRole allowedRoles={['student', 'admin', 'moderator', 'school']}>
             <ArenaPage />
           </RequireRole>
         }
@@ -186,7 +186,7 @@ export default function App() {
       <Route
         path="/arena/live/:id"
         element={
-          <RequireRole allowedRoles={['student', 'admin', 'moderator']}>
+          <RequireRole allowedRoles={['student', 'admin', 'moderator', 'school']}>
             <ArenaLive />
           </RequireRole>
         }

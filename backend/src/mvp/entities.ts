@@ -16,6 +16,7 @@ export enum UserRole {
   STUDENT = 'student',
   ADMIN = 'admin',
   MODERATOR = 'moderator',
+  SCHOOL = 'school',
 }
 
 
@@ -90,6 +91,45 @@ export class AcademicClass {
   students: User[];
 }
 
+@Entity('schools')
+@Unique(['name'])
+export class School {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'text' })
+  name: string;
+
+  @Column({ type: 'text', nullable: true })
+  city: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  department: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  address: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  contactName: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  contactEmail: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  contactPhone: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  logoUrl: string | null;
+
+  @Column({ default: true })
+  isActive: boolean;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @OneToMany(() => User, (user) => user.institutionalSchool)
+  representatives: User[];
+}
 @Entity('subjects')
 @Unique(['name', 'classId'])
 export class Subject {
@@ -147,6 +187,13 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   school: string | null;
+
+  @Column('uuid', { nullable: true })
+  schoolId: string | null;
+
+  @ManyToOne(() => School, (school) => school.representatives, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'schoolId' })
+  institutionalSchool: School | null;
 
   @Column({ type: 'text', nullable: true })
   city: string | null;

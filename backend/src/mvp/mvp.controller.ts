@@ -22,6 +22,8 @@ import {
   CreateClassDto,
   CreateModeratorDto,
   CreateOralDuelDto,
+  CreateSchoolDto,
+  CreateSchoolRepresentativeDto,
   CreateQuestionDto,
   CreateSubjectDto,
   DuelAnswerDto,
@@ -37,6 +39,7 @@ import {
   SuspendUserDto,
   SubmitQuizDto,
   UpdateProfileDto,
+  UpdateSchoolDto,
 } from './dto/mvp.dto';
 import { MvpService } from './mvp.service';
 import { DuelOralService } from './duel-oral.service';
@@ -222,6 +225,46 @@ export class MvpController {
     return this.mvpService.getBroadcasts();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/schools')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  createSchool(@Body() dto: CreateSchoolDto) {
+    return this.mvpService.createSchool(dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/schools')
+  getSchools() {
+    return this.mvpService.getSchools();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('admin/schools/:id')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  updateSchool(@Param('id') id: string, @Body() dto: UpdateSchoolDto) {
+    return this.mvpService.updateSchool(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/schools/:id/representatives')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  createSchoolRepresentative(
+    @Param('id') id: string,
+    @Body() dto: CreateSchoolRepresentativeDto,
+  ) {
+    return this.mvpService.createSchoolRepresentative(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/school-representatives')
+  getSchoolRepresentatives(@Query('schoolId') schoolId?: string) {
+    return this.mvpService.getSchoolRepresentatives(schoolId);
+  }
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('admin/moderators')

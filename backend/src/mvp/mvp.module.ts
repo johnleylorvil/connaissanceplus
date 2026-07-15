@@ -19,6 +19,7 @@ import {
   QuizSessionQuestion,
   Subject,
   User,
+  School,
 } from './entities';
 import { MvpController } from './mvp.controller';
 import { MvpService } from './mvp.service';
@@ -43,6 +44,7 @@ import { MailService } from './mail.service';
     }),
     TypeOrmModule.forFeature([
       User,
+      School,
       AccountVerificationCode,
       AcademicClass,
       Subject,

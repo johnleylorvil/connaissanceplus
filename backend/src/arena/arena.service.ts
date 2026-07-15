@@ -30,7 +30,7 @@ import {
   SetWinnerDto,
   UpdateArenaPublicStreamDto,
 } from './arena.dto';
-import { Notification, Question, User, UserRole } from '../mvp/entities';
+import { Notification, Question, User, UserRole, School } from '../mvp/entities';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 
 @Injectable()
@@ -52,6 +52,8 @@ export class ArenaService {
     private readonly questionRepo: Repository<Question>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(School)
+    private readonly schoolRepo: Repository<School>,
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
     @Optional() private readonly platformSettings?: PlatformSettingsService,
@@ -62,42 +64,91 @@ export class ArenaService {
   // ─────────────────────────────────────────────
 
   async createCompetition(adminId: string, dto: CreateArenaCompetitionDto) {
-    if (dto.competitorAUserId === dto.competitorBUserId) {
-      throw new BadRequestException('Choisissez deux compétiteurs distincts pour ce match.');
-    }
+    const isInstitutionalMatch = Boolean(
+      dto.schoolAId || dto.schoolBId || dto.schoolARepresentativeUserId || dto.schoolBRepresentativeUserId,
+    );
 
-    const participantIds = [dto.competitorAUserId, dto.competitorBUserId];
-    const participantUsers = await this.userRepo.find({
-      where: { id: In(participantIds) },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-      },
-    });
+    let participantIds: string[];
+    let schoolA: School | null = null;
+    let schoolB: School | null = null;
 
-    if (participantUsers.length !== 2 || participantUsers.some((user) => user.role !== UserRole.STUDENT)) {
-      throw new BadRequestException('Les deux compétiteurs sélectionnés doivent être des étudiants valides.');
+    if (isInstitutionalMatch) {
+      if (!dto.schoolAId || !dto.schoolBId || !dto.schoolARepresentativeUserId || !dto.schoolBRepresentativeUserId) {
+        throw new BadRequestException('Choisissez deux etablissements et leurs comptes representants pour ce match.');
+      }
+      if (dto.schoolAId === dto.schoolBId) {
+        throw new BadRequestException('Choisissez deux etablissements distincts pour ce match.');
+      }
+      if (dto.schoolARepresentativeUserId === dto.schoolBRepresentativeUserId) {
+        throw new BadRequestException('Choisissez deux representants distincts pour ce match.');
+      }
+
+      const schools = await this.schoolRepo.find({ where: { id: In([dto.schoolAId, dto.schoolBId]) } });
+      schoolA = schools.find((school) => school.id === dto.schoolAId) ?? null;
+      schoolB = schools.find((school) => school.id === dto.schoolBId) ?? null;
+      if (!schoolA || !schoolB || !schoolA.isActive || !schoolB.isActive) {
+        throw new BadRequestException('Les deux etablissements doivent etre actifs.');
+      }
+
+      const representatives = await this.userRepo.find({
+        where: { id: In([dto.schoolARepresentativeUserId, dto.schoolBRepresentativeUserId]) },
+      });
+      const repA = representatives.find((user) => user.id === dto.schoolARepresentativeUserId);
+      const repB = representatives.find((user) => user.id === dto.schoolBRepresentativeUserId);
+      if (!repA || !repB || repA.role !== UserRole.SCHOOL || repB.role !== UserRole.SCHOOL) {
+        throw new BadRequestException('Les deux representants doivent etre des comptes etablissement valides.');
+      }
+      if (repA.schoolId !== schoolA.id || repB.schoolId !== schoolB.id) {
+        throw new BadRequestException('Chaque representant doit appartenir a son etablissement.');
+      }
+      participantIds = [repA.id, repB.id];
+    } else {
+      if (!dto.competitorAUserId || !dto.competitorBUserId) {
+        throw new BadRequestException('Choisissez deux competiteurs ou deux etablissements pour ce match.');
+      }
+      if (dto.competitorAUserId === dto.competitorBUserId) {
+        throw new BadRequestException('Choisissez deux competiteurs distincts pour ce match.');
+      }
+
+      participantIds = [dto.competitorAUserId, dto.competitorBUserId];
+      const participantUsers = await this.userRepo.find({
+        where: { id: In(participantIds) },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+        },
+      });
+
+      if (participantUsers.length !== 2 || participantUsers.some((user) => user.role !== UserRole.STUDENT)) {
+        throw new BadRequestException('Les deux competiteurs selectionnes doivent etre des etudiants valides.');
+      }
     }
 
     let moderatorUser: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'role'> | null = null;
     if (dto.moderatorUserId) {
       moderatorUser = await this.userRepo.findOne({ where: { id: dto.moderatorUserId } });
       if (!moderatorUser || ![UserRole.ADMIN, UserRole.MODERATOR].includes(moderatorUser.role)) {
-        throw new BadRequestException('Le modérateur sélectionné doit être un administrateur ou un modérateur valide.');
+        throw new BadRequestException('Le moderateur selectionne doit etre un administrateur ou un moderateur valide.');
       }
     }
 
     const competition = await this.competitionRepo.save(
       this.competitionRepo.create({
-        ...dto,
+        name: dto.name,
+        questionCount: dto.questionCount,
+        secondsPerQuestion: dto.secondsPerQuestion,
         scheduledAt: new Date(dto.scheduledAt),
         description: dto.description ?? null,
         createdByAdminId: adminId,
         status: ArenaCompetitionStatus.PENDING,
-        competitorAUserId: dto.competitorAUserId,
-        competitorBUserId: dto.competitorBUserId,
+        competitorAUserId: isInstitutionalMatch ? dto.schoolARepresentativeUserId! : dto.competitorAUserId!,
+        competitorBUserId: isInstitutionalMatch ? dto.schoolBRepresentativeUserId! : dto.competitorBUserId!,
+        schoolAId: dto.schoolAId ?? null,
+        schoolBId: dto.schoolBId ?? null,
+        schoolARepresentativeUserId: dto.schoolARepresentativeUserId ?? null,
+        schoolBRepresentativeUserId: dto.schoolBRepresentativeUserId ?? null,
         moderatorUserId: dto.moderatorUserId ?? null,
       }),
     );
@@ -112,19 +163,22 @@ export class ArenaService {
 
     const notificationRecipients = Array.from(
       new Set([
-        ...participantUsers.map((user) => user.id),
+        ...participantIds,
         moderatorUser?.id ?? null,
       ].filter((userId): userId is string => !!userId)),
     );
 
     if (notificationRecipients.length > 0 && (!this.platformSettings || this.platformSettings.get().notificationsEnabled)) {
       const scheduledLabel = competition.scheduledAt.toLocaleString('fr-HT');
+      const subjectLabel = isInstitutionalMatch && schoolA && schoolB
+        ? `${schoolA.name} vs ${schoolB.name}`
+        : competition.name;
       await this.notificationRepo.save(
         this.notificationRepo.create(
           notificationRecipients.map((userId) => ({
             userId,
-            title: 'Match Arena programmé',
-            message: `${competition.name} est programmé pour ${scheduledLabel}. Consultez Arena pour confirmer votre présence au direct.`,
+            title: 'Match Arena programme',
+            message: `${subjectLabel} est programme pour ${scheduledLabel}. Consultez Arena pour confirmer votre presence au direct.`,
             type: 'arena_competition',
           })),
         ),
@@ -515,6 +569,11 @@ export class ArenaService {
     competition.status = ArenaCompetitionStatus.COMPLETED;
     competition.completedAt = new Date();
     competition.winnerParticipantUserId = dto.participantUserId;
+    if (competition.schoolARepresentativeUserId === dto.participantUserId) {
+      competition.winnerSchoolId = competition.schoolAId;
+    } else if (competition.schoolBRepresentativeUserId === dto.participantUserId) {
+      competition.winnerSchoolId = competition.schoolBId;
+    }
 
     await this.competitionRepo.save(competition);
     return this.decorateCompetition(competition);
@@ -672,35 +731,37 @@ export class ArenaService {
       .filter((id): id is string => !!id);
     const users = userIds.length > 0 ? await this.userRepo.find({ where: { id: In(userIds) } }) : [];
     const userMap = new Map(users.map((u) => [u.id, u]));
+    const schoolIds = [competition.schoolAId, competition.schoolBId].filter((id): id is string => !!id);
+    const schools = schoolIds.length > 0 ? await this.schoolRepo.find({ where: { id: In(schoolIds) } }) : [];
+    const schoolMap = new Map(schools.map((school) => [school.id, school]));
+
+    const displayForSlot = (slot: 'A' | 'B') => {
+      const participantUserId = slot === 'A' ? competition.competitorAUserId : competition.competitorBUserId;
+      const schoolId = slot === 'A' ? competition.schoolAId : competition.schoolBId;
+      const school = schoolId ? schoolMap.get(schoolId) ?? null : null;
+      const user = participantUserId ? userMap.get(participantUserId) ?? null : null;
+      return {
+        userId: participantUserId,
+        schoolId: school?.id ?? null,
+        displayName: school?.name ?? (user ? `${user.firstName} ${user.lastName}`.trim() : null),
+        city: school?.city ?? null,
+        department: school?.department ?? null,
+      };
+    };
+
+    const slotA = displayForSlot('A');
+    const slotB = displayForSlot('B');
+    const moderator = competition.moderatorUserId ? userMap.get(competition.moderatorUserId) ?? null : null;
 
     const matchParticipants = [
-      {
-        userId: competition.competitorAUserId,
-        role: 'competitorA' as const,
-      },
-      {
-        userId: competition.competitorBUserId,
-        role: 'competitorB' as const,
-      },
-      {
-        userId: competition.moderatorUserId,
-        role: 'moderator' as const,
-      },
-    ]
-      .filter((entry): entry is { userId: string; role: 'competitorA' | 'competitorB' | 'moderator' } => !!entry.userId)
-      .map((entry) => {
-        const u = userMap.get(entry.userId);
-        return {
-          userId: entry.userId,
-          role: entry.role,
-          slot: entry.role === 'competitorA' ? 'A' : entry.role === 'competitorB' ? 'B' : 'M',
-          displayName: u ? `${u.firstName} ${u.lastName}`.trim() : entry.role,
-        };
-      });
+      slotA.userId ? { userId: slotA.userId, schoolId: slotA.schoolId, role: 'competitorA' as const, slot: 'A' as const, displayName: slotA.displayName ?? 'Competiteur A', city: slotA.city, department: slotA.department } : null,
+      slotB.userId ? { userId: slotB.userId, schoolId: slotB.schoolId, role: 'competitorB' as const, slot: 'B' as const, displayName: slotB.displayName ?? 'Competiteur B', city: slotB.city, department: slotB.department } : null,
+      competition.moderatorUserId ? { userId: competition.moderatorUserId, schoolId: null, role: 'moderator' as const, slot: 'M' as const, displayName: moderator ? `${moderator.firstName} ${moderator.lastName}`.trim() : 'moderator', city: null, department: null } : null,
+    ].filter((entry): entry is NonNullable<typeof entry> => !!entry);
 
     const participants = matchParticipants.filter((p) => p.role !== 'moderator');
     const currentQuestionTarget = currentRound
-      ? this.buildQuestionTargetSnapshot(competition, currentRound, userMap)
+      ? this.buildQuestionTargetSnapshot(competition, currentRound, userMap, schoolMap)
       : null;
 
     return {
@@ -1065,6 +1126,12 @@ export class ArenaService {
       ? await this.userRepo.find({ where: { id: In(relatedUserIds) } })
       : [];
     const userMap = new Map(users.map((user) => [user.id, user]));
+    const relatedSchoolIds = [competition.schoolAId, competition.schoolBId, competition.winnerSchoolId]
+      .filter((schoolId): schoolId is string => !!schoolId);
+    const schools = relatedSchoolIds.length > 0
+      ? await this.schoolRepo.find({ where: { id: In(relatedSchoolIds) } })
+      : [];
+    const schoolMap = new Map(schools.map((school) => [school.id, school]));
     const winnerParticipant = competition.winnerParticipantUserId
       ? userMap.get(competition.winnerParticipantUserId) ?? null
       : null;
@@ -1081,6 +1148,18 @@ export class ArenaService {
     return {
       ...competition,
       publicStream: this.buildPublicStreamSnapshot(competition),
+      schoolAId: competition.schoolAId,
+      schoolAName: competition.schoolAId ? schoolMap.get(competition.schoolAId)?.name ?? null : null,
+      schoolACity: competition.schoolAId ? schoolMap.get(competition.schoolAId)?.city ?? null : null,
+      schoolADepartment: competition.schoolAId ? schoolMap.get(competition.schoolAId)?.department ?? null : null,
+      schoolBId: competition.schoolBId,
+      schoolBName: competition.schoolBId ? schoolMap.get(competition.schoolBId)?.name ?? null : null,
+      schoolBCity: competition.schoolBId ? schoolMap.get(competition.schoolBId)?.city ?? null : null,
+      schoolBDepartment: competition.schoolBId ? schoolMap.get(competition.schoolBId)?.department ?? null : null,
+      schoolARepresentativeUserId: competition.schoolARepresentativeUserId,
+      schoolBRepresentativeUserId: competition.schoolBRepresentativeUserId,
+      winnerSchoolId: competition.winnerSchoolId,
+      winnerSchoolName: competition.winnerSchoolId ? schoolMap.get(competition.winnerSchoolId)?.name ?? null : null,
       competitorAUserId: competition.competitorAUserId,
       competitorAName: competitorA ? `${competitorA.firstName} ${competitorA.lastName}`.trim() : null,
       competitorBUserId: competition.competitorBUserId,
@@ -1113,10 +1192,33 @@ export class ArenaService {
       ? await this.userRepo.find({ where: { id: In(relatedUserIds) } })
       : [];
     const userMap = new Map(users.map((user) => [user.id, user]));
+    const relatedSchoolIds = Array.from(
+      new Set(
+        competitions
+          .flatMap((competition) => [competition.schoolAId, competition.schoolBId, competition.winnerSchoolId])
+          .filter((schoolId): schoolId is string => !!schoolId),
+      ),
+    );
+    const schools = relatedSchoolIds.length > 0
+      ? await this.schoolRepo.find({ where: { id: In(relatedSchoolIds) } })
+      : [];
+    const schoolMap = new Map(schools.map((school) => [school.id, school]));
 
     return competitions.map((competition) => ({
       ...competition,
       publicStream: this.buildPublicStreamSnapshot(competition),
+      schoolAId: competition.schoolAId,
+      schoolAName: competition.schoolAId ? schoolMap.get(competition.schoolAId)?.name ?? null : null,
+      schoolACity: competition.schoolAId ? schoolMap.get(competition.schoolAId)?.city ?? null : null,
+      schoolADepartment: competition.schoolAId ? schoolMap.get(competition.schoolAId)?.department ?? null : null,
+      schoolBId: competition.schoolBId,
+      schoolBName: competition.schoolBId ? schoolMap.get(competition.schoolBId)?.name ?? null : null,
+      schoolBCity: competition.schoolBId ? schoolMap.get(competition.schoolBId)?.city ?? null : null,
+      schoolBDepartment: competition.schoolBId ? schoolMap.get(competition.schoolBId)?.department ?? null : null,
+      schoolARepresentativeUserId: competition.schoolARepresentativeUserId,
+      schoolBRepresentativeUserId: competition.schoolBRepresentativeUserId,
+      winnerSchoolId: competition.winnerSchoolId,
+      winnerSchoolName: competition.winnerSchoolId ? schoolMap.get(competition.winnerSchoolId)?.name ?? null : null,
       competitorAUserId: competition.competitorAUserId,
       competitorAName: competition.competitorAUserId
         ? `${userMap.get(competition.competitorAUserId)?.firstName ?? ''} ${userMap.get(competition.competitorAUserId)?.lastName ?? ''}`.trim() || null
@@ -1336,18 +1438,24 @@ export class ArenaService {
     competition: ArenaCompetition,
     round: ArenaRound,
     userMap: Map<string, User>,
+    schoolMap = new Map<string, School>(),
   ) {
     const slot = round.position % 2 === 1 ? 'A' as const : 'B' as const;
     const participantUserId = slot === 'A' ? competition.competitorAUserId : competition.competitorBUserId;
+    const schoolId = slot === 'A' ? competition.schoolAId : competition.schoolBId;
     if (!participantUserId) {
       return null;
     }
 
     const participant = userMap.get(participantUserId);
+    const school = schoolId ? schoolMap.get(schoolId) ?? null : null;
     return {
       slot,
       participantUserId,
-      displayName: participant ? `${participant.firstName} ${participant.lastName}`.trim() : null,
+      schoolId: school?.id ?? null,
+      displayName: school?.name ?? (participant ? `${participant.firstName} ${participant.lastName}`.trim() : null),
+      city: school?.city ?? null,
+      department: school?.department ?? null,
     };
   }
 
