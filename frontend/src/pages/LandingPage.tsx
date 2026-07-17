@@ -273,7 +273,7 @@ export default function LandingPage() {
                 "Faire de l'excellence scolaire une expérience visible, motivante et reconnue."
               </blockquote>
               <p style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-2)', fontWeight: 600 }}>
-                — Johnley-Roosevelt Lorvil, Fondateur de Konesans+
+                —Konesans+
               </p>
               <p style={{ margin: '18px 0 0', maxWidth: 520, fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.8 }}>
                 Konesans+ est porté par une ambition simple: faire vivre le génie scolaire haïtien en ligne, avec un cadre moderne pour apprendre, s'affronter et faire reconnaître sa progression.
