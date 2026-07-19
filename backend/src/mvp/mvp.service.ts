@@ -1572,6 +1572,7 @@ export class MvpService {
     const pageSize = query.pageSize ?? 25;
     const builder = this.userRepo.createQueryBuilder('user')
       .leftJoinAndSelect('user.academicClass', 'academicClass')
+      .leftJoinAndSelect('user.institutionalSchool', 'institutionalSchool')
       .orderBy('user.createdAt', 'DESC');
 
     if (query.scope === 'team') {
@@ -2318,9 +2319,10 @@ export class MvpService {
   }
 
   private sanitizeUser(user: User) {
-    const { password: _password, ...safeUser } = user;
+    const { password: _password, institutionalSchool, ...safeUser } = user;
     return {
       ...safeUser,
+      school: safeUser.school ?? institutionalSchool?.name ?? null,
       acceptedPrivacyPolicy: this.hasAcceptedPrivacyPolicy(user),
       requiresProfileCompletion: this.requiresStudentProfileCompletion(user),
     };

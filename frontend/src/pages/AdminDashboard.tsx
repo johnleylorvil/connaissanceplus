@@ -61,6 +61,37 @@ type Sponsor = {
   createdAt: string
 }
 
+function sortSchoolsByName(items: School[]) {
+  return [...items].sort((left, right) => left.name.localeCompare(right.name))
+}
+
+function mergeSchoolRepresentatives(schools: School[], representatives: SchoolRepresentative[]) {
+  const schoolById = new Map(schools.map((school) => [school.id, school]))
+  const byId = new Map<string, SchoolRepresentative>()
+
+  for (const school of schools) {
+    for (const representative of school.representatives ?? []) {
+      byId.set(representative.id, {
+        ...representative,
+        schoolId: representative.schoolId ?? school.id,
+        school: representative.school ?? school.name,
+      })
+    }
+  }
+
+  for (const representative of representatives) {
+    const school = representative.schoolId ? schoolById.get(representative.schoolId) : null
+    byId.set(representative.id, {
+      ...representative,
+      school: representative.school ?? school?.name ?? null,
+    })
+  }
+
+  return Array.from(byId.values()).sort((left, right) =>
+    (left.firstName + ' ' + left.lastName).localeCompare(right.firstName + ' ' + right.lastName),
+  )
+}
+
 export default function AdminDashboard() {
   const { accessToken, user, logout } = useAuth()
   const [tab, setTab] = useState<Tab>('overview')
@@ -286,10 +317,21 @@ export default function AdminDashboard() {
     void callApi<Sponsor[]>('/admin/sponsors', setSponsors)
   }, [callApi])
 
-  const loadSchoolsData = useCallback(() => {
+  const loadSchoolsData = useCallback(async () => {
     if (!accessToken) return
-    adminApi.listSchools(accessToken).then(setSchools).catch(() => {})
-    adminApi.listSchoolRepresentatives(accessToken).then(setSchoolRepresentatives).catch(() => {})
+    try {
+      const loadedSchools = await adminApi.listSchools(accessToken)
+      const sortedSchools = sortSchoolsByName(loadedSchools)
+      setSchools(sortedSchools)
+
+      const loadedRepresentatives = await adminApi
+        .listSchoolRepresentatives(accessToken)
+        .catch(() => loadedSchools.flatMap((school) => school.representatives ?? []))
+      setSchoolRepresentatives(mergeSchoolRepresentatives(sortedSchools, loadedRepresentatives))
+    } catch {
+      setSchools([])
+      setSchoolRepresentatives([])
+    }
   }, [accessToken])
   const loadArenaTabData = useCallback(() => {
     arenaApi.getCompetitions().then(setArenaCompetitions).catch(() => {})
@@ -375,7 +417,11 @@ export default function AdminDashboard() {
       void callApi<Student[]>('/admin/students', setStudents)
     }
     if (tab === 'sponsors') loadSponsors()
+    if (tab === 'schools') {
+      void loadSchoolsData()
+    }
     if (tab === 'arena') {
+      void loadSchoolsData()
       loadArenaTabData()
     }
     if (tab === 'correspondence') {
@@ -833,9 +879,10 @@ export default function AdminDashboard() {
                       contactEmail: schoolForm.contactEmail.trim() || undefined, contactPhone: schoolForm.contactPhone.trim() || undefined,
                       logoUrl: schoolForm.logoUrl.trim() || undefined,
                     }, accessToken)
-                    setSchools(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+                    setSchools(prev => sortSchoolsByName([...prev.filter((school) => school.id !== created.id), { ...created, representatives: [] }]))
+                    setSchoolRepForm(prev => ({ ...prev, schoolId: created.id }))
                     setSchoolForm({ name: '', city: '', department: '', address: '', contactName: '', contactEmail: '', contactPhone: '', logoUrl: '' })
-                    setSchoolMsg(`Etablissement "${created.name}" cree.`)
+                    setSchoolMsg(`Etablissement "${created.name}" cree. Vous pouvez maintenant creer son representant.`)
                   } catch (err) { setSchoolMsg((err as Error).message) }
                 }}>Creer l'etablissement</button>
               </div>
@@ -843,7 +890,7 @@ export default function AdminDashboard() {
               <div className="card" style={{ marginBottom: 20 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Compte representant</h2>
                 <div className="responsive-two-col" style={{ gap: 12 }}>
-                  <div><label className="field-label">Etablissement</label><select className="field-input" value={schoolRepForm.schoolId} onChange={(e) => setSchoolRepForm(f => ({ ...f, schoolId: e.target.value }))}><option value="">-- Choisir --</option>{schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></div>
+                  <div><label className="field-label">Etablissement</label><select className="field-input" value={schoolRepForm.schoolId} onChange={(e) => setSchoolRepForm(f => ({ ...f, schoolId: e.target.value }))}><option value="">-- Choisir --</option>{schools.length === 0 && <option value="" disabled>Aucun etablissement cree pour le moment</option>}{schools.map((school) => <option key={school.id} value={school.id} disabled={!school.isActive}>{school.name}{school.isActive ? '' : ' (inactif)'}</option>)}</select></div>
                   <div><label className="field-label">Email</label><input className="field-input" value={schoolRepForm.email} onChange={(e) => setSchoolRepForm(f => ({ ...f, email: e.target.value }))} /></div>
                   <div><label className="field-label">Prenom</label><input className="field-input" value={schoolRepForm.firstName} onChange={(e) => setSchoolRepForm(f => ({ ...f, firstName: e.target.value }))} /></div>
                   <div><label className="field-label">Nom</label><input className="field-input" value={schoolRepForm.lastName} onChange={(e) => setSchoolRepForm(f => ({ ...f, lastName: e.target.value }))} /></div>
@@ -853,15 +900,18 @@ export default function AdminDashboard() {
                 <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={async () => {
                   if (!accessToken || !schoolRepForm.schoolId) return
                   try {
+                    const selectedSchool = schools.find((school) => school.id === schoolRepForm.schoolId) ?? null
                     const rep = await adminApi.createSchoolRepresentative(schoolRepForm.schoolId, {
                       firstName: schoolRepForm.firstName, lastName: schoolRepForm.lastName, email: schoolRepForm.email,
                       password: schoolRepForm.generatePassword ? undefined : schoolRepForm.password,
                       generatePassword: schoolRepForm.generatePassword,
                     }, accessToken)
-                    setSchoolRepresentatives(prev => [...prev, rep])
+                    const repWithSchool = { ...rep, school: rep.school ?? selectedSchool?.name ?? null }
+                    setSchoolRepresentatives(prev => mergeSchoolRepresentatives(schools, [...prev, repWithSchool]))
+                    setSchools(prev => sortSchoolsByName(prev.map((school) => school.id === repWithSchool.schoolId ? { ...school, representatives: mergeSchoolRepresentatives([school], [...(school.representatives ?? []), repWithSchool]) } : school)))
                     setSchoolRepForm({ schoolId: '', firstName: '', lastName: '', email: '', password: '', generatePassword: true })
-                    setSchoolMsg(rep.temporaryPassword ? `Representant cree. Mot de passe temporaire: ${rep.temporaryPassword}` : 'Representant cree.')
-                    loadSchoolsData()
+                    setSchoolMsg(rep.temporaryPassword ? `Representant cree pour ${repWithSchool.school ?? 'cet etablissement'}. Mot de passe temporaire: ${rep.temporaryPassword}` : `Representant cree pour ${repWithSchool.school ?? 'cet etablissement'}.`)
+                    await loadSchoolsData()
                   } catch (err) { setSchoolMsg((err as Error).message) }
                 }}>Creer le representant</button>
               </div>
@@ -873,7 +923,7 @@ export default function AdminDashboard() {
                       <div><strong>{school.name}</strong><p style={{ margin: '4px 0 0', color: 'var(--ink-3)', fontSize: 13 }}>{[school.city, school.department].filter(Boolean).join(' - ') || 'Localisation non renseignee'}</p></div>
                       <span style={{ color: school.isActive ? 'var(--ok)' : 'var(--error)', fontWeight: 700 }}>{school.isActive ? 'Actif' : 'Inactif'}</span>
                     </div>
-                    <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink-3)' }}>Representants: {schoolRepresentatives.filter((rep) => rep.schoolId === school.id).map((rep) => `${rep.firstName} ${rep.lastName}`).join(', ') || 'aucun'}</p>
+                    <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink-3)' }}>Representants: {schoolRepresentatives.filter((rep) => rep.schoolId === school.id).map((rep) => `${rep.firstName} ${rep.lastName} (${rep.email})`).join(', ') || 'aucun compte representant'}</p>
                   </div>
                 ))}
               </div>
