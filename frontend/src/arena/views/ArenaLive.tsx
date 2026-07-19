@@ -268,6 +268,89 @@ function AudioWave() {
 }
 
 // ─── CompetitorPanel ──────────────────────────────────────────────────────────
+
+type BroadcastScoreboardProps = {
+  competitorA: MatchParticipant
+  competitorB: MatchParticipant
+  competitionName: string
+  questionNumber: number
+  totalQuestions: number
+  timeLeft: number | null
+  isDirectLive: boolean
+  isPaused: boolean
+  spectatorCount: number
+}
+
+function BroadcastScoreboard({
+  competitorA,
+  competitorB,
+  competitionName,
+  questionNumber,
+  totalQuestions,
+  timeLeft,
+  isDirectLive,
+  isPaused,
+  spectatorCount,
+}: BroadcastScoreboardProps) {
+  return (
+    <section className="arena-broadcast-scoreboard" aria-label="Score du match Arena">
+      <div className="broadcast-team broadcast-team-a">
+        <span className="broadcast-team-initials">{getInitials(competitorA.displayName)}</span>
+        <strong title={competitorA.displayName}>{competitorA.displayName}</strong>
+      </div>
+      <div className="broadcast-score broadcast-score-a">{competitorA.score}</div>
+      <div className="broadcast-center">
+        <span className={isDirectLive && !isPaused ? 'broadcast-live is-live' : 'broadcast-live'}>
+          {isPaused ? 'PAUSE' : isDirectLive ? 'DIRECT' : 'PLATEAU'}
+        </span>
+        <strong>Q{Math.max(questionNumber, 1)} / {Math.max(totalQuestions, 1)}</strong>
+        <span>{formatTimer(timeLeft)}</span>
+      </div>
+      <div className="broadcast-score broadcast-score-b">{competitorB.score}</div>
+      <div className="broadcast-team broadcast-team-b">
+        <strong title={competitorB.displayName}>{competitorB.displayName}</strong>
+        <span className="broadcast-team-initials">{getInitials(competitorB.displayName)}</span>
+      </div>
+      <div className="broadcast-meta broadcast-meta-name">{competitionName}</div>
+      <div className="broadcast-meta broadcast-meta-watch">{spectatorCount} en salle</div>
+    </section>
+  )
+}
+
+type BroadcastLowerThirdProps = {
+  phase: CompetitionPhase
+  currentQuestionTarget: QuestionTarget | null
+  questionNumber: number
+  totalQuestions: number
+}
+
+function BroadcastLowerThird({
+  phase,
+  currentQuestionTarget,
+  questionNumber,
+  totalQuestions,
+}: BroadcastLowerThirdProps) {
+  const targetName = currentQuestionTarget?.displayName ?? (currentQuestionTarget ? 'Competiteur ' + currentQuestionTarget.slot : null)
+  const mainText =
+    phase === 'live-question' && targetName
+      ? 'Question pour ' + targetName
+      : phase === 'live-between'
+      ? 'Decision du moderateur en cours'
+      : phase === 'paused'
+      ? 'Match en pause'
+      : phase === 'waiting'
+      ? 'Les equipes prennent place'
+      : 'Konesans+ Arena en direct'
+
+  return (
+    <aside className="arena-lower-third" aria-label="Information du direct">
+      <div className="lower-third-brand">KONESANS+ ARENA</div>
+      <div className="lower-third-main">{mainText}</div>
+      <div className="lower-third-count">QUESTION {Math.max(questionNumber, 1)} / {Math.max(totalQuestions, 1)}</div>
+    </aside>
+  )
+}
+
 type CompetitorPanelProps = {
   participant: MatchParticipant
   stageParticipant: StageParticipant | null
@@ -1473,6 +1556,328 @@ export default function ArenaLive() {
             padding: 16px 14px;
           }
         }
+
+
+        /* Broadcast Arena: transforme le live en plateau humain et competitif */
+        .arena-stage {
+          isolation: isolate;
+          overflow: hidden;
+          background:
+            linear-gradient(180deg, rgba(4, 8, 16, 0.34), rgba(4, 8, 16, 0.72)),
+            repeating-linear-gradient(90deg, #15191f 0 74px, #8d101c 74px 142px, #15191f 142px 214px, #101318 214px 286px);
+        }
+        .arena-stage::before {
+          content: '';
+          position: absolute;
+          inset: 48px 24px 88px;
+          z-index: 0;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+            repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 18px);
+          pointer-events: none;
+        }
+        .arena-broadcast-scoreboard {
+          position: relative;
+          z-index: 5;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 78px minmax(150px, 210px) 78px minmax(0, 1fr);
+          grid-template-areas:
+            "teamA scoreA center scoreB teamB"
+            "name name center watch watch";
+          align-items: stretch;
+          min-height: 72px;
+          color: #ffffff;
+          filter: drop-shadow(0 14px 22px rgba(0,0,0,0.32));
+        }
+        .broadcast-team {
+          display: flex;
+          align-items: center;
+          min-width: 0;
+          gap: 12px;
+          padding: 0 22px;
+          font-size: clamp(1rem, 2vw, 1.65rem);
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+        .broadcast-team strong {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .broadcast-team-a {
+          grid-area: teamA;
+          background: linear-gradient(90deg, #2088c7, #55aee7);
+        }
+        .broadcast-team-b {
+          grid-area: teamB;
+          justify-content: flex-end;
+          background: linear-gradient(90deg, #b7081b, #df1730);
+        }
+        .broadcast-team-initials {
+          flex: 0 0 auto;
+          width: 42px;
+          height: 42px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.86);
+          background: rgba(255,255,255,0.18);
+          font-size: 0.82rem;
+          font-weight: 950;
+        }
+        .broadcast-score {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #eef5ff;
+          color: #5b78a4;
+          font-size: clamp(2.1rem, 4vw, 3.35rem);
+          font-weight: 950;
+          line-height: 1;
+          font-variant-numeric: tabular-nums;
+        }
+        .broadcast-score-a { grid-area: scoreA; }
+        .broadcast-score-b { grid-area: scoreB; }
+        .broadcast-center {
+          grid-area: center;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          padding: 6px 18px;
+          background: #ffd916;
+          color: #0c1730;
+          text-align: center;
+          text-transform: uppercase;
+          clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+        }
+        .broadcast-center::before {
+          content: '';
+          position: absolute;
+          top: 8px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 18px;
+          height: 32px;
+          background: #cf1127;
+          clip-path: polygon(46% 0, 100% 0, 64% 42%, 100% 42%, 34% 100%, 52% 55%, 16% 55%);
+        }
+        .broadcast-center strong {
+          margin-top: 14px;
+          font-size: 18px;
+          font-weight: 950;
+          letter-spacing: 0;
+        }
+        .broadcast-center span:last-child {
+          font-size: 20px;
+          font-weight: 950;
+          font-variant-numeric: tabular-nums;
+        }
+        .broadcast-live {
+          min-width: 68px;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: rgba(12, 23, 48, 0.16);
+          color: #0c1730;
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+        }
+        .broadcast-live.is-live {
+          background: #cf1127;
+          color: #fff;
+          animation: liveBlink 1.35s ease-in-out infinite;
+        }
+        .broadcast-meta {
+          min-width: 0;
+          padding: 6px 18px;
+          background: rgba(5, 9, 17, 0.78);
+          color: rgba(255,255,255,0.82);
+          font-size: 12px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .broadcast-meta-name {
+          grid-area: name;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .broadcast-meta-watch {
+          grid-area: watch;
+          text-align: right;
+        }
+        .arena-stage-layout {
+          position: relative;
+          z-index: 1;
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          gap: clamp(12px, 2.2vh, 20px);
+          padding: clamp(16px, 2.5vw, 32px) clamp(16px, 3vw, 36px) 92px;
+          align-items: stretch;
+        }
+        .arena-question-wrap {
+          order: 2;
+          flex: 0 0 auto;
+          width: min(100%, 1180px);
+          min-height: auto;
+          align-self: center;
+          padding: 0;
+        }
+        .arena-question-card {
+          max-width: none;
+          border-radius: 10px;
+          border-color: rgba(255,255,255,0.18);
+          background: rgba(7, 12, 24, 0.90);
+          backdrop-filter: blur(12px);
+        }
+        .arena-question-inner {
+          min-height: 128px;
+          padding: clamp(18px, 2vw, 28px) clamp(18px, 3vw, 36px);
+        }
+        .arena-question-text {
+          max-width: 1000px;
+          font-size: clamp(1.18rem, 2.1vw, 2rem);
+          line-height: 1.2;
+          letter-spacing: 0;
+        }
+        .arena-stage-grid {
+          order: 1;
+          display: grid;
+          grid-template-columns: minmax(0, 1.12fr) minmax(220px, 0.58fr) minmax(0, 1.12fr);
+          grid-template-areas: "compA mod compB";
+          gap: clamp(12px, 1.8vw, 22px);
+          padding: 0;
+          align-items: center;
+          width: min(100%, 1280px);
+          margin: 0 auto;
+        }
+        .arena-cell-mod { order: 0; }
+        .arena-competitor-article,
+        .arena-cell-mod article {
+          display: flex !important;
+          min-height: 0;
+          border-radius: 10px !important;
+          background: rgba(5, 9, 18, 0.94) !important;
+          box-shadow: 0 18px 54px rgba(0,0,0,0.46) !important;
+        }
+        .arena-competitor-article > div:first-child {
+          aspect-ratio: 16 / 10 !important;
+          min-height: clamp(220px, 28vw, 410px) !important;
+        }
+        .arena-cell-mod article > div:first-child {
+          aspect-ratio: 4 / 3 !important;
+          min-height: clamp(170px, 20vw, 260px) !important;
+        }
+        .arena-competitor-article > div:last-child,
+        .arena-cell-mod article > div:last-child {
+          background: rgba(8, 14, 26, 0.98) !important;
+        }
+        .arena-lower-third {
+          position: absolute;
+          left: 24px;
+          right: 24px;
+          bottom: 14px;
+          z-index: 6;
+          display: grid;
+          grid-template-columns: 220px minmax(0, 1fr) 180px;
+          align-items: center;
+          min-height: 54px;
+          border: 2px solid #0d2d91;
+          background: #ffd916;
+          color: #0d2d91;
+          box-shadow: 0 16px 34px rgba(0,0,0,0.34);
+          overflow: hidden;
+          text-transform: uppercase;
+        }
+        .lower-third-brand,
+        .lower-third-count {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #0d2d91;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 950;
+          letter-spacing: 0.06em;
+        }
+        .lower-third-main {
+          min-width: 0;
+          padding: 0 20px;
+          overflow: hidden;
+          color: #0d2d91;
+          font-size: clamp(1rem, 1.8vw, 1.55rem);
+          font-style: italic;
+          font-weight: 950;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .lower-third-count {
+          background: #cf1127;
+        }
+        @keyframes liveBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.64; }
+        }
+        @media (max-width: 900px) {
+          .arena-broadcast-scoreboard {
+            grid-template-columns: minmax(0, 1fr) 48px 92px 48px minmax(0, 1fr);
+            min-height: 58px;
+          }
+          .broadcast-team { gap: 7px; padding: 0 8px; font-size: 0.82rem; }
+          .broadcast-team-initials { width: 30px; height: 30px; font-size: 0.64rem; }
+          .broadcast-score { font-size: 2rem; }
+          .broadcast-center { padding: 5px 8px; clip-path: none; }
+          .broadcast-center::before { display: none; }
+          .broadcast-center strong { margin-top: 0; font-size: 13px; }
+          .broadcast-center span:last-child { font-size: 15px; }
+          .broadcast-live { min-width: 54px; font-size: 9px; }
+          .broadcast-meta { display: none; }
+          .arena-stage::before { inset: 58px 10px 76px; }
+          .arena-stage-layout { gap: 10px; padding: 12px 10px 82px; }
+          .arena-stage-grid {
+            display: grid;
+            grid-template-columns: minmax(260px, 1fr) minmax(210px, 0.82fr) minmax(260px, 1fr);
+            overflow-x: auto;
+            align-items: stretch;
+            width: 100%;
+          }
+          .arena-stage-grid > div { min-width: 0; }
+          .arena-competitor-article,
+          .arena-cell-mod article { grid-template-columns: none !important; }
+          .arena-competitor-article > div:first-child { min-height: 190px !important; }
+          .arena-cell-mod article > div:first-child { min-height: 160px !important; }
+          .arena-question-inner { min-height: 112px; padding: 16px; }
+          .arena-question-text { font-size: clamp(1rem, 4.4vw, 1.36rem); }
+          .arena-lower-third {
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            grid-template-columns: 116px minmax(0, 1fr);
+            min-height: 46px;
+          }
+          .lower-third-brand { font-size: 10px; }
+          .lower-third-main { padding: 0 12px; font-size: 0.94rem; }
+          .lower-third-count { display: none; }
+        }
+        @media (max-width: 520px) {
+          .arena-broadcast-scoreboard {
+            grid-template-columns: minmax(0, 1fr) 42px 74px 42px minmax(0, 1fr);
+          }
+          .broadcast-team strong { max-width: 78px; }
+          .broadcast-team-initials { display: none; }
+          .broadcast-score { font-size: 1.72rem; }
+          .broadcast-center strong { font-size: 11px; }
+          .broadcast-center span:last-child { font-size: 13px; }
+        }
       `}</style>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -1559,6 +1964,18 @@ export default function ArenaLive() {
 
       {/* ── Stage ──────────────────────────────────────────────────────── */}
       <div className="arena-stage">
+        <BroadcastScoreboard
+          competitorA={competitorA}
+          competitorB={competitorB}
+          competitionName={liveState?.competitionName ?? 'Match Arena'}
+          questionNumber={questionNumber}
+          totalQuestions={totalQuestions}
+          timeLeft={timeLeft}
+          isDirectLive={isDirectLive}
+          isPaused={isPaused}
+          spectatorCount={spectatorCount}
+        />
+
         {/* Alerts */}
         {(error || isPaused) && (
           <div style={{ padding: '10px 20px 0', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -1699,9 +2116,16 @@ export default function ArenaLive() {
           </div>
         </div>
         </div>
+
+        <BroadcastLowerThird
+          phase={phase}
+          currentQuestionTarget={currentQuestionTarget}
+          questionNumber={questionNumber}
+          totalQuestions={totalQuestions}
+        />
       </div>
 
-      {/* ── Camera / mic controls ───────────────────────────────────────── */}
+      {/* ?? Camera / mic controls ───────────────────────────────────────── */}
       {canControlLocalMedia && (
         <div className="arena-media-bar">
           <button
