@@ -70,6 +70,13 @@ export class ArenaController {
     return this.arenaService.getCompetitions(status);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SCHOOL)
+  @Get('competitions/my')
+  getMySchoolCompetitions(@Req() req: AuthenticatedRequest) {
+    return this.arenaService.getMySchoolCompetitions(req.user.id);
+  }
+
   @Get('competitions/:id')
   getCompetition(@Param('id') id: string) {
     return this.arenaService.getCompetitionById(id);

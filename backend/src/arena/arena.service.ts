@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { FindOptionsWhere, In, Not, Repository } from 'typeorm';
 import {
   ArenaParticipantMessage,
   ArenaCompetition,
@@ -196,6 +196,32 @@ export class ArenaService {
       order: { scheduledAt: 'DESC' },
       take: 50,
     });
+    return this.decorateCompetitions(competitions);
+  }
+
+  async getMySchoolCompetitions(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== UserRole.SCHOOL) {
+      throw new ForbiddenException('Acces reserve aux responsables ecole.');
+    }
+
+    const where: FindOptionsWhere<ArenaCompetition>[] = [
+      { schoolARepresentativeUserId: userId },
+      { schoolBRepresentativeUserId: userId },
+      { competitorAUserId: userId },
+      { competitorBUserId: userId },
+    ];
+
+    if (user.schoolId) {
+      where.push({ schoolAId: user.schoolId }, { schoolBId: user.schoolId });
+    }
+
+    const competitions = await this.competitionRepo.find({
+      where,
+      order: { scheduledAt: 'DESC' },
+      take: 50,
+    });
+
     return this.decorateCompetitions(competitions);
   }
 

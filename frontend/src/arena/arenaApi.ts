@@ -183,6 +183,8 @@ export const arenaApi = {
     arenaFetch<ArenaCompetition[]>(`/competitions${status ? `?status=${status}` : ''}`),
   getLiveCompetitions: () =>
     arenaFetch<ArenaCompetition[]>(`/competitions?status=live`),
+  getMySchoolCompetitions: (token: string) =>
+    arenaFetch<ArenaCompetition[]>('/competitions/my', {}, token),
   getCompetition: (id: string) => arenaFetch<ArenaCompetition>(`/competitions/${id}`),
   createCompetition: (payload: CreateArenaCompetitionPayload, token: string) =>
     arenaFetch<ArenaCompetition>('/competitions', { method: 'POST', body: JSON.stringify(payload) }, token),

@@ -118,12 +118,15 @@ type CompCardProps = {
   userId: string | undefined
   isAdmin: boolean
   isModerator: boolean
+  isStudent: boolean
+  isSchool: boolean
 }
 
-function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerator }: CompCardProps) {
+function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerator, isStudent, isSchool }: CompCardProps) {
   const navigate = useNavigate()
   const isLive = comp.status === 'live' || comp.status === 'paused'
   const isAssignedMatch = Boolean(comp.competitorAUserId && comp.competitorBUserId)
+  const isInstitutionalMatch = Boolean(comp.schoolAId || comp.schoolBId)
   const isAssignedCompetitor = Boolean(userId && [comp.competitorAUserId, comp.competitorBUserId].includes(userId))
   const canOpenAssignedStage = isAssignedMatch && (isAssignedCompetitor || isAdmin || isModerator)
 
@@ -151,7 +154,7 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
         onClick={() => navigate(`/arena/live/${comp.id}`)}
         style={{ padding: '7px 14px', borderRadius: 999, border: `1px solid rgba(230,194,122,.35)`, background: 'rgba(230,194,122,.10)', color: T.gold, fontSize: 12, fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }}
       >
-        Préparer →
+        {isSchool ? 'Préparer le live →' : 'Préparer →'}
       </button>
     )
   } else if (comp.status === 'completed') {
@@ -163,7 +166,7 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
         Résultats →
       </button>
     )
-  } else if (comp.status === 'approved' && !isAdmin && !isAssignedMatch) {
+  } else if (comp.status === 'approved' && isStudent && !isAssignedMatch) {
     actionEl = (
       <button
         onClick={() => onRegister(comp.id)}
@@ -178,7 +181,7 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
   } else if (comp.status === 'approved' && isAdmin && !isAssignedMatch) {
     actionEl = <span style={{ fontSize: 11, fontWeight: 700, color: T.blue }}>Inscriptions ouvertes</span>
   } else if (comp.status === 'approved' && !isAdmin && isAssignedMatch && !canOpenAssignedStage) {
-    actionEl = <span style={{ fontSize: 11, fontWeight: 600, color: T.textSoft }}>Duel annoncé</span>
+    actionEl = <span style={{ fontSize: 11, fontWeight: 600, color: T.textSoft }}>{isInstitutionalMatch ? 'Match institutionnel' : 'Duel annoncé'}</span>
   } else if (comp.status === 'pending' && isAdmin) {
     actionEl = <span style={{ fontSize: 11, fontWeight: 600, color: T.textSoft }}>Brouillon</span>
   } else if (comp.status === 'pending' && !isAdmin && isAssignedMatch && !canOpenAssignedStage) {
@@ -213,7 +216,7 @@ function CompCard({ comp, onRegister, registeringId, userId, isAdmin, isModerato
             {comp.name}
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            {isAssignedCompetitor && <span className="arena-hub-personal-label">VOTRE MATCH</span>}
+            {isAssignedCompetitor && <span className="arena-hub-personal-label">{isSchool ? 'MATCH DE VOTRE ECOLE' : 'VOTRE MATCH'}</span>}
             {isLive && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 900, letterSpacing: '.12em', color: '#ff7070' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, boxShadow: `0 0 5px ${T.red}`, display: 'inline-block', animation: 'clLivePulse 1.4s ease-in-out infinite' }} />
@@ -259,19 +262,37 @@ export default function ArenaCompetitionsList({ embedded = false }: { embedded?:
   const [msg, setMsg] = useState('')
   const [showAllResults, setShowAllResults] = useState(false)
 
+  const isAdmin = user?.role === 'admin'
+  const isModerator = user?.role === 'moderator'
+  const isStudent = user?.role === 'student'
+  const isSchool = user?.role === 'school'
+
   useEffect(() => {
     let cancelled = false
     const load = () => {
-      arenaApi
-        .getCompetitions()
+      if (isSchool && !accessToken) {
+        setCompetitions([])
+        setLoading(false)
+        return
+      }
+
+      const request = isSchool && accessToken
+        ? arenaApi.getMySchoolCompetitions(accessToken)
+        : arenaApi.getCompetitions()
+
+      request
         .then((comps) => {
           if (!cancelled) {
-            setCompetitions(comps)
+            const visibleComps = isStudent ? comps.filter((comp) => !(comp.schoolAId || comp.schoolBId)) : comps
+            setCompetitions(visibleComps)
             setLoading(false)
           }
         })
-        .catch(() => {
-          if (!cancelled) setLoading(false)
+        .catch((err) => {
+          if (!cancelled) {
+            setError((err as Error).message)
+            setLoading(false)
+          }
         })
     }
     load()
@@ -280,10 +301,7 @@ export default function ArenaCompetitionsList({ embedded = false }: { embedded?:
       cancelled = true
       clearInterval(iv)
     }
-  }, [accessToken])
-
-  const isAdmin = user?.role === 'admin'
-  const isModerator = user?.role === 'moderator'
+  }, [accessToken, isSchool, isStudent])
 
   const register = async (competitionId: string) => {
     if (!accessToken) return
@@ -339,8 +357,14 @@ export default function ArenaCompetitionsList({ embedded = false }: { embedded?:
 
       <div className="arena-hub-title">
         <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: T.textSoft }}>Konesans+ Arena</p>
-        <h1>Votre espace de comp&eacute;tition</h1>
-        {!embedded && <span>Directs institutionnels, prochains matchs et derniers r&eacute;sultats au m&ecirc;me endroit.</span>}
+        <h1>{isSchool ? 'Mes matchs Arena' : 'Votre espace de compétition'}</h1>
+        {!embedded && (
+          <span>
+            {isSchool
+              ? 'Matchs de votre établissement, accès live et résultats au même endroit.'
+              : 'Directs institutionnels, prochains matchs et derniers résultats au même endroit.'}
+          </span>
+        )}
       </div>
 
       {error && (
@@ -387,6 +411,8 @@ export default function ArenaCompetitionsList({ embedded = false }: { embedded?:
                   userId={user?.id}
                   isAdmin={isAdmin}
                   isModerator={isModerator}
+                  isStudent={isStudent}
+                  isSchool={isSchool}
                 />
               ))}
             </div>
@@ -402,7 +428,9 @@ export default function ArenaCompetitionsList({ embedded = false }: { embedded?:
 
       {competitions.length === 0 && (
         <div style={{ borderRadius: 14, border: `1px solid ${T.border}`, background: T.bgCard, padding: '40px 20px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 15, color: T.textMuted }}>Aucune compétition disponible.</p>
+          <p style={{ margin: 0, fontSize: 15, color: T.textMuted }}>
+            {isSchool ? 'Aucun match Arena n’est encore associé à votre établissement.' : 'Aucune compétition disponible.'}
+          </p>
         </div>
       )}
     </div>

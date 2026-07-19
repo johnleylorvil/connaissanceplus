@@ -1,6 +1,6 @@
 import { apiCall } from '../api/client'
 
-export type AdminUserRole = 'student' | 'moderator' | 'admin'
+export type AdminUserRole = 'student' | 'school' | 'moderator' | 'admin'
 export type AdminUser = {
   id: string
   firstName: string

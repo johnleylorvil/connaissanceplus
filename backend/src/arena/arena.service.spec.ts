@@ -99,6 +99,7 @@ describe('ArenaService ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â moderator permissi
   let adjustmentRepo: MockRepo;
   let notificationRepo: MockRepo;
   let userRepo: MockRepo;
+  let schoolRepo: MockRepo;
 
   beforeEach(async () => {
     competitionRepo = mockRepo();
@@ -108,6 +109,7 @@ describe('ArenaService ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â moderator permissi
     adjustmentRepo = mockRepo();
     notificationRepo = mockRepo();
     userRepo = mockRepo();
+    schoolRepo = mockRepo();
 
     competitionRepo.create?.mockImplementation((entity: unknown) => entity);
     registrationRepo.create?.mockImplementation((entity: unknown) => entity);
@@ -125,7 +127,7 @@ describe('ArenaService ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â moderator permissi
         { provide: getRepositoryToken(ArenaParticipantScoreAdjustment), useValue: adjustmentRepo },
         { provide: getRepositoryToken(Question), useValue: mockRepo() },
         { provide: getRepositoryToken(User), useValue: userRepo },
-        { provide: getRepositoryToken(School), useValue: mockRepo() },
+        { provide: getRepositoryToken(School), useValue: schoolRepo },
         { provide: getRepositoryToken(Notification), useValue: notificationRepo },
       ],
     }).compile();
@@ -269,6 +271,63 @@ describe('ArenaService ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â moderator permissi
       const results = await service.getMyModeratorMatches('mod-no-match');
 
       expect(results).toEqual([]);
+    });
+  });
+
+  describe('getMySchoolCompetitions', () => {
+    it('returns only competitions linked to the school representative account', async () => {
+      const schoolUser = makeUser({ id: 'rep-1', role: UserRole.SCHOOL, schoolId: 'school-1' });
+      const otherRep = makeUser({ id: 'rep-2', role: UserRole.SCHOOL, schoolId: 'school-2' });
+      const compA = makeCompetition({
+        id: 'comp-school-a',
+        schoolAId: 'school-1',
+        schoolBId: 'school-2',
+        schoolARepresentativeUserId: 'rep-1',
+        schoolBRepresentativeUserId: 'rep-2',
+        competitorAUserId: 'rep-1',
+        competitorBUserId: 'rep-2',
+      });
+      const compB = makeCompetition({
+        id: 'comp-school-b',
+        schoolAId: 'school-3',
+        schoolBId: 'school-1',
+        schoolARepresentativeUserId: 'rep-3',
+        schoolBRepresentativeUserId: 'rep-1',
+        competitorAUserId: 'rep-3',
+        competitorBUserId: 'rep-1',
+      });
+
+      userRepo.findOne.mockResolvedValue(schoolUser);
+      competitionRepo.find.mockResolvedValue([compA, compB]);
+      userRepo.find.mockResolvedValue([schoolUser, otherRep]);
+      schoolRepo.find.mockResolvedValue([
+        { id: 'school-1', name: 'Lycee Central', city: 'Port-au-Prince', department: 'Ouest' },
+        { id: 'school-2', name: 'College Nord', city: 'Cap-Haitien', department: 'Nord' },
+        { id: 'school-3', name: 'Institution Sud', city: 'Jacmel', department: 'Sud-Est' },
+      ]);
+
+      const results = await service.getMySchoolCompetitions('rep-1');
+
+      expect(competitionRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.arrayContaining([
+            { schoolARepresentativeUserId: 'rep-1' },
+            { schoolBRepresentativeUserId: 'rep-1' },
+            { competitorAUserId: 'rep-1' },
+            { competitorBUserId: 'rep-1' },
+            { schoolAId: 'school-1' },
+            { schoolBId: 'school-1' },
+          ]),
+        }),
+      );
+      expect(results).toHaveLength(2);
+      expect(results[0]).toMatchObject({ id: 'comp-school-a', schoolAName: 'Lycee Central' });
+    });
+
+    it('rejects non-school users', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser({ id: 'student-1', role: UserRole.STUDENT }));
+
+      await expect(service.getMySchoolCompetitions('student-1')).rejects.toThrow(ForbiddenException);
     });
   });
 

@@ -79,7 +79,7 @@ export default function LoginPage() {
         setError(
           isAdminPortal
             ? `Accès réservé aux administrateurs et modérateurs. Les étudiants doivent utiliser ${studentPortalUrl}.`
-            : `Accès réservé aux étudiants. Les administrateurs et modérateurs doivent utiliser ${adminPortalUrl}.`
+            : `Accès réservé aux étudiants et responsables école. Les administrateurs et modérateurs doivent utiliser ${adminPortalUrl}.`
         )
         return
       }
@@ -110,7 +110,7 @@ export default function LoginPage() {
         <p style={{ fontSize: 15, color: 'var(--ink-3)', marginBottom: 32, lineHeight: 1.6 }}>
           {isAdminPortal
             ? 'Accès réservé aux administrateurs et aux modérateurs autorisés.'
-            : 'Connectez-vous pour retrouver votre espace de génie scolaire, vos manches et votre progression.'}
+            : 'Connectez-vous pour retrouver votre espace, vos matchs Arena et votre progression.'}
         </p>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
