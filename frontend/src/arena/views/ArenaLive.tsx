@@ -1542,6 +1542,44 @@ export default function ArenaLive() {
         .arena-focus-button:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.28); transform: translateY(-1px); }
         .arena-speaking-indicator { position: absolute; right: 16px; bottom: 18px; z-index: 2; }
         .arena-media-bar { justify-content: center; }
+        /* Zoom-like focus refinements */
+        .arena-header { height: 58px; padding: 0 18px; background: rgba(2, 4, 8, 0.92); border-bottom-color: rgba(255,255,255,0.08); }
+        .arena-header button > div:first-child { transform: scale(0.86); transform-origin: left center; }
+        .arena-brand-text p:first-child { font-size: 14px !important; }
+        .arena-brand-sub { font-size: 11px !important; }
+        .arena-header-center strong { font-size: 14px; }
+        .arena-status-label { font-size: 12px; letter-spacing: 0.05em; }
+        .arena-stage { background: #000; overflow: hidden; }
+        .arena-stage-layout { padding: 0; align-items: stretch; justify-content: stretch; width: 100%; }
+        .arena-stage-grid { width: 100%; max-width: none; min-height: calc(100vh - 184px); padding: clamp(10px, 1.4vw, 18px); }
+        .arena-stage-grid-focused { position: relative; display: block !important; min-height: calc(100vh - 158px); height: calc(100vh - 158px); padding: 0; overflow: hidden; background: #000; }
+        .arena-stage-grid-focused .arena-cell-featured { position: absolute; inset: 0; z-index: 1; }
+        .arena-stage-grid-focused .arena-cell-featured .arena-video-card { height: 100%; border: 0 !important; border-radius: 0 !important; background: #000 !important; box-shadow: none !important; }
+        .arena-stage-grid-focused .arena-cell-featured .arena-video-frame { height: 100%; min-height: 0 !important; aspect-ratio: auto !important; }
+        .arena-stage-grid-focused .arena-cell-featured .arena-video-footer { display: none; }
+        .arena-stage-grid-focused .arena-cell-secondary { position: absolute; right: 16px; z-index: 5; width: min(320px, 23vw); min-width: 220px; height: 178px; }
+        .arena-stage-grid-focused .arena-cell-side-1 { top: 16px; }
+        .arena-stage-grid-focused .arena-cell-side-2 { top: 206px; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-video-card { height: 100%; border: 2px solid rgba(255,255,255,0.20) !important; border-radius: 8px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.45) !important; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-video-frame { height: 100%; min-height: 0 !important; aspect-ratio: auto !important; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-video-footer { display: none; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-video-nameplate { bottom: 8px !important; left: 8px !important; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-video-nameplate p { display: none; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-video-nameplate strong { max-width: 190px; overflow: hidden; padding: 3px 7px; border-radius: 5px; background: rgba(0,0,0,0.58); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-focus-button { width: 30px; height: 30px; top: 8px; right: 8px; }
+        .arena-stage-grid-focused .arena-cell-secondary .arena-focus-button svg { width: 14px; height: 14px; }
+        .arena-video-card { border-radius: 8px !important; }
+        .arena-video-frame { min-height: clamp(280px, 38vw, 590px); }
+        .arena-video-footer { padding: 10px 12px; }
+        .arena-video-footer strong { font-size: 14px; }
+        .arena-focus-button { width: 34px; height: 34px; top: 10px; right: 10px; }
+        .arena-focus-button svg { width: 16px; height: 16px; }
+        .arena-media-bar, .arena-mod-bar { background: rgba(3, 6, 12, 0.90); border-top-color: rgba(255,255,255,0.10); }
+        .arena-media-bar { min-height: 50px; padding: 7px 14px; gap: 7px; }
+        .arena-mod-bar { padding: 8px 14px; }
+        .arena-mod-controls { justify-content: center; gap: 7px; }
+        .arena-media-bar button, .arena-mod-controls button { min-height: 34px !important; padding: 7px 11px !important; font-size: 12px !important; line-height: 1 !important; }
+        .arena-mod-controls > span { font-size: 10px !important; }
         @media (max-width: 900px) {
           .arena-header { height: auto; min-height: 64px; padding: 10px 12px; }
           .arena-header-center { max-width: 42vw; }
