@@ -1,4 +1,3 @@
-import { cleanQuizPrompt } from '../../utils/cleanQuizPrompt'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -6,8 +5,10 @@ import KonesansLogo from '../../components/KonesansLogo'
 import { arenaApi, ARENA_API, type ArenaLeaderboardRow, type ArenaPublicStream } from '../arenaApi'
 import { useLiveKitStage, type StageParticipant } from '../hooks/useLiveKitStage'
 import { useArenaSocket } from '../useArenaSocket'
+import { Maximize2, Minimize2 } from 'lucide-react'
 
 type UserMode = 'competitor' | 'moderator' | 'spectator'
+type FeaturedStage = 'A' | 'M' | 'B' | null
 
 type MatchParticipant = {
   participantUserId: string
@@ -60,11 +61,6 @@ type CompetitionPhase =
   | 'paused'
   | 'finished'
 
-type SubmissionSnapshot = {
-  submitted: boolean
-  at?: string | null
-}
-
 // ─── Color tokens ─────────────────────────────────────────────────────────────
 const T = {
   bg: '#070a12',
@@ -100,11 +96,6 @@ function getPhase(opts: {
   return 'live-waiting'
 }
 
-function formatTimer(seconds: number | null) {
-  if (seconds === null) return '--:--'
-  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.max(0, seconds % 60)).padStart(2, '0')}`
-}
-
 function getInitials(value: string) {
   return (
     value
@@ -114,30 +105,6 @@ function getInitials(value: string) {
       .map((p) => p.charAt(0).toUpperCase())
       .join('') || '?'
   )
-}
-
-function getQuestionPanelText(opts: {
-  phase: CompetitionPhase
-  isOralQuestion: boolean
-  questionPrompt: string | null
-  currentQuestionTarget: QuestionTarget | null
-}) {
-  if (opts.phase === 'waiting') return 'Le modérateur peut lancer la première question.'
-  if (opts.phase === 'live-waiting') return 'La prochaine question va commencer.'
-  if (opts.phase === 'paused') return 'Le match est en pause.'
-  if (opts.phase === 'live-between') return 'Question clôturée. Le modérateur rend sa décision.'
-  if (opts.phase === 'live-question' && opts.questionPrompt) return opts.questionPrompt
-  if (opts.phase === 'live-question' && opts.isOralQuestion) {
-    return opts.currentQuestionTarget
-      ? `Question orale pour ${opts.currentQuestionTarget.displayName ?? `Compétiteur ${opts.currentQuestionTarget.slot}`}.`
-      : 'Question orale posée en direct.'
-  }
-  return 'Préparation du plateau live.'
-}
-
-function getScoreFill(score: number, totalQuestions: number, bestScore: number) {
-  const denominator = Math.max(totalQuestions, bestScore, 1)
-  return `${Math.min((score / denominator) * 100, 100)}%`
 }
 
 function getStageParticipantForUser(
@@ -269,144 +236,31 @@ function AudioWave() {
 
 // ─── CompetitorPanel ──────────────────────────────────────────────────────────
 
-type BroadcastScoreboardProps = {
-  competitorA: MatchParticipant
-  competitorB: MatchParticipant
-  competitionName: string
-  questionNumber: number
-  totalQuestions: number
-  timeLeft: number | null
-  isDirectLive: boolean
-  isPaused: boolean
-  spectatorCount: number
-}
-
-function BroadcastScoreboard({
-  competitorA,
-  competitorB,
-  competitionName,
-  questionNumber,
-  totalQuestions,
-  timeLeft,
-  isDirectLive,
-  isPaused,
-  spectatorCount,
-}: BroadcastScoreboardProps) {
-  return (
-    <section className="arena-broadcast-scoreboard" aria-label="Score du match Arena">
-      <div className="broadcast-team broadcast-team-a">
-        <span className="broadcast-team-initials">{getInitials(competitorA.displayName)}</span>
-        <strong title={competitorA.displayName}>{competitorA.displayName}</strong>
-      </div>
-      <div className="broadcast-score broadcast-score-a">{competitorA.score}</div>
-      <div className="broadcast-center">
-        <span className={isDirectLive && !isPaused ? 'broadcast-live is-live' : 'broadcast-live'}>
-          {isPaused ? 'PAUSE' : isDirectLive ? 'DIRECT' : 'PLATEAU'}
-        </span>
-        <strong>Q{Math.max(questionNumber, 1)} / {Math.max(totalQuestions, 1)}</strong>
-        <span>{formatTimer(timeLeft)}</span>
-      </div>
-      <div className="broadcast-score broadcast-score-b">{competitorB.score}</div>
-      <div className="broadcast-team broadcast-team-b">
-        <strong title={competitorB.displayName}>{competitorB.displayName}</strong>
-        <span className="broadcast-team-initials">{getInitials(competitorB.displayName)}</span>
-      </div>
-      <div className="broadcast-meta broadcast-meta-name">{competitionName}</div>
-      <div className="broadcast-meta broadcast-meta-watch">{spectatorCount} en salle</div>
-    </section>
-  )
-}
-
-type BroadcastLowerThirdProps = {
-  phase: CompetitionPhase
-  currentQuestionTarget: QuestionTarget | null
-  questionNumber: number
-  totalQuestions: number
-}
-
-function BroadcastLowerThird({
-  phase,
-  currentQuestionTarget,
-  questionNumber,
-  totalQuestions,
-}: BroadcastLowerThirdProps) {
-  const targetName = currentQuestionTarget?.displayName ?? (currentQuestionTarget ? 'Competiteur ' + currentQuestionTarget.slot : null)
-  const mainText =
-    phase === 'live-question' && targetName
-      ? 'Question pour ' + targetName
-      : phase === 'live-between'
-      ? 'Decision du moderateur en cours'
-      : phase === 'paused'
-      ? 'Match en pause'
-      : phase === 'waiting'
-      ? 'Les equipes prennent place'
-      : 'Konesans+ Arena en direct'
-
-  return (
-    <aside className="arena-lower-third" aria-label="Information du direct">
-      <div className="lower-third-brand">KONESANS+ ARENA</div>
-      <div className="lower-third-main">{mainText}</div>
-      <div className="lower-third-count">QUESTION {Math.max(questionNumber, 1)} / {Math.max(totalQuestions, 1)}</div>
-    </aside>
-  )
-}
-
 type CompetitorPanelProps = {
   participant: MatchParticipant
   stageParticipant: StageParticipant | null
   isLocal: boolean
-  isTargeted: boolean
-  canReply: boolean
-  onReply: () => void
-  hasSubmitted: boolean
-  scoreFill: string
-  buttonLabel: string
+  isFeatured: boolean
+  onToggleFeatured: () => void
 }
 
 function CompetitorPanel({
   participant,
   stageParticipant,
   isLocal,
-  isTargeted,
-  canReply,
-  onReply,
-  hasSubmitted,
-  scoreFill,
-  buttonLabel,
+  isFeatured,
+  onToggleFeatured,
 }: CompetitorPanelProps) {
   const isSpeaking = (stageParticipant?.participant as { isSpeaking?: boolean } | undefined)?.isSpeaking ?? false
   const initials = getInitials(participant.displayName)
   const slotColor = participant.slot === 'A' ? T.green : T.blue
-  const targetBorderColor = slotColor === T.green ? 'rgba(79,198,106,0.70)' : 'rgba(108,168,245,0.70)'
-  const spotlightClass = participant.slot === 'A' ? 'arena-spotlight-green' : 'arena-spotlight-blue'
-
-  // Score gain flash
-  const prevScoreRef = useRef(participant.score)
-  const [scoreFlashActive, setScoreFlashActive] = useState(false)
-  useEffect(() => {
-    if (participant.score > prevScoreRef.current) {
-      setScoreFlashActive(true)
-      const t = setTimeout(() => setScoreFlashActive(false), 580)
-      return () => clearTimeout(t)
-    }
-    prevScoreRef.current = participant.score
-  }, [participant.score])
 
   return (
     <article
-      className={`arena-competitor-article${isTargeted ? ` ${spotlightClass}` : ''}`}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: 20,
-        overflow: 'hidden',
-        border: `1px solid ${isTargeted ? targetBorderColor : 'rgba(255,255,255,0.11)'}`,
-        ...(isTargeted ? {} : { boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }),
-        transition: 'border-color 0.4s ease',
-      }}
+      className={`arena-video-card arena-competitor-article${isFeatured ? ' arena-video-card-featured' : ''}`}
+      style={{ borderColor: isFeatured ? `${slotColor}88` : 'rgba(255,255,255,0.12)' }}
     >
-      {/* Video area */}
-      <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#030610', overflow: 'hidden', flexShrink: 0 }}>
+      <div className="arena-video-frame">
         <VideoRenderer
           stageParticipant={stageParticipant}
           isLocal={isLocal}
@@ -414,167 +268,55 @@ function CompetitorPanel({
           avatarColor={slotColor}
         />
         <AudioRenderer stageParticipant={stageParticipant} isLocal={isLocal} />
-
-        {/* Bottom gradient for text legibility */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '55%',
-            background: 'linear-gradient(0deg, rgba(3,6,16,0.92) 0%, transparent 100%)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Name overlay — bottom left */}
-        <div className="arena-participant-name-overlay" style={{ position: 'absolute', bottom: 14, left: 14 }}>
-          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.58)', fontWeight: 600, lineHeight: 1.2 }}>
-            Ecole {participant.slot}
-          </p>
-          <p style={{ margin: '3px 0 0', fontSize: 17, color: '#fff', fontWeight: 800, lineHeight: 1.1 }}>
-            {participant.displayName}
-          </p>
-        </div>
-
-        {/* VOUS badge — top-right, only for the local participant */}
+        <div className="arena-video-shade" />
+        <button
+          type="button"
+          className="arena-focus-button"
+          onClick={onToggleFeatured}
+          aria-label={isFeatured ? 'Revenir a la vue normale' : `Mettre ${participant.displayName} en avant`}
+          title={isFeatured ? 'Vue normale' : 'Mettre en avant'}
+        >
+          {isFeatured ? <Minimize2 size={18} aria-hidden="true" /> : <Maximize2 size={18} aria-hidden="true" />}
+        </button>
         {isLocal && <div className="arena-you-badge">VOUS</div>}
-
-        {/* Right indicator — glow dot if targeted, audio wave if speaking */}
-        <div style={{ position: 'absolute', bottom: 18, right: 14 }}>
-          {isTargeted ? (
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                background: slotColor,
-                boxShadow: `0 0 16px ${slotColor}, 0 0 36px ${slotColor}88`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
-            </div>
-          ) : isSpeaking ? (
-            <AudioWave />
-          ) : null}
-        </div>
-      </div>
-
-      {/* Score + bar + reply */}
-      <div
-        style={{
-          background: `linear-gradient(180deg, #0e1626 0%, ${T.panel} 100%)`,
-          padding: '12px 14px 14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          borderTop: `1px solid ${slotColor}22`,
-        }}
-      >
-        <div className="arena-compact-participant-meta">
-          <span>Ecole {participant.slot}</span>
+        <div className="arena-participant-name-overlay arena-video-nameplate">
+          <p>Ecole {participant.slot}</p>
           <strong>{participant.displayName}</strong>
         </div>
-        {/* Score row */}
-        <div className="arena-compact-score-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            className={scoreFlashActive ? 'score-flash' : undefined}
-            style={{
-              fontSize: 44,
-              fontWeight: 900,
-              color: slotColor,
-              lineHeight: 1,
-              flexShrink: 0,
-              minWidth: 50,
-              textAlign: 'center',
-              textShadow: `0 0 24px ${slotColor}${scoreFlashActive ? 'cc' : '66'}`,
-              fontVariantNumeric: 'tabular-nums',
-              display: 'inline-block',
-            }}
-          >
-            {participant.score}
-          </span>
+        {isSpeaking && <div className="arena-speaking-indicator"><AudioWave /></div>}
+      </div>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {/* Progress track */}
-            <div
-              style={{
-                height: 6,
-                borderRadius: 999,
-                background: 'rgba(255,255,255,0.09)',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  width: scoreFill,
-                  height: '100%',
-                  borderRadius: 999,
-                  background: `linear-gradient(90deg, ${slotColor}cc, ${slotColor})`,
-                  boxShadow: `0 0 8px ${slotColor}66`,
-                  transition: 'width 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
-                }}
-              />
-            </div>
-
-            {/* Reply button — full-width in its column */}
-            <button
-              type="button"
-              onClick={onReply}
-              disabled={!canReply}
-              className={canReply ? (participant.slot === 'A' ? 'arena-reply-urgent-green' : 'arena-reply-urgent-blue') : undefined}
-              style={{
-                padding: '9px 0',
-                borderRadius: 10,
-                border: `1px solid ${canReply ? `${slotColor}44` : 'rgba(255,255,255,0.08)'}`,
-                background: canReply ? 'transparent' : 'rgba(255,255,255,0.04)',
-                color: canReply ? slotColor : T.textSoft,
-                fontSize: 13,
-                fontWeight: 800,
-                cursor: canReply ? 'pointer' : 'default',
-                letterSpacing: '0.06em',
-                width: '100%',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {hasSubmitted ? '✓ SIGNALÉ' : buttonLabel.toUpperCase()}
-            </button>
-          </div>
-        </div>
+      <div className="arena-video-footer">
+        <span>Ecole {participant.slot}</span>
+        <strong>{participant.displayName}</strong>
       </div>
     </article>
   )
 }
 
-// ─── ModeratorPanel ───────────────────────────────────────────────────────────
+// ??? ModeratorPanel ───────────────────────────────────────────────────────────
 function ModeratorPanel({
   displayName,
   stageParticipant,
   isLocal,
+  isFeatured,
+  onToggleFeatured,
 }: {
   displayName: string
   stageParticipant: StageParticipant | null
   isLocal: boolean
+  isFeatured: boolean
+  onToggleFeatured: () => void
 }) {
   const initials = getInitials(displayName)
+  const isSpeaking = (stageParticipant?.participant as { isSpeaking?: boolean } | undefined)?.isSpeaking ?? false
 
   return (
     <article
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: 20,
-        overflow: 'hidden',
-        border: `2px solid ${T.gold}`,
-        boxShadow: `0 0 0 1px rgba(230,194,122,0.10), 0 12px 60px rgba(230,194,122,0.22), 0 8px 40px rgba(0,0,0,0.55)`,
-      }}
+      className={`arena-video-card arena-moderator-card${isFeatured ? ' arena-video-card-featured' : ''}`}
+      style={{ borderColor: isFeatured ? `${T.gold}aa` : 'rgba(230,194,122,0.45)' }}
     >
-      {/* Video area — slightly taller aspect ratio so moderator stands out */}
-      <div style={{ position: 'relative', aspectRatio: '4 / 3.3', background: '#040710', overflow: 'hidden', flexShrink: 0 }}>
+      <div className="arena-video-frame">
         <VideoRenderer
           stageParticipant={stageParticipant}
           isLocal={isLocal}
@@ -582,68 +324,33 @@ function ModeratorPanel({
           avatarColor={T.gold}
         />
         <AudioRenderer stageParticipant={stageParticipant} isLocal={isLocal} />
-
-        {/* Bottom gradient */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '42%',
-            background: 'linear-gradient(0deg, rgba(4,7,16,0.88) 0%, transparent 100%)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* MODÉRATEUR badge — bottom center of video */}
-        <div
-          className="arena-moderator-video-badge"
-          style={{
-            position: 'absolute',
-            bottom: 14,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            whiteSpace: 'nowrap',
-          }}
+        <div className="arena-video-shade" />
+        <button
+          type="button"
+          className="arena-focus-button"
+          onClick={onToggleFeatured}
+          aria-label={isFeatured ? 'Revenir a la vue normale' : 'Mettre le moderateur en avant'}
+          title={isFeatured ? 'Vue normale' : 'Mettre en avant'}
         >
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 16px',
-              borderRadius: 999,
-              background: 'linear-gradient(135deg, #d4a84b, #c9a052)',
-              color: '#1a0c00',
-              fontSize: 11,
-              fontWeight: 900,
-              letterSpacing: '0.09em',
-              boxShadow: '0 2px 14px rgba(201,160,82,0.45)',
-            }}
-          >
-            MODÉRATEUR
-          </span>
+          {isFeatured ? <Minimize2 size={18} aria-hidden="true" /> : <Maximize2 size={18} aria-hidden="true" />}
+        </button>
+        {isLocal && <div className="arena-you-badge">VOUS</div>}
+        <div className="arena-participant-name-overlay arena-video-nameplate">
+          <p>Moderateur</p>
+          <strong>{displayName}</strong>
         </div>
+        {isSpeaking && <div className="arena-speaking-indicator"><AudioWave /></div>}
       </div>
 
-      {/* Name below */}
-      <div
-        style={{
-          background: T.panel,
-          padding: '15px 12px',
-          textAlign: 'center',
-          borderTop: `1px solid rgba(230,194,122,0.14)`,
-        }}
-      >
-        <span className="arena-compact-role">Mod&eacute;rateur</span>
-        <p style={{ margin: 0, fontSize: 19, fontWeight: 800, color: T.text }}>{displayName}</p>
+      <div className="arena-video-footer">
+        <span>Moderateur</span>
+        <strong>{displayName}</strong>
       </div>
     </article>
   )
 }
 
-// ─── PublicStreamPanel ────────────────────────────────────────────────────────
+// ??? PublicStreamPanel ────────────────────────────────────────────────────────
 function PublicStreamPanel({
   competitionId,
   accessToken,
@@ -755,9 +462,7 @@ export default function ArenaLive() {
   const [teamLoaded, setTeamLoaded] = useState(false)
   const [polledState, setPolledState] = useState<LiveStateSnapshot | null>(null)
   const [polledLeaderboard, setPolledLeaderboard] = useState<ArenaLeaderboardRow[]>([])
-  const [questionPrompt, setQuestionPrompt] = useState<string | null>(null)
-  const [timeLeft, setTimeLeft] = useState<number | null>(null)
-  const timerRef = useRef<ReturnType<typeof window.setInterval> | null>(null)
+  const [featuredStage, setFeaturedStage] = useState<FeaturedStage>(null)
 
   const [rtcToken, setRtcToken] = useState<string | null>(null)
   const [rtcUrl, setRtcUrl] = useState<string | null>(null)
@@ -795,8 +500,8 @@ export default function ArenaLive() {
     [accessToken, competitionId, isModerator, isRegisteredCompetitor, teamLoaded, user?.id],
   )
 
-  const { socketState, submitAnswer } = useArenaSocket(socketParams)
-  const { state, leaderboard, roundEnded, competitionResult, error, isPaused, onlineParticipantIds, onlineUsers, submissionStatuses } =
+  const { socketState } = useArenaSocket(socketParams)
+  const { state, leaderboard, roundEnded, competitionResult, error, isPaused, onlineParticipantIds, onlineUsers } =
     socketState
 
   useEffect(() => {
@@ -822,10 +527,6 @@ export default function ArenaLive() {
   const liveState = state ?? polledState
   const liveLeaderboard = leaderboard.length > 0 ? leaderboard : polledLeaderboard
   const currentQuestion = liveState?.currentQuestion ?? liveState?.currentRound ?? null
-  const secondsPerQuestion = liveState?.secondsPerQuestion ?? 30
-  const questionIsClosed = Boolean(roundEnded || currentQuestion?.endedAt)
-  const currentQuestionStartedAt = currentQuestion?.startedAt ?? null
-  const currentQuestionEndTime = currentQuestion?.endTime ?? null
 
   const participants = useMemo<MatchParticipant[]>(() => {
     const fromState = (liveState?.participants ?? []).map((p) => {
@@ -854,65 +555,11 @@ export default function ArenaLive() {
     return seeded
   }, [liveLeaderboard, liveState?.participants])
 
-  const currentQuestionTarget = useMemo<QuestionTarget | null>(() => {
-    if (liveState?.currentQuestionTarget) return liveState.currentQuestionTarget
-    if (!currentQuestion) return null
-    const slot = currentQuestion.position % 2 === 1 ? ('A' as const) : ('B' as const)
-    const p = participants.find((e) => e.slot === slot)
-    return p ? { participantUserId: p.participantUserId, displayName: p.displayName, slot } : null
-  }, [currentQuestion, liveState?.currentQuestionTarget, participants])
-
   const userMode: UserMode = useMemo(() => {
     if (isModerator) return 'moderator'
     if (isRegisteredCompetitor && user?.id && participants.some((p) => p.participantUserId === user.id)) return 'competitor'
     return 'spectator'
   }, [isModerator, isRegisteredCompetitor, participants, user?.id])
-
-  // Timer
-  useEffect(() => {
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-    if (!currentQuestion || questionIsClosed) {
-      setTimeLeft(null)
-      return
-    }
-    const computeRemaining = () => {
-      if (currentQuestionEndTime) {
-        return Math.max(0, Math.round((new Date(currentQuestionEndTime).getTime() - Date.now()) / 1000))
-      }
-      const startedAt = currentQuestionStartedAt ? new Date(currentQuestionStartedAt).getTime() : Date.now()
-      return Math.max(0, Math.round((startedAt + secondsPerQuestion * 1000 - Date.now()) / 1000))
-    }
-    setTimeLeft(computeRemaining())
-    timerRef.current = window.setInterval(() => {
-      setTimeLeft((v) => (v === null || v <= 0 ? 0 : v - 1))
-    }, 1000)
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current)
-    }
-  }, [currentQuestion, currentQuestionEndTime, currentQuestionStartedAt, questionIsClosed, secondsPerQuestion])
-
-  // Question prompt
-  useEffect(() => {
-    if (!currentQuestion?.questionId || !accessToken) {
-      setQuestionPrompt(null)
-      return
-    }
-    let cancelled = false
-    arenaApi
-      .getArenaQuestion(currentQuestion.questionId, accessToken)
-      .then((q) => {
-        if (!cancelled) setQuestionPrompt(cleanQuizPrompt(q.prompt))
-      })
-      .catch(() => {
-        if (!cancelled) setQuestionPrompt(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [accessToken, currentQuestion?.questionId])
 
   // RTC token
   useEffect(() => {
@@ -946,22 +593,6 @@ export default function ArenaLive() {
   })
 
   const isLive = liveState?.status === 'live'
-  const questionNumber = liveState?.currentQuestionNumber ?? liveState?.currentRoundNumber ?? 0
-  const totalQuestions = liveState?.totalQuestions ?? liveState?.totalRounds ?? 0
-  const bestScore = participants.length > 0 ? Math.max(...participants.map((p) => p.score)) : 0
-  const leaders = participants.filter((p) => p.score === bestScore)
-  const uniqueWinner = leaders.length === 1 ? leaders[0] : null
-  const isOralQuestion = currentQuestion?.questionId == null
-  const mySubmission = user?.id ? (submissionStatuses[user.id] as SubmissionSnapshot | undefined) ?? null : null
-  const isCurrentUserTargeted = Boolean(user?.id && currentQuestionTarget?.participantUserId === user.id)
-  const canSignalAnswer =
-    userMode === 'competitor' &&
-    Boolean(currentQuestion) &&
-    phase === 'live-question' &&
-    !questionIsClosed &&
-    isCurrentUserTargeted &&
-    !mySubmission?.submitted
-
   const moderatorProfile = useMemo(() => {
     const m = liveState?.matchParticipants?.find((e) => e.role === 'moderator')
     if (m) return { userId: m.userId, displayName: m.displayName }
@@ -988,9 +619,6 @@ export default function ArenaLive() {
   void moderatorOnline
   void onlineParticipantIds
 
-  const questionPanelText = getQuestionPanelText({ phase, isOralQuestion, questionPrompt, currentQuestionTarget })
-  const spectatorCount = (onlineUsers as Array<{ userId: string; role: string }>).filter((u) => u.role === 'spectator').length
-
   const adminFetch = async (url: string, method = 'PATCH', body?: unknown) => {
     try {
       const init: RequestInit = {
@@ -1008,12 +636,21 @@ export default function ArenaLive() {
     }
   }
 
-  const nextQuestionNumber = Math.min(questionNumber + 1, totalQuestions)
+  const completeMatchWithWinner = async (winner: MatchParticipant) => {
+    if (!window.confirm(`Declarer ${winner.displayName} vainqueur et terminer le match ?`)) return
+    await adminFetch(`${ARENA_API}/competitions/${competitionId}/complete`, 'PATCH', {
+      participantUserId: winner.participantUserId,
+    })
+  }
   const canOpenFirstQuestion = phase === 'waiting'
-  const canOpenNextQuestion = isLive && (phase === 'live-waiting' || phase === 'live-between') && questionNumber < totalQuestions
-  const canCloseQuestion = isLive && phase === 'live-question' && Boolean(currentQuestion)
-  const canScoreQuestion = isLive && phase === 'live-between' && Boolean(currentQuestion)
   const isDirectLive = phase === 'live-question' || phase === 'live-waiting' || phase === 'live-between'
+
+  const getStageCellClass = (slot: Exclude<FeaturedStage, null>, baseClass: string) => {
+    if (!featuredStage) return baseClass
+    if (featuredStage === slot) return `${baseClass} arena-cell-featured`
+    const sideIndex = (['A', 'M', 'B'] as Array<Exclude<FeaturedStage, null>>).filter((value) => value !== featuredStage).indexOf(slot) + 1
+    return `${baseClass} arena-cell-secondary arena-cell-side-${sideIndex}`
+  }
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (phase === 'loading') {
@@ -1878,6 +1515,41 @@ export default function ArenaLive() {
           .broadcast-center strong { font-size: 11px; }
           .broadcast-center span:last-child { font-size: 13px; }
         }
+        /* Simplified school live stage */
+        .arena-header-center { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+        .arena-header-center span { overflow: hidden; color: var(--text-muted); font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+        .arena-stage { background: #080d16; }
+        .arena-stage::before { display: none; }
+        .arena-stage-layout { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: clamp(16px, 2.5vw, 34px); }
+        .arena-stage-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.62fr) minmax(0, 1fr); grid-template-areas: 'compA mod compB'; gap: clamp(14px, 2vw, 24px); width: min(100%, 1420px); margin: 0 auto; align-items: center; }
+        .arena-stage-grid-focused { grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); grid-template-rows: 1fr 1fr; grid-template-areas: none; align-items: stretch; }
+        .arena-stage-grid-focused .arena-cell-featured { grid-column: 1; grid-row: 1 / span 2; }
+        .arena-stage-grid-focused .arena-cell-side-1 { grid-column: 2; grid-row: 1; }
+        .arena-stage-grid-focused .arena-cell-side-2 { grid-column: 2; grid-row: 2; }
+        .arena-video-card { display: flex !important; flex-direction: column; min-height: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px !important; background: #080d16 !important; box-shadow: 0 18px 54px rgba(0,0,0,0.42) !important; }
+        .arena-video-card-featured { box-shadow: 0 22px 70px rgba(0,0,0,0.58) !important; }
+        .arena-video-frame { position: relative; min-height: clamp(260px, 34vw, 520px); aspect-ratio: 16 / 10; overflow: hidden; background: #030710; flex: 1; }
+        .arena-cell-secondary .arena-video-frame { min-height: 190px; }
+        .arena-cell-mod:not(.arena-cell-featured) .arena-video-frame { min-height: clamp(210px, 24vw, 360px); }
+        .arena-video-shade { position: absolute; inset: auto 0 0; height: 46%; background: linear-gradient(0deg, rgba(3,7,16,0.9), transparent); pointer-events: none; }
+        .arena-video-nameplate { bottom: 16px !important; left: 16px !important; }
+        .arena-video-nameplate p { margin: 0; color: rgba(255,255,255,0.66); font-size: 11px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+        .arena-video-nameplate strong { display: block; margin-top: 4px; color: #fff; font-size: clamp(1rem, 1.8vw, 1.45rem); line-height: 1.08; }
+        .arena-video-footer { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.10); background: #0d1522 !important; }
+        .arena-video-footer span { color: var(--text-muted); font-size: 11px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+        .arena-video-footer strong { overflow: hidden; color: var(--text-main); font-size: 16px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+        .arena-focus-button { position: absolute; top: 12px; right: 12px; z-index: 3; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); background: rgba(8,13,22,0.76); color: #fff; cursor: pointer; backdrop-filter: blur(8px); transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease; }
+        .arena-focus-button:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.28); transform: translateY(-1px); }
+        .arena-speaking-indicator { position: absolute; right: 16px; bottom: 18px; z-index: 2; }
+        .arena-media-bar { justify-content: center; }
+        @media (max-width: 900px) {
+          .arena-header { height: auto; min-height: 64px; padding: 10px 12px; }
+          .arena-header-center { max-width: 42vw; }
+          .arena-stage-layout { padding: 12px; }
+          .arena-stage-grid, .arena-stage-grid-focused { display: flex; flex-direction: column; width: 100%; gap: 12px; }
+          .arena-stage-grid > div, .arena-stage-grid-focused > div { width: 100%; }
+          .arena-video-frame, .arena-cell-secondary .arena-video-frame, .arena-cell-mod:not(.arena-cell-featured) .arena-video-frame { min-height: 220px; }
+        }
       `}</style>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -1905,15 +1577,13 @@ export default function ArenaLive() {
           </div>
         </button>
 
-        {/* Center: Question pill */}
+        {/* Center: match title */}
         <div className="arena-header-center">
           <strong>{liveState?.competitionName ?? 'Match Arena'}</strong>
-          {questionNumber > 0
-            ? `Q ${String(questionNumber).padStart(2, '0')}${totalQuestions > 0 ? ` — ${String(totalQuestions).padStart(2, '0')}` : ''}`
-            : 'En attente du match'}
+          <span>{isPaused ? 'Match en pause' : isDirectLive ? 'Match en direct' : 'En attente du match'}</span>
         </div>
 
-        {/* Right: status + timer */}
+        {/* Right: simple status */}
         <div className="arena-status-row">
           <div className="arena-status-badge">
             <span
@@ -1932,31 +1602,7 @@ export default function ArenaLive() {
               className="arena-status-label"
               style={{ color: isDirectLive ? T.red : isPaused ? T.gold : T.textMuted }}
             >
-              {isPaused ? 'PAUSE' : isDirectLive ? 'EN DIRECT' : 'PRÊT'}
-            </span>
-          </div>
-
-          {spectatorCount > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-              <span style={{ fontSize: 14, lineHeight: 1, color: T.textSoft }}>●</span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: T.textMuted, letterSpacing: '0.05em' }}>
-                {spectatorCount} spectateur{spectatorCount > 1 ? 's' : ''}
-              </span>
-            </div>
-          )}
-
-          <div
-            className="arena-timer-box"
-            style={{ color: timeLeft !== null && timeLeft <= 10 && isDirectLive ? T.red : T.text }}
-          >
-            <span
-              key={timeLeft !== null && timeLeft <= 10 && isDirectLive ? `beat-${timeLeft}` : 'idle'}
-              style={{
-                display: 'block',
-                animation: timeLeft !== null && timeLeft <= 10 && isDirectLive ? 'beatSecond 0.38s ease both' : 'none',
-              }}
-            >
-              {formatTimer(timeLeft)}
+              {isPaused ? 'PAUSE' : isDirectLive ? 'EN DIRECT' : 'PRET'}
             </span>
           </div>
         </div>
@@ -1964,21 +1610,8 @@ export default function ArenaLive() {
 
       {/* ── Stage ──────────────────────────────────────────────────────── */}
       <div className="arena-stage">
-        <BroadcastScoreboard
-          competitorA={competitorA}
-          competitorB={competitorB}
-          competitionName={liveState?.competitionName ?? 'Match Arena'}
-          questionNumber={questionNumber}
-          totalQuestions={totalQuestions}
-          timeLeft={timeLeft}
-          isDirectLive={isDirectLive}
-          isPaused={isPaused}
-          spectatorCount={spectatorCount}
-        />
-
-        {/* Alerts */}
         {(error || isPaused) && (
-          <div style={{ padding: '10px 20px 0', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ padding: '14px 20px 0', display: 'flex', gap: 10, flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
             {error && (
               <div
                 style={{
@@ -2006,126 +1639,48 @@ export default function ArenaLive() {
                   fontSize: 13,
                 }}
               >
-                Match en pause — la scène reste figée jusqu'à la reprise.
+                Match en pause
               </div>
             )}
           </div>
         )}
 
         <div className="arena-stage-layout">
-        {/* Question card */}
-        <div className="arena-question-wrap">
-          <div
-            key={`q-${currentQuestion?.id ?? 'idle'}`}
-            className={`arena-question-card${phase === 'waiting' ? ' arena-question-card-waiting' : ''}`}
-            style={{ boxShadow: phase !== 'waiting' ? '0 0 80px rgba(230,194,122,0.18), 0 20px 60px rgba(0,0,0,0.5)' : undefined }}
-          >
-            {/* Phase accent bar at top */}
-            <div
-              style={{
-                height: 4,
-                background:
-                  phase === 'live-question'
-                    ? `linear-gradient(90deg, ${T.gold}, ${T.goldLight}, ${T.gold}99)`
-                    : phase === 'live-between'
-                    ? `linear-gradient(90deg, ${T.green}, #88ffb0, ${T.green}99)`
-                    : phase === 'paused'
-                    ? `linear-gradient(90deg, ${T.red}88, ${T.red}44)`
-                    : 'rgba(0,0,0,0.06)',
-                transition: 'background 0.6s ease',
-              }}
-            />
-            <div className="arena-question-inner">
-              {currentQuestionTarget && phase === 'live-question' && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '4px 14px',
-                    borderRadius: 999,
-                    background: 'rgba(255,255,255,0.07)',
-                    color: 'rgba(255,255,255,0.50)',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    letterSpacing: '0.11em',
-                  }}
-                >
-                  POUR {(currentQuestionTarget.displayName ?? `COMPÉTITEUR ${currentQuestionTarget.slot}`).toUpperCase()}
-                </span>
-              )}
-              <h1 className="arena-question-text">
-                {questionPanelText}
-              </h1>
+          <div className={`arena-stage-grid${featuredStage ? ' arena-stage-grid-focused' : ''}`}>
+            <div className={getStageCellClass('A', 'arena-cell-a')}>
+              <CompetitorPanel
+                participant={competitorA}
+                stageParticipant={competitorAStage}
+                isLocal={user?.id === competitorA.participantUserId}
+                isFeatured={featuredStage === 'A'}
+                onToggleFeatured={() => setFeaturedStage((current) => current === 'A' ? null : 'A')}
+              />
+            </div>
+
+            <div className={getStageCellClass('M', 'arena-cell-mod')}>
+              <ModeratorPanel
+                displayName={moderatorProfile.displayName}
+                stageParticipant={moderatorStage}
+                isLocal={user?.id === moderatorProfile.userId}
+                isFeatured={featuredStage === 'M'}
+                onToggleFeatured={() => setFeaturedStage((current) => current === 'M' ? null : 'M')}
+              />
+            </div>
+
+            <div className={getStageCellClass('B', 'arena-cell-b')}>
+              <CompetitorPanel
+                participant={competitorB}
+                stageParticipant={competitorBStage}
+                isLocal={user?.id === competitorB.participantUserId}
+                isFeatured={featuredStage === 'B'}
+                onToggleFeatured={() => setFeaturedStage((current) => current === 'B' ? null : 'B')}
+              />
             </div>
           </div>
         </div>
-
-        {/* 3-panel video grid */}
-        <div className="arena-stage-grid">
-          <div className="arena-cell-a">
-            <CompetitorPanel
-              participant={competitorA}
-              stageParticipant={competitorAStage}
-              isLocal={user?.id === competitorA.participantUserId}
-              isTargeted={
-                currentQuestionTarget?.participantUserId === competitorA.participantUserId &&
-                phase === 'live-question'
-              }
-              canReply={Boolean(user?.id === competitorA.participantUserId && canSignalAnswer)}
-              onReply={() => {
-                if (!currentQuestion || !user?.id) return
-                submitAnswer(currentQuestion.id, user.id)
-              }}
-              hasSubmitted={Boolean(
-                (submissionStatuses[competitorA.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
-              )}
-              scoreFill={getScoreFill(competitorA.score, totalQuestions, bestScore)}
-              buttonLabel="Répondre"
-            />
-          </div>
-
-          <div className="arena-cell-mod">
-            <ModeratorPanel
-              displayName={moderatorProfile.displayName}
-              stageParticipant={moderatorStage}
-              isLocal={user?.id === moderatorProfile.userId}
-            />
-          </div>
-
-          <div className="arena-cell-b">
-            <CompetitorPanel
-              participant={competitorB}
-              stageParticipant={competitorBStage}
-              isLocal={user?.id === competitorB.participantUserId}
-              isTargeted={
-                currentQuestionTarget?.participantUserId === competitorB.participantUserId &&
-                phase === 'live-question'
-              }
-              canReply={Boolean(user?.id === competitorB.participantUserId && canSignalAnswer)}
-              onReply={() => {
-                if (!currentQuestion || !user?.id) return
-                submitAnswer(currentQuestion.id, user.id)
-              }}
-              hasSubmitted={Boolean(
-                (submissionStatuses[competitorB.participantUserId] as SubmissionSnapshot | undefined)?.submitted,
-              )}
-              scoreFill={getScoreFill(competitorB.score, totalQuestions, bestScore)}
-              buttonLabel="Répondre"
-            />
-          </div>
-        </div>
-        </div>
-
-        <BroadcastLowerThird
-          phase={phase}
-          currentQuestionTarget={currentQuestionTarget}
-          questionNumber={questionNumber}
-          totalQuestions={totalQuestions}
-        />
       </div>
 
-      {/* ?? Camera / mic controls ───────────────────────────────────────── */}
+      {/* Camera / mic controls ───────────────────────────────────────── */}
       {canControlLocalMedia && (
         <div className="arena-media-bar">
           <button
@@ -2180,13 +1735,10 @@ export default function ArenaLive() {
                 marginRight: 4,
               }}
             >
-              RÉGIE — Q{questionNumber}/{totalQuestions}
-              {currentQuestionTarget
-                ? ` · ${currentQuestionTarget.displayName ?? `C${currentQuestionTarget.slot}`}`
-                : ''}
+              REGIE LIVE
             </span>
 
-            {(canOpenFirstQuestion || canOpenNextQuestion) && (
+            {canOpenFirstQuestion && (
               <button
                 type="button"
                 onClick={() => adminFetch(`${ARENA_API}/competitions/${competitionId}/next-round`, 'POST')}
@@ -2201,86 +1753,8 @@ export default function ArenaLive() {
                   fontSize: 13,
                 }}
               >
-                {canOpenFirstQuestion ? 'LANCER LE MATCH' : `OUVRIR Q${nextQuestionNumber}`}
+                LANCER LE MATCH
               </button>
-            )}
-
-            {canCloseQuestion && currentQuestion && (
-              <button
-                type="button"
-                onClick={() => adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/end`)}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 999,
-                  border: '1px solid rgba(255,77,77,0.3)',
-                  background: 'rgba(255,77,77,0.12)',
-                  color: '#ffd0d5',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
-              >
-                CLÔTURER
-              </button>
-            )}
-
-            {canScoreQuestion && currentQuestion && (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'correct' })
-                  }
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: 999,
-                    border: '1px solid rgba(79,198,106,0.35)',
-                    background: 'rgba(79,198,106,0.14)',
-                    color: '#dff7e5',
-                    fontWeight: 900,
-                    cursor: 'pointer',
-                    fontSize: 13,
-                  }}
-                >
-                  ✓ BONNE RÉPONSE
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'incorrect' })
-                  }
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: 999,
-                    border: '1px solid rgba(255,77,77,0.28)',
-                    background: 'rgba(255,77,77,0.12)',
-                    color: '#ffd0d5',
-                    fontWeight: 900,
-                    cursor: 'pointer',
-                    fontSize: 13,
-                  }}
-                >
-                  ✗ MAUVAISE RÉPONSE
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    adminFetch(`${ARENA_API}/rounds/${currentQuestion.id}/score`, 'PATCH', { verdict: 'cancelled' })
-                  }
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: 999,
-                    border: `1px solid ${T.border}`,
-                    background: 'rgba(255,255,255,0.07)',
-                    color: T.text,
-                    fontWeight: 900,
-                    cursor: 'pointer',
-                    fontSize: 13,
-                  }}
-                >
-                  ANNULÉE
-                </button>
-              </>
             )}
 
             {isLive && (
@@ -2306,30 +1780,36 @@ export default function ArenaLive() {
 
             <button
               type="button"
-              disabled={!uniqueWinner}
-              onClick={async () => {
-                if (!uniqueWinner) {
-                  alert('Égalité en tête : départagez avant de terminer.')
-                  return
-                }
-                if (!window.confirm(`Déclarer ${uniqueWinner.displayName} vainqueur ?`)) return
-                await adminFetch(`${ARENA_API}/competitions/${competitionId}/complete`, 'PATCH', {
-                  participantUserId: uniqueWinner.participantUserId,
-                })
-              }}
+              onClick={() => completeMatchWithWinner(competitorA)}
               style={{
                 padding: '10px 16px',
                 borderRadius: 999,
-                border: '1px solid rgba(230,194,122,0.32)',
-                background: 'rgba(230,194,122,0.14)',
-                color: '#f7deb0',
+                border: '1px solid rgba(79,198,106,0.35)',
+                background: 'rgba(79,198,106,0.12)',
+                color: '#dff7e5',
                 fontWeight: 900,
-                cursor: uniqueWinner ? 'pointer' : 'default',
-                opacity: uniqueWinner ? 1 : 0.5,
+                cursor: 'pointer',
                 fontSize: 13,
               }}
             >
-              TERMINER LE MATCH
+              TERMINER: {competitorA.displayName}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => completeMatchWithWinner(competitorB)}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 999,
+                border: '1px solid rgba(108,168,245,0.35)',
+                background: 'rgba(108,168,245,0.12)',
+                color: '#dcebff',
+                fontWeight: 900,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              TERMINER: {competitorB.displayName}
             </button>
           </div>
 
