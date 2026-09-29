@@ -1,0 +1,52 @@
+# Classement public et podium
+
+La page `/classement`, le podium de l'accueil et le classement de l'espace élève
+utilisent l'API publique `GET /api/leaderboard/weekly` (sans authentification).
+Le podium affiche les trois premières lignes reçues. Aucun nombre minimal de
+victoires ni score minimal n'est imposé : un participant sans victoire peut donc
+apparaître si son rang est suffisant.
+
+## Résultats pris en compte
+
+L'API retient la première liste non vide, dans cet ordre :
+
+1. Duels QCM terminés de la semaine courante, avec deux joueurs.
+2. Quiz terminés de la semaine courante.
+3. Duels QCM terminés de la semaine précédente.
+4. Quiz terminés de la semaine précédente.
+5. Duels QCM terminés de tout l'historique.
+6. Quiz terminés de tout l'historique.
+
+Les listes ne sont pas additionnées. Les duels oraux, les compétitions Arena,
+les duels en attente/annulés et les quiz inachevés ne sont pas pris en compte.
+Le filtre facultatif `classId` s'applique à chaque recherche.
+Le calcul actuel des semaines utilise le lundi à 00 h avec un décalage fixe UTC−5.
+
+## Ordre du classement
+
+Pour les duels : victoires décroissantes, puis bonnes réponses cumulées
+décroissantes, temps cumulé des victoires croissant, défaites croissantes et
+dernière victoire la plus récente. Il s'agit d'un nombre de bonnes réponses,
+pas d'un pourcentage de précision. Aucun dernier départage n'est défini si tous
+ces critères sont identiques.
+
+Pour le recours aux quiz : nombre de quiz terminés décroissant, puis bonnes
+réponses cumulées décroissantes, puis dernière mise à jour la plus récente.
+Le contrat existant expose ce nombre de quiz dans `winCount` et `duelCount` :
+les libellés « victoires » et « duels » ne distinguent donc pas encore ce recours.
+
+## Incident PostgreSQL corrigé
+
+Le tri utilisait `ORDER BY winCount` alors que le champ calculé était déclaré
+`AS "winCount"`. PostgreSQL cherchait `wincount` et levait une erreur, ce qui
+interrompait également les recours aux autres résultats. SQLite ne révélait pas
+cette incompatibilité. Les deux requêtes protègent maintenant leurs alias avec
+`qb.escape(...)`.
+
+Les tests `backend/src/mvp/weekly-leaderboard.spec.ts` exécutent les requêtes
+TypeORM dans PostgreSQL via PGlite, en mémoire, sans base externe. Lancer dans
+`backend` : `npm test -- --runInBand weekly-leaderboard.spec.ts`.
+
+Après déploiement du backend, vérifier que l'API publique renvoie HTTP 200 et un
+tableau JSON, puis ouvrir `/classement` sans connexion. Le frontend doit aussi
+être déployé pour charger le classement dès l'accueil de l'espace élève.

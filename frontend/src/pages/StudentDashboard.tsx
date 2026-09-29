@@ -333,7 +333,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (tab === 'home' || tab === 'history') loadHistory()
-    if (tab === 'leaderboard') loadLeaderboard()
+    if (tab === 'home' || tab === 'leaderboard') loadLeaderboard()
     if (tab === 'notifications') { loadNotifications(); loadFriendships() }
     if (tab === 'home' || tab === 'summary' || tab === 'recommendations' || tab === 'statistics') void loadInsights()
   }, [loadFriendships, loadHistory, loadInsights, loadLeaderboard, loadNotifications, tab])

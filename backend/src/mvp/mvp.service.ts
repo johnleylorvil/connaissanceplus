@@ -1208,9 +1208,10 @@ export class MvpService {
     qb.groupBy('session.userId')
       .addGroupBy('student.firstName')
       .addGroupBy('student.lastName')
-      .orderBy('winCount', 'DESC')
-      .addOrderBy('totalCorrectAnswers', 'DESC')
-      .addOrderBy('lastWinAt', 'DESC');
+      // PostgreSQL folds unquoted aliases to lowercase, unlike SQLite.
+      .orderBy(qb.escape('winCount'), 'DESC')
+      .addOrderBy(qb.escape('totalCorrectAnswers'), 'DESC')
+      .addOrderBy(qb.escape('lastWinAt'), 'DESC');
 
     const rows = await qb.getRawMany<{
       userId: string;
@@ -1282,11 +1283,12 @@ export class MvpService {
     qb.groupBy('progress.userId')
       .addGroupBy('student.firstName')
       .addGroupBy('student.lastName')
-      .orderBy('winCount', 'DESC')
-      .addOrderBy('totalCorrectAnswers', 'DESC')
-      .addOrderBy('winTimeSeconds', 'ASC')
-      .addOrderBy('lossCount', 'ASC')
-      .addOrderBy('lastWinAt', 'DESC');
+      // Keep the same quoted aliases as SELECT on PostgreSQL and SQLite.
+      .orderBy(qb.escape('winCount'), 'DESC')
+      .addOrderBy(qb.escape('totalCorrectAnswers'), 'DESC')
+      .addOrderBy(qb.escape('winTimeSeconds'), 'ASC')
+      .addOrderBy(qb.escape('lossCount'), 'ASC')
+      .addOrderBy(qb.escape('lastWinAt'), 'DESC');
 
     const rows = await qb.getRawMany<{
       userId: string;
