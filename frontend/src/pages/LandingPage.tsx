@@ -199,9 +199,9 @@ export default function LandingPage() {
                   Les trois meilleurs talents du génie scolaire de la semaine, selon les victoires et la qualité des réponses.
                 </p>
               </div>
-              <a href="/classement" style={{ textDecoration: 'none' }}>
+              <Link to="/classement" style={{ textDecoration: 'none' }}>
                 <span className="btn btn-ghost btn-sm">Voir le classement complet</span>
-              </a>
+              </Link>
             </div>
 
             {topStudents.length > 0 ? (

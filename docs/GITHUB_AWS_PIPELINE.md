@@ -22,8 +22,11 @@ The workflow in `.github/workflows/deploy-frontend.yml`:
 
 - runs when files inside `frontend/` change on `main`
 - builds the Vite app
-- uploads the built files to S3
-- invalidates CloudFront
+- uploads hashed assets to S3 with immutable caching and retains previous assets
+  for visitors who still have an earlier version open
+- publishes `index.html` last with `Cache-Control: no-store,max-age=0,must-revalidate`
+  so full-page navigation cannot reuse an older HTML document from browser cache
+- invalidates CloudFront and waits for invalidation to complete
 
 This deploys the same frontend build for both:
 

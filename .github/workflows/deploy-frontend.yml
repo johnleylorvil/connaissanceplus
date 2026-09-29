@@ -48,8 +48,19 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Sync build to S3
-        run: aws s3 sync ./dist "s3://${{ vars.FRONTEND_S3_BUCKET }}" --delete
+      - name: Upload versioned assets to S3
+        # Keep older hashed assets available to tabs running an earlier release.
+        run: aws s3 sync ./dist/assets "s3://${{ vars.FRONTEND_S3_BUCKET }}/assets" --cache-control "public,max-age=31536000,immutable"
+
+      - name: Upload public files to S3
+        run: aws s3 sync ./dist "s3://${{ vars.FRONTEND_S3_BUCKET }}" --exclude "assets/*" --exclude "index.html" --cache-control "no-cache"
+
+      - name: Publish HTML without browser caching
+        # Publish last so its JS/CSS references are already available. CloudFront
+        # invalidation alone does not clear cached HTML in visitors' browsers.
+        run: aws s3 cp ./dist/index.html "s3://${{ vars.FRONTEND_S3_BUCKET }}/index.html" --content-type "text/html; charset=utf-8" --cache-control "no-store,max-age=0,must-revalidate"
 
       - name: Invalidate CloudFront cache
-        run: aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
+        run: |
+          invalidation_id=$(aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*" --query 'Invalidation.Id' --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --id "$invalidation_id"

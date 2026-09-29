@@ -10,6 +10,17 @@ L'API fournit aussi `avatarUrl`, la photo de profil actuelle (ou `null`). Les
 cartes du podium la mettent en avant au-dessus du nom. Sans photo, ou si l'image
 ne peut pas être chargée, elles conservent leur présentation sans portrait.
 
+Le lien « Voir le classement complet » utilise la navigation React Router,
+comme le retour à l'accueil, pour garder la même version de l'application lors
+des allers-retours. Le déploiement publie aussi le HTML sans cache navigateur ;
+invalider CloudFront seul ne supprime pas les anciennes pages déjà en cache local.
+
+Le test navigateur `frontend/e2e/podium-navigation.spec.ts` vérifie les photos
+après plusieurs allers-retours et après précédent/suivant, ainsi que l'affichage
+sans photo en cas d'image introuvable. Lancer dans `frontend` : `npm run test:e2e`.
+Sous Windows, le test utilise Chrome installé ; ailleurs, installer Chromium
+avec `npx playwright install chromium` avant de lancer le test.
+
 ## Résultats pris en compte
 
 L'API retient la première liste non vide, dans cet ordre :
