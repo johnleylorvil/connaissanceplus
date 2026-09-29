@@ -1188,6 +1188,7 @@ export class MvpService {
       .select('session.userId', 'userId')
       .addSelect('student.firstName', 'firstName')
       .addSelect('student.lastName', 'lastName')
+      .addSelect('student.avatarUrl', 'avatarUrl')
       .addSelect('COUNT(session.id)', 'winCount')
       .addSelect('0', 'lossCount')
       .addSelect('COUNT(session.id)', 'duelCount')
@@ -1208,6 +1209,7 @@ export class MvpService {
     qb.groupBy('session.userId')
       .addGroupBy('student.firstName')
       .addGroupBy('student.lastName')
+      .addGroupBy('student.avatarUrl')
       // PostgreSQL folds unquoted aliases to lowercase, unlike SQLite.
       .orderBy(qb.escape('winCount'), 'DESC')
       .addOrderBy(qb.escape('totalCorrectAnswers'), 'DESC')
@@ -1217,6 +1219,7 @@ export class MvpService {
       userId: string;
       firstName: string;
       lastName: string;
+      avatarUrl: string | null;
       winCount: string;
       lossCount: string;
       duelCount: string;
@@ -1228,6 +1231,7 @@ export class MvpService {
     return rows.map((row) => ({
       userId: row.userId,
       studentName: `${row.firstName} ${row.lastName}`,
+      avatarUrl: row.avatarUrl ?? null,
       winCount: Number(row.winCount),
       lossCount: Number(row.lossCount),
       duelCount: Number(row.duelCount),
@@ -1249,6 +1253,7 @@ export class MvpService {
       .select('progress.userId', 'userId')
       .addSelect('student.firstName', 'firstName')
       .addSelect('student.lastName', 'lastName')
+      .addSelect('student.avatarUrl', 'avatarUrl')
       .addSelect(
         'SUM(CASE WHEN duel.winnerUserId = progress.userId THEN 1 ELSE 0 END)',
         'winCount',
@@ -1283,6 +1288,7 @@ export class MvpService {
     qb.groupBy('progress.userId')
       .addGroupBy('student.firstName')
       .addGroupBy('student.lastName')
+      .addGroupBy('student.avatarUrl')
       // Keep the same quoted aliases as SELECT on PostgreSQL and SQLite.
       .orderBy(qb.escape('winCount'), 'DESC')
       .addOrderBy(qb.escape('totalCorrectAnswers'), 'DESC')
@@ -1294,6 +1300,7 @@ export class MvpService {
       userId: string;
       firstName: string;
       lastName: string;
+      avatarUrl: string | null;
       winCount: string;
       lossCount: string;
       duelCount: string;
@@ -1305,6 +1312,7 @@ export class MvpService {
     return rows.map((row) => ({
       userId: row.userId,
       studentName: `${row.firstName} ${row.lastName}`,
+      avatarUrl: row.avatarUrl ?? null,
       winCount: Number(row.winCount),
       lossCount: Number(row.lossCount),
       duelCount: Number(row.duelCount),

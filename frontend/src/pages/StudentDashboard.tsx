@@ -6,6 +6,7 @@ import { apiCall } from '../api/client'
 import ArenaWorkspace from '../arena/ArenaWorkspace'
 import DashboardSidebar, { type DashboardSidebarSection } from '../components/DashboardSidebar'
 import NotificationCenter from '../components/NotificationCenter'
+import PodiumPhoto from '../components/PodiumPhoto'
 import { HAITI_CITIES_BY_DEPARTMENT, HAITI_DEPARTMENTS } from '../constants/haitiDepartments'
 import {
   castVote, createLetter, createReport, getInbox, getMyLetters,
@@ -33,6 +34,7 @@ type HistoryEntry = {
 type LeaderboardRow = {
   userId: string
   studentName: string
+  avatarUrl?: string | null
   winCount: number
   lossCount: number
   duelCount: number
@@ -1193,6 +1195,7 @@ export default function StudentDashboard() {
                             </div>
 
                             <div>
+                              <PodiumPhoto avatarUrl={row.avatarUrl} studentName={row.studentName} accent={accent} />
                               <p style={{ fontSize: row.rank === 1 ? 22 : 19, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3, marginBottom: 6 }}>
                                 {row.studentName}
                               </p>

@@ -3,12 +3,14 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import SponsorsSection from '../components/SponsorsSection'
 import KonesansLogo from '../components/KonesansLogo'
+import PodiumPhoto from '../components/PodiumPhoto'
 import { userHome } from '../auth/authRules'
 import { apiCall } from '../api/client'
 
 type WeeklyLeaderboardRow = {
   userId: string
   studentName: string
+  avatarUrl?: string | null
   winCount: number
   totalCorrectAnswers: number
 }
@@ -219,6 +221,7 @@ export default function LandingPage() {
                         </span>
                       </div>
 
+                      <PodiumPhoto avatarUrl={student.avatarUrl} studentName={student.studentName} accent={accent} />
                       <p className="display" style={{ margin: '0 0 8px', fontSize: 24, color: 'var(--ink)', lineHeight: 1.2 }}>
                         {student.studentName}
                       </p>

@@ -59,7 +59,8 @@ describe('weekly leaderboard (PostgreSQL)', () => {
     });
     await database.exec(`
       CREATE TABLE users (
-        id text PRIMARY KEY, "firstName" text, "lastName" text, "levelId" text
+        id text PRIMARY KEY, "firstName" text, "lastName" text, "levelId" text,
+        "avatarUrl" text
       );
       CREATE TABLE duel_matches (
         id text PRIMARY KEY, "winnerUserId" text, status text, mode text,
@@ -80,9 +81,9 @@ describe('weekly leaderboard (PostgreSQL)', () => {
     await database.exec(`
       TRUNCATE users, duel_matches, duel_progresses, quiz_sessions;
       INSERT INTO users VALUES
-        ('anne', 'Anne', 'Eleve', 'class-a'),
-        ('bert', 'Bert', 'Eleve', 'class-b'),
-        ('claire', 'Claire', 'Eleve', 'class-a');
+        ('anne', 'Anne', 'Eleve', 'class-a', 'https://example.com/anne.jpg'),
+        ('bert', 'Bert', 'Eleve', 'class-b', NULL),
+        ('claire', 'Claire', 'Eleve', 'class-a', '/uploads/avatars/claire.jpg');
     `);
   });
 
@@ -138,6 +139,7 @@ describe('weekly leaderboard (PostgreSQL)', () => {
       {
         userId: 'anne',
         studentName: 'Anne Eleve',
+        avatarUrl: 'https://example.com/anne.jpg',
         winCount: 2,
         lossCount: 0,
         duelCount: 2,
@@ -148,6 +150,7 @@ describe('weekly leaderboard (PostgreSQL)', () => {
       {
         userId: 'bert',
         studentName: 'Bert Eleve',
+        avatarUrl: null,
         winCount: 0,
         lossCount: 2,
         duelCount: 2,
@@ -172,6 +175,11 @@ describe('weekly leaderboard (PostgreSQL)', () => {
 
     const rows = await service.getWeeklyLeaderboard();
     expect(rows.map((row) => row.userId)).toEqual(['claire', 'anne', 'bert']);
+    expect(rows.map((row) => row.avatarUrl)).toEqual([
+      '/uploads/avatars/claire.jpg',
+      'https://example.com/anne.jpg',
+      null,
+    ]);
     expect(rows[0]).toMatchObject({
       winCount: 2,
       duelCount: 2,

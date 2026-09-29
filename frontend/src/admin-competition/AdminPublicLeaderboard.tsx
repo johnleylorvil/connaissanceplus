@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiCall } from '../api/client'
+import PodiumPhoto from '../components/PodiumPhoto'
 
 type SchoolClass = { id: string; name: string }
 
 type LeaderboardRow = {
   userId: string
   studentName: string
+  avatarUrl?: string | null
   winCount: number
   lossCount: number
   duelCount: number
@@ -90,6 +92,7 @@ function PodiumCard({ row, rank }: { row: LeaderboardRow; rank: number }) {
   return (
     <article className="card" style={{ borderColor: rank === 1 ? 'rgba(176,121,26,.35)' : 'var(--rule)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', color: accent, fontWeight: 800, marginBottom: 10 }}><span>{rank === 1 ? '1re place' : `${rank}e place`}</span><span>#{rank}</span></div>
+      <PodiumPhoto avatarUrl={row.avatarUrl} studentName={row.studentName} accent={accent} />
       <h2 className="display" style={{ fontSize: 23, color: 'var(--ink)', marginBottom: 10 }}>{row.studentName}</h2>
       <p style={{ color: 'var(--ink-2)', fontSize: 14 }}>{row.winCount} victoire{row.winCount !== 1 ? 's' : ''} · {row.totalCorrectAnswers} bonnes réponses</p>
     </article>

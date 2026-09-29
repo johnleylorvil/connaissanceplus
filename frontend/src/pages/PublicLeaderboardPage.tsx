@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiCall } from '../api/client'
+import PodiumPhoto from '../components/PodiumPhoto'
 
 type LeaderboardRow = {
   userId: string
   studentName: string
+  avatarUrl?: string | null
   winCount: number
   lossCount: number
   duelCount: number
@@ -103,6 +105,7 @@ export default function PublicLeaderboardPage() {
                         </span>
                         <span style={{ fontSize: 20, fontWeight: 700, color: accent }}>#{rank}</span>
                       </div>
+                      <PodiumPhoto avatarUrl={row.avatarUrl} studentName={row.studentName} accent={accent} />
                       <p className="display" style={{ margin: '0 0 8px', fontSize: 28, color: 'var(--ink)' }}>
                         {row.studentName}
                       </p>

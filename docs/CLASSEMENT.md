@@ -6,6 +6,10 @@ Le podium affiche les trois premières lignes reçues. Aucun nombre minimal de
 victoires ni score minimal n'est imposé : un participant sans victoire peut donc
 apparaître si son rang est suffisant.
 
+L'API fournit aussi `avatarUrl`, la photo de profil actuelle (ou `null`). Les
+cartes du podium la mettent en avant au-dessus du nom. Sans photo, ou si l'image
+ne peut pas être chargée, elles conservent leur présentation sans portrait.
+
 ## Résultats pris en compte
 
 L'API retient la première liste non vide, dans cet ordre :
